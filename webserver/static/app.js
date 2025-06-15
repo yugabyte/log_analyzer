@@ -87,8 +87,8 @@ document.addEventListener("DOMContentLoaded", function () {
       {
         barmode: "group",
         title: "Histogram of Log Messages",
-        xaxis: { title: "Time Bucket", tickangle: -45 },
-        yaxis: { title: "Count" },
+        xaxis: { title: "Time", tickangle: -45 },
+        yaxis: { title: "Occurrences" },
         margin: { b: 120 },
         legend: { orientation: "h", y: -0.3 },
         width: histogramDiv.offsetWidth,
