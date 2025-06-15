@@ -74,27 +74,88 @@ document.addEventListener("DOMContentLoaded", function () {
       Object.keys(bucketsObj).forEach((b) => allBuckets.add(b));
     });
     allBuckets = Array.from(allBuckets).sort();
+    // Use a diverse color palette for better distinction
+    const diverseColors = [
+      "#172447",
+      "#ff9400",
+      "#36a2eb",
+      "#e74c3c",
+      "#2ecc71",
+      "#9b59b6",
+      "#f1c40f",
+      "#16a085",
+      "#e67e22",
+      "#34495e",
+      "#8e44ad",
+      "#27ae60",
+      "#d35400",
+      "#c0392b",
+      "#2980b9",
+      "#f39c12",
+      "#7f8c8d",
+      "#1abc9c",
+      "#b71540",
+      "#60a3bc",
+    ];
     // Prepare traces: one per log message
-    let traces = Object.entries(messageBuckets).map(([msg, bucketsObj]) => ({
+    let traces = Object.entries(messageBuckets).map(([msg, bucketsObj], i) => ({
       x: allBuckets,
       y: allBuckets.map((b) => bucketsObj[b] || 0),
       name: msg,
       type: "bar",
+      marker: {
+        color: diverseColors[i % diverseColors.length],
+        line: { width: 0 },
+        opacity: 0.92,
+      },
+      hovertemplate:
+        "<b>%{y} Occurrences</b><br>Time: %{x}<br>Log: " +
+        msg +
+        "<extra></extra>",
     }));
     Plotly.newPlot(
       histogramDiv,
       traces,
       {
         barmode: "group",
-        title: "Histogram of Log Messages",
-        xaxis: { title: "Time", tickangle: -45 },
-        yaxis: { title: "Occurrences" },
-        margin: { b: 120 },
-        legend: { orientation: "h", y: -0.3 },
+        title: {
+          text: "Histogram of Log Messages",
+          font: {
+            family: "Inter, Arial, sans-serif",
+            size: 22,
+            color: "#172447",
+          },
+          x: 0.02,
+        },
+        plot_bgcolor: "#f5f6fa",
+        paper_bgcolor: "#f5f6fa",
+        font: { family: "Inter, Arial, sans-serif", color: "#172447" },
+        xaxis: {
+          title: { text: "Time", font: { size: 16, color: "#4a5568" } },
+          tickangle: -45,
+          gridcolor: "#e2e8f0",
+          linecolor: "#e2e8f0",
+          tickfont: { size: 13 },
+        },
+        yaxis: {
+          title: { text: "Occurrences", font: { size: 16, color: "#4a5568" } },
+          gridcolor: "#e2e8f0",
+          zeroline: false,
+          tickfont: { size: 13 },
+        },
+        margin: { b: 120, t: 60, l: 60, r: 30 },
+        legend: {
+          orientation: "h",
+          y: -0.25,
+          font: { size: 15, family: "Inter, Arial, sans-serif" },
+          bgcolor: "rgba(255,255,255,0.0)",
+        },
         width: histogramDiv.offsetWidth,
         height: 600,
+        bargap: 0.18,
+        bargroupgap: 0.08,
       },
-      { responsive: true }
+      { responsive: true, displayModeBar: false }
     );
   }
 
