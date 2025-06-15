@@ -6,6 +6,9 @@ from patterns_lib import universe_regex_patterns, pg_regex_patterns
 from lib.helper_utils import openLogFile
 from lib.log_utils import getTimeFromLog
 from tqdm import tqdm
+from colorama import just_fix_windows_console
+
+just_fix_windows_console()
 
 # Function to analyze the log files from the nodes
 def analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger):
@@ -45,7 +48,8 @@ def analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logF
         desc=desc,
         unit="file",
         ncols=None,  # Let tqdm auto-detect terminal width
-        bar_format="{l_bar}{bar:20}| {n_fmt}/{total_fmt} files [elapsed: {elapsed}]"
+        bar_format="{l_bar}{bar:80}| {n_fmt}/{total_fmt} files [elapsed: {elapsed}]",
+        colour="CYAN"
     ) as pbar:
         for logFile in pbar:
             logger.info(f"Processing log file: {logFile}")
