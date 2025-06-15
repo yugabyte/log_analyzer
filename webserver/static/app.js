@@ -171,7 +171,7 @@ document.addEventListener("DOMContentLoaded", function () {
       Object.entries(nodeData).forEach(([logType, logTypeData]) => {
         const logMessages = logTypeData.logMessages || {};
         if (Object.keys(logMessages).length === 0) return; // Skip empty log types
-        nodeHtml += `<h4>Process: ${logType}</h4>`;
+        nodeHtml += `<h4> ${logType}</h4>`;
         nodeHtml +=
           "<table><tr><th>Log Message</th><th>First Occurrence</th><th>Last Occurrence</th><th>Count</th></tr>";
         Object.entries(logMessages).forEach(([msg, stats]) => {
@@ -184,7 +184,7 @@ document.addEventListener("DOMContentLoaded", function () {
         nodeHtml += "</table>";
       });
       if (nodeHtml) {
-        html += `<div class="node-table"><h3>Node: ${node}</h3>${nodeHtml}</div>`;
+        html += `<div class="node-table"><h3>${node}</h3>${nodeHtml}</div>`;
       }
     });
     tablesDiv.innerHTML = html;
