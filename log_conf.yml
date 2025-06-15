@@ -1,0 +1,222 @@
+# YAML file for log messages and their solutions
+# This file is used to configure the log messages and their solutions for different components of YugabyteDB.
+# The file is divided into different sections for each component like tserver, master, universe, and pg.
+# Verify the regex patterns: https://pythex.org/
+# Verify solution formatting: http://demo.showdownjs.com/
+
+universe:
+  log_messages:
+    - name: "Soft memory limit exceeded"
+      pattern: "Soft memory limit exceeded"
+      solution: |
+        Memory utilization has reached `memory_limit_soft_percentage` (default 85%) and system has started throttling read/write operations.
+
+        **NOTE**
+        - If the number of occurrences of this message is low or happenings once in a while, then it is not a problem. We can ignore this message. It just indicates the busy system at that time.
+        **KB Article**: [How to optimize and resolve common memory errors in Yugabyte](https://support.yugabyte.com/hc/en-us/articles/360058731252-How-to-optimize-and-resolve-common-memory-errors-in-Yugabyte)
+
+    - name: "Number of aborted transactions not cleaned up on account of reaching size limits"
+      pattern: "Number of aborted transactions not cleaned up on account of reaching size limits"
+      solution: |
+        This typically means that we need to run compaction on offending tablets.
+        **Zendesk ticket**: 5416
+
+    - name: "Long wait for safe op id"
+      pattern: "Long wait for safe op id"
+      solution: |
+        Write on disk is slow. This could be because of slow disk or load on the system. If number of occurrences of this message is high, then we need to check the disk performance.
+
+    - name: "SST files limit exceeded"
+      pattern: "SST files limit exceeded"
+      solution: |
+        Tablet has too many SST files. This could be because of slow compaction or load on the system.
+        **KB Article**: [Writes failed with error "SST files limit exceeded"](https://support.yugabyte.com/hc/en-us/articles/4491328438413-Writes-failed-with-error-SST-files-limit-exceeded-)
+
+    - name: "Operation memory consumption has exceeded its limit"
+      pattern: "Operation failed.*operation memory consumption.*has exceeded"
+      solution: |
+        We have an operation memory limit set to 1024 MB (Default) per tablet using `tablet_operation_memory_limit_mb`. We hit this issue if we have a hot shard and we keep hitting the same shard at a time at full throttle rather than spreading the workload.
+        **Useful Commands**:
+
+        - Get the list of tablets hitting this issue with the count of occurrences.
+
+          `zgrep -E "operation memory consumption.*has exceeded its limit" $log_file_name |grep -o -E 'tablet [a-f0-9]+' |awk '{print $2}' | sort | uniq -c |sort -u`
+
+    - name: "Too big clock skew is detected"
+      pattern: "Too big clock skew is detected"
+      solution: |
+        This error indicates the nodes running tserver/master process are having clock skew outside of an acceptable range. Clock skew and clock drift can lead to significant consistency issues and should be fixed as soon as possible.
+        **KB Article**: [Too big clock skew leading to error messages or tserver crashes](https://support.yugabyte.com/hc/en-us/articles/4403707404173-Too-big-clock-skew-leading-to-error-messages-or-tserver-crashes)
+
+    - name: "Stopping writes because we have immutable memtables"
+      pattern: "Stopping writes because we have \\d+ immutable memtables"
+      solution: |
+        This message is generally observed when a tablet has immutable memtables which need to flush to disk. It generally indicates that the application is writing at rate, and YB is not able to write the data to disk at the same speed, This could be because of slow disk or hot shard.
+
+        **NOTE**
+        - If the number of occurrences of this message is low or happenings once in a while, then it is not a problem. We can ignore this message. It just indicates the busy system at that time.
+
+        **KB Article**: [Stopping writes because we have immutable memtables (waiting for flush)](https://support.yugabyte.com/hc/en-us/articles/14950181387277-Stopping-writes-because-we-have-2-immutable-memtables-waiting-for-flush-)
+
+    - name: "UpdateConsensus requests dropped due to backpressure"
+      pattern: "UpdateConsensus request.*dropped due to backpressure"
+      solution: |
+        This message is generally observed when a tablet server is overloaded with UpdateConsensus requests and is not able to process the requests at the same rate as they are coming. This could also happen when there are a huge number of tablets created on the tablet server.
+        **KB Article**: [Coordinator node overloaded rejecting connection](https://support.yugabyte.com/hc/en-us/articles/4404157217037-Coordinator-node-overloaded-rejecting-connection)
+
+    - name: "Fail of leader detected"
+      pattern: "Fail of leader.*detected"
+      solution: |
+        This means that the failure of the leader is detected. More info to be added
+
+    - name: "Can't advance the committed index across term boundaries until operations from the current term are replicated"
+      pattern: "Can't advance the committed index across term boundaries until operations from the current term are replicated"
+      solution: |
+        This means that the leader is not able to advance the committed index across term boundaries until operations from the current term are replicated.
+
+        **NOTE**
+        - If this message is not observed frequently, then we can ignore this message. We should only be concerned if this message is observed continuously and when tablet replication is stuck.
+
+        **KB Article**: [Can't advance the committed index across term boundaries...](https://support.yugabyte.com/hc/en-us/articles/15642214673293-Can-t-advance-the-committed-index-across-term-boundaries-until-operations-from-the-current-term-are-replicated)
+        **Zendesk Tickets**:
+        - [7872](https://yugabyte.zendesk.com/agent/tickets/7872)
+            - Customer observed high latency on YCQL API calls but latency on yb-tserver was normal.
+            - Latency was high on YCQL API calls because leadership was not stable and found that leader was unable to advance the committed index across term boundaries as it was not able to replicate the NoOp to followers.
+        - [6137](https://yugabyte.zendesk.com/agent/tickets/6137)
+            - Customers backup was failing with "Timed our waiting for snapshot" error.
+            - Snapshot was failing because of the same reason as above.
+
+    - name: "Could not locate the leader master"
+      pattern: "Could not locate the leader master"
+      solution: |
+        This means that the tablet server is not able to locate the leader master. This could be because of network issues or the master instances are unable to elect a leader.
+
+        **NOTE**
+        - If this message is not observed frequently, then we can ignore this message. We should only be concerned if this message is observed continuously by a particular tablet server or while providing RCA of an issue happened at the same time.
+
+    - name: "The follower will never be able to catch up"
+      pattern: "The follower will never be able to catch up"
+      solution: |
+        This means that the follower will never be able to catch up with the leader. This could be because of network issues or tablet server being down or overloaded. In case of tablets, they get removed and the load balancer will take care of bootstrapping the new peers. But in case of master, We can follow below KB article.
+
+        **KB Article**: [[INTERNAL] YugabyteDB Anywhere Generates an Under-Replicated Master Alert](https://support.yugabyte.com/hc/en-us/articles/10700352325645--INTERNAL-YugabyteDB-Anywhere-Generates-an-Under-Replicated-Master-Alert)
+
+    - name: "VoteRequest RPC timed out"
+      pattern: "VoteRequest.*timed out"
+      solution: |
+        This means that the RequestConsensusVote RPC timed out which means a candidate is requesting votes from the followers and the followers or one of the followers is not able to respond in time. This could be because of network issues or the tablet server being overloaded.
+
+        **Useful Commands**:
+        - Get the list of endpoints against which this error is observed with the count of occurrences.
+          ```
+          grep "RPC error from VoteRequest() call .*timed out" log.log |sed 's/.* RequestConsensusVote RPC .* to//g' |sed 's/ timed out after.*//g' |sort|uniq -c
+          ```
+        - Get the list of tablets facing this issue with the count of occurrences.
+          ```
+          grep "RPC error from VoteRequest() call .*timed out" log.log |sed 's/.* T //g' |sed 's/ P .*//g' |sort|uniq -c
+          ```
+
+    - name: "VoteRequest RPC Connection reset by peer"
+      pattern: "VoteRequest.*Connection reset by peer"
+      solution: |
+        This means that the RequestConsensusVote RPC call was reset by the peer which means a candidate is requesting votes from the followers and the followers or one of the followers is terminating the connection before responding. This could be because of network issues or the tablet server being overloaded.
+
+        **Useful Commands**:
+        - Get the list of tablet servers against which this error is observed with the count of occurrences.
+          ```
+          grep "RPC error from VoteRequest() call .*Connection reset by peer" log.log |sed 's/.*call to peer//g' |sed 's/: Network error.*//g' |sort|uniq -c
+          ```
+        - Get the list of tablets facing this issue with the count of occurrences.
+          ```
+          grep "RPC error from VoteRequest() call .*Connection reset by peer" log.log |sed 's/.* T //g' |sed 's/ P .*//g' |sort|uniq -c
+          ```
+
+    - name: "Call rejected due to memory pressure"
+      pattern: "Call rejected due to memory pressure"
+      solution: |
+        YugabyteDB uses RPCs to perform operations between nodes. This message indicates that the RPC call was rejected due to memory pressure. This RPC call could be a heartbeat, consensus vote, DocDB Read/Write, etc.
+        **KB Article**: [Call rejected due to memory pressure](https://support.yugabyte.com/hc/en-us/articles/4404157217037-Coordinator-node-overloaded-rejecting-connection)
+
+    - name: "Unable to pick leader"
+      pattern: "Unable to pick leader"
+      solution: |
+        **Description:** This log message indicates that the system was unable to select a leader for a specific tablet. This situation can occur when the current leader is not available or is marked as a follower. If all remaining tablet servers are also marked as followers, the system is unable to select a new leader.
+
+        **Impact:** The client is unable to perform operations that require a leader, such as read/writes. This is because read/writes in a distributed consensus system must be routed through the leader. The system will attempt to resolve this situation by forcing a lookup to the master to fetch new consensus configuration information. If a new leader is elected or an existing leader becomes available, the client will be able to continue performing operations. However, until that happens, operations that require a leader will be blocked.
+
+        **Recommended Action:** Monitor the system for subsequent logs indicating a new leader has been elected or an existing leader has become available. If the situation persists, it may indicate a problem with the consensus configuration or network connectivity issues between the tablet servers. In such a case, further investigation will be required.
+
+    - name: "Time spent Fsync log took a long time"
+      pattern: "Time spent Fsync log took a long time"
+      solution: |
+        This message is observed when the time spent fsync log took a long time. This could be because of slow disk or load on the system. If number of occurrences of this message is high, then we need to check the disk performance.
+
+        This logs gives additional information time like time spent at user level, system level, and real time. This can be used to identify if the issue is with the disk or the system. If the time spent at user level is high, then it is because of the application. If the time spent at system level is high, then it is because of the kernel which could be due to high load on the system. If the time spent at real time is high, then it is because of the disk.
+
+    - name: "Time spent Append to log took a long time"
+      pattern: "Time spent Append to log took a long time"
+      solution: |
+        This message is observed when the time spent append to log took a long time. This means consensus log appends are slow. This could be because of slow disk or load on the system. If number of occurrences of this message is high, then we need to check the disk performance.
+
+    - name: "Table <table-id> is undergoing DDL verification"
+      pattern: "Table [a-f0-9]+ is undergoing DDL verification"
+      solution: |
+        This message is observed when customer using a preview `flag ysql_ddl_rollback_enabled` which may or may not work in this version because this version may not have all the other fixes which are related to this preview flag.
+
+        - To resolve this follow the KB
+        
+        **KB Article**: [Application Failure Due to DDL Verification State in YugabyteDB](https://support.yugabyte.com/hc/en-us/articles/35702194950029-Backup-or-Application-Failure-Due-to-DDL-Verification-State-in-YugabyteDB)
+
+    - name: "Snapshot Too Old Error in YSQL can occur due to prefetch pg_authid"
+      pattern: "pg_sys_table_prefetcher\\.cc.*Sys table prefetching is enabled but table \\{[^}]+\\} was not prefetched"
+      solution: |
+        This message is observed when customer using a preview `flag ysql_ddl_rollback_enabled` which may or may not work in this version because this version may not have all the other fixes which are related to this preview flag.
+
+        - To resolve this follow the KB
+        
+        **KB Article**: [Application Failure Due to DDL Verification State in YugabyteDB](https://support.yugabyte.com/hc/en-us/articles/35702194950029-Backup-or-Application-Failure-Due-to-DDL-Verification-State-in-YugabyteDB)
+
+pg:
+  log_messages:
+    - name: "latch already owned by"
+      pattern: "latch already owned by"
+      solution: |
+        This message is observed when a process is trying to acquire a latch that is already owned by another process. This probably means unexpected backend process termination. The backend was likely terminated without fully cleaning up its resources. This could indicate that the shared memory state between the backends is messed up and so a larger issue may occur in the future. Keeping the cluster around for investigation is recommended. Useful steps to debug this issue are:
+        - Check the PostgreSQL logs for any errors or warnings.
+        - Check the system logs for any hardware or OS errors. Look for OOM killer, segmenation faults, etc.
+        - Contact engineering (specifically Sushant Mishra or Timothy Elgersma) for further assistance.
+
+    - name: "connection reset by peer"
+      pattern: "connection reset by peer"
+      solution: |
+        This message indicates that the client gone away without closing the connection properly. This could be because of network issues or client application issues.
+        - Check the client application logs for any errors.
+        - Check if there idle timeout set on the client application or load balancer side.
+        - This is concerning if this message is observed frequently or if customer complaints about the connection termination.
+
+    - name: "database system is ready to accept connections"
+      pattern: "database system is ready to accept connections"
+      solution: |
+        This message indicates that the database was restarted and is ready to accept connections. This is an informational message and can be ignored if not observed frequently.
+
+Yugabytedb_anywhere:
+  log_messages:
+    - name: "Runtime error: Root Certificate on the node doesn't match the certificate given to YBA."
+      pattern: "Runtime error: Root Certificate on the node doesn't match the certificate given to YBA."
+      relevant_tickets: 14029
+      relevant_issue: https://yugabyte.atlassian.net/browse/PLAT-16726
+      solution: |
+        2024.2.x added validation to the TLS cert deployment, which was not present in 2.20.x.
+        The validation checks the MD5 sum of the root CA/root chain provided to YBA against the root CA/root chain deployed to the DB nodes.
+        Even if the certs are functionally equivalent (same text, same values), if the checksums are different, this validation check will fail.
+   
+        In our experience this may mean:
+        One of root certs (either YBA or DB) has extra whitespace added to it (meaning the checksums mismatch)
+        One of the root certs (either YBA or DB) was edited in Windows (giving it Windows-style line endings), where the other has Unix-style line endings (meaning the checksums mismatch)
+   
+        Or it could mean that the certs are legitimately different, if there was a mistake in upload
+   
+        Questions:
+        How are your certs produced?
+        How are your certs deployed to the YBA and DB nodes?
+        Do you have any processing steps that you do before deploying the certs to the DB nodes?

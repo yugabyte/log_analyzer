@@ -1,0 +1,190 @@
+from lib.analyzer_utils import analyzeNodeLogs, analyze_log_file_worker, getUniverseNameFromManifest
+from lib.helper_utils import spinner, openLogFile
+from lib.log_utils import (
+    getFileMetadata,
+    getLogFilesToBuildMetadata,
+    getStartAndEndTimes,
+    extractAllTarFiles,
+    extractTarFile,
+    getArchiveFiles,
+    getLogFilesFromCurrentDir,
+    getTimeFromLog
+)
+from multiprocessing import Pool, Lock, Manager
+from colorama import Fore, Style
+from patterns_lib import (
+    universe_regex_patterns,
+    pg_regex_patterns,
+)
+from collections import deque
+import logging
+import datetime
+import argparse
+import re
+import os
+import tabulate
+import tarfile
+import gzip
+import json
+import sys
+import itertools
+import time
+import threading
+from tqdm import tqdm
+
+class ColoredHelpFormatter(argparse.RawTextHelpFormatter):
+    def _get_help_string(self, action):
+        return Fore.GREEN + super()._get_help_string(action) + Style.RESET_ALL
+
+    def _format_usage(self, usage, actions, groups, prefix):
+        return Fore.YELLOW + super()._format_usage(usage, actions, groups, prefix) + Style.RESET_ALL
+    
+    def _format_action_invocation(self, action):
+        if not action.option_strings:
+            metavar, = self._metavar_formatter(action, action.dest)(1)
+            return Fore.CYAN + metavar + Style.RESET_ALL
+        else:
+            parts = []
+            if action.nargs == 0:
+                parts.extend(action.option_strings)
+            else:
+                default = action.dest.upper()
+                args_string = self._format_args(action, default)
+                parts.extend(action.option_strings)
+                parts[-1] += ' ' + args_string
+            return Fore.CYAN + ', '.join(parts) + Style.RESET_ALL
+    
+    def _format_action(self, action):
+        parts = super()._format_action(action)
+        return Fore.CYAN + parts + Style.RESET_ALL
+    
+    def _format_text(self, text):
+        return Fore.MAGENTA + super()._format_text(text) + Style.RESET_ALL
+    
+    def _format_args(self, action, default_metavar):
+        return Fore.LIGHTCYAN_EX + super()._format_args(action, default_metavar) + Style.RESET_ALL
+
+# Command line arguments
+parser = argparse.ArgumentParser(description="Log Analyzer for YugabyteDB logs", formatter_class=ColoredHelpFormatter)
+parser.add_argument("-d", "--directory", help="Directory containing log files")
+parser.add_argument("-s","--support_bundle", help="Support bundle file name")
+parser.add_argument("--types", metavar="LIST", help="List of log types to analyze \n Example: --types 'ms,ybc' \n Default: --types 'pg,ts,ms'")
+parser.add_argument("-n", "--nodes", metavar="LIST", help="List of nodes to analyze \n Example: --nodes 'n1,n2'")
+parser.add_argument("-o", "--output", metavar="FILE", dest="output_file", help="Output file name")
+parser.add_argument("-p", "--parallel", metavar="N", dest='numThreads', default=5, type=int, help="Run in parallel mode with N threads")
+parser.add_argument("--skip_tar", action="store_true", help="Skip tar file")
+parser.add_argument("-t", "--from_time", metavar= "MMDD HH:MM", dest="start_time", help="Specify start time in quotes")
+parser.add_argument("-T", "--to_time", metavar= "MMDD HH:MM", dest="end_time", help="Specify end time in quotes")
+parser.add_argument("--histogram-mode", dest="histogram_mode", metavar="LIST", help="List of errors to generate histogram \n Example: --histogram-mode 'error1,error2,error3'")
+args = parser.parse_args()
+
+# Validated start and end time format
+if args.start_time:
+    try:
+        datetime.datetime.strptime(args.start_time, "%m%d %H:%M")
+    except ValueError as e:
+        print("Incorrect start time format, should be MMDD HH:MM")
+        exit(1)
+if args.end_time:
+    try:
+        datetime.datetime.strptime(args.end_time, "%m%d %H:%M")
+    except ValueError as e:
+        print("Incorrect end time format, should be MMDD HH:MM")
+        exit(1)
+
+# 7 days ago from today
+seven_days_ago = datetime.datetime.now() - datetime.timedelta(days=7)
+seven_days_ago = seven_days_ago.strftime("%m%d %H:%M")
+# If not start time then set it to today - 7 days in "MMDD HH:MM" format
+start_time = datetime.datetime.strptime(args.start_time, "%m%d %H:%M") if args.start_time else datetime.datetime.strptime(seven_days_ago, "%m%d %H:%M")
+end_time = datetime.datetime.strptime(args.end_time, "%m%d %H:%M") if args.end_time else datetime.datetime.now()
+
+reportJSON = {}
+
+# Set up logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s:%(levelname)s:- %(message)s')
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+logFile = "analyzer.log"
+file_handler = logging.FileHandler(logFile)
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+
+if __name__ == "__main__":
+    logFilesMetadata = {}
+    logFilesMetadataFile = 'log_files_metadata.json'
+    logFileList = getLogFilesToBuildMetadata(args, logger, logFile)
+    if not logFileList:
+        logger.error("No log files found in the specified directory or support bundle.")
+        exit(1)
+    done = False
+
+    # Start the spinner in a separate thread
+    stop_event = threading.Event()
+    spinner_thread = threading.Thread(target=spinner, args=(stop_event,))
+    spinner_thread.start()
+
+    # Build the metadata for the log files
+    for logFile in logFileList:
+        metadata = getFileMetadata(logFile, logger)
+        if metadata:
+            node = metadata["nodeName"]
+            logType = metadata["logType"]
+            subType = metadata["subType"]
+            if node not in logFilesMetadata:
+                logFilesMetadata[node] = {}
+            if logType not in logFilesMetadata[node]:
+                logFilesMetadata[node][logType] = {}
+            if subType not in logFilesMetadata[node][logType]:
+                logFilesMetadata[node][logType][subType] = {}
+            logFilesMetadata[node][logType][subType][logFile] = {
+                "logStartsAt": str(metadata["logStartsAt"]),
+                "logEndsAt": str(metadata["logEndsAt"])
+            }
+    # Save the metadata to a file
+    with open(logFilesMetadataFile, 'w') as f:
+        json.dump(logFilesMetadata, f, indent=4)
+    stop_event.set()
+    spinner_thread.join()
+    logger.info(f"Log files metadata saved to {logFilesMetadataFile}")
+    # Get long and short start and end times
+    startTimeLong, endTimeLong, startTimeShort, endTimeShort = getStartAndEndTimes(args)
+    logger.info(f"Analyzing logs from {startTimeShort} to {endTimeShort}")
+    # Prepare tasks for parallel processing
+    tasks = []
+    for nodeName, nodeData in logFilesMetadata.items():
+        for logType, logTypeData in nodeData.items():
+            for subType, subTypeData in logTypeData.items():
+                tasks.append((nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger))
+    # Get the universe name from manifest.json
+    universeName = getUniverseNameFromManifest(logger)
+    logger.info(f"Universe name: {universeName}")
+
+    # Analyze in parallel
+    with Pool(processes=args.numThreads) as pool:
+        results = pool.map(analyze_log_file_worker, tasks)
+    # Build nested result: node -> logType -> logMessages
+    nested_results = {}
+    for result in results:
+        nodeName = result["node"]
+        logType = result["logType"]
+        if nodeName not in nested_results:
+            nested_results[nodeName] = {}
+        if logType not in nested_results[nodeName]:
+            nested_results[nodeName][logType] = {"logMessages": {}}
+        for msg, stats in result["logMessages"].items():
+            nested_results[nodeName][logType]["logMessages"][msg] = stats
+    # Write nested results to a JSON file, including universeName
+    output_json = {
+        "universeName": universeName,
+        "nodes": nested_results
+    }
+    with open("node_log_summary.json", "w") as f:
+        json.dump(output_json, f, indent=2)
+    logger.info("Wrote node log summary to node_log_summary.json")
+    logger.info("Log analysis completed.")
