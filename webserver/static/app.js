@@ -91,7 +91,7 @@ document.addEventListener("DOMContentLoaded", function () {
         yaxis: { title: "Count" },
         margin: { b: 120 },
         legend: { orientation: "h", y: -0.3 },
-        width: window.innerWidth * 0.98,
+        width: histogramDiv.offsetWidth,
         height: 600,
       },
       { responsive: true }

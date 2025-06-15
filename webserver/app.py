@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory
 import json
 from collections import defaultdict
 import os
@@ -33,6 +33,10 @@ def get_data():
     if 'data' not in uploaded_data:
         return jsonify({'error': 'No data uploaded'}), 404
     return jsonify(uploaded_data['data'])
+
+@app.route('/img/<path:filename>')
+def serve_img(filename):
+    return send_from_directory(os.path.join(app.root_path, 'img'), filename)
 
 if __name__ == '__main__':
     app.run(debug=True)
