@@ -188,3 +188,34 @@ if __name__ == "__main__":
         json.dump(output_json, f, indent=2)
     logger.info("Wrote node log summary to node_log_summary.json")
     logger.info("Log analysis completed.")
+
+    # --- Insert report into PostgreSQL ---
+    import psycopg2
+    from psycopg2.extras import Json
+    try:
+        # Update these connection parameters as needed
+        conn = psycopg2.connect(
+            dbname="postgres",
+            user="log_analyzer_user",
+            password="changeme",
+            host="localhost",
+            port=5432
+        )
+        cur = conn.cursor()
+        with open("node_log_summary.json") as f:
+            report_json = json.load(f)
+        universe_name = report_json.get("universeName", "unknown")
+        ticket = '1111'
+        cur.execute(
+            """
+            INSERT INTO log_analyzer.reports (universe_name, ticket, json_report, created_at)
+            VALUES (%s, %s, %s, NOW())
+            """,
+            (universe_name, ticket, Json(report_json))
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        logger.info("Report inserted into PostgreSQL reports table.")
+    except Exception as e:
+        logger.error(f"Failed to insert report into PostgreSQL: {e}")
