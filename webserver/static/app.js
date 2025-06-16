@@ -166,11 +166,12 @@ document.addEventListener("DOMContentLoaded", function () {
   function renderTables() {
     if (!jsonData) return;
     let html = "";
+    let nodeIdx = 0;
     Object.entries(jsonData.nodes).forEach(([node, nodeData]) => {
       let nodeHtml = "";
       Object.entries(nodeData).forEach(([logType, logTypeData]) => {
         const logMessages = logTypeData.logMessages || {};
-        if (Object.keys(logMessages).length === 0) return; // Skip empty log types
+        if (Object.keys(logMessages).length === 0) return;
         nodeHtml += `<h4> ${logType}</h4>`;
         nodeHtml +=
           "<table><tr><th>Log Message</th><th>First Occurrence</th><th>Last Occurrence</th><th>Count</th></tr>";
@@ -184,9 +185,43 @@ document.addEventListener("DOMContentLoaded", function () {
         nodeHtml += "</table>";
       });
       if (nodeHtml) {
-        html += `<div class="node-table"><h3>${node}</h3>${nodeHtml}</div>`;
+        html += `
+          <div class="node-table-collapsible">
+            <div class="node-header" data-node-idx="${nodeIdx}">
+              <span class="arrow">&#9654;</span>
+              <span>${node}</span>
+            </div>
+            <div class="node-content" style="display:none;">${nodeHtml}</div>
+          </div>
+        `;
+        nodeIdx++;
       }
     });
     tablesDiv.innerHTML = html;
+    // Accordion logic: only one open at a time
+    const headers = tablesDiv.querySelectorAll(".node-header");
+    headers.forEach((header) => {
+      header.onclick = function () {
+        const content = header.nextElementSibling;
+        const arrow = header.querySelector(".arrow");
+        const isOpen = content.style.display === "block";
+        if (isOpen) {
+          // Collapse this one
+          content.style.display = "none";
+          arrow.innerHTML = "&#9654;";
+        } else {
+          // Collapse all
+          tablesDiv.querySelectorAll(".node-content").forEach((c) => {
+            c.style.display = "none";
+          });
+          tablesDiv.querySelectorAll(".node-header .arrow").forEach((a) => {
+            a.innerHTML = "&#9654;";
+          });
+          // Expand this one
+          content.style.display = "block";
+          arrow.innerHTML = "&#9660;";
+        }
+      };
+    });
   }
 });

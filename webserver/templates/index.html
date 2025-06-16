@@ -1,169 +1,229 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>YugabyteDB Log Analyzer</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="/static/app.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
     <style>
-        :root {
-            --yuga-navy: #172447;
-            --yuga-orange: #ff9400;
-            --yuga-gray: #f5f6fa;
-            --yuga-dark-gray: #4a5568;
-            --yuga-border: #e2e8f0;
-        }
-        body {
-            font-family: 'Inter', Arial, sans-serif;
-            background: var(--yuga-gray);
-            color: var(--yuga-navy);
-            margin: 0;
-            padding: 0;
-        }
-        .yuga-header {
-            background: var(--yuga-navy);
-            color: #fff;
-            padding: 1.5em 2em 1em 2em;
-            display: flex;
-            align-items: center;
-            box-shadow: 0 2px 8px rgba(23,36,71,0.05);
-        }
-        .yuga-logo {
-            width: 40px;
-            height: 40px;
-            margin-right: 1em;
-        }
-        .yuga-title {
-            font-size: 2em;
-            font-weight: 600;
-            letter-spacing: 1px;
-        }
+      :root {
+        --yuga-navy: #172447;
+        --yuga-orange: #ff9400;
+        --yuga-gray: #f5f6fa;
+        --yuga-dark-gray: #4a5568;
+        --yuga-border: #e2e8f0;
+      }
+      body {
+        font-family: "Inter", Arial, sans-serif;
+        background: var(--yuga-gray);
+        color: var(--yuga-navy);
+        margin: 0;
+        padding: 0;
+      }
+      .yuga-header {
+        background: var(--yuga-navy);
+        color: #fff;
+        padding: 1.5em 2em 1em 2em;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 2px 8px rgba(23, 36, 71, 0.05);
+      }
+      .yuga-logo {
+        width: 40px;
+        height: 40px;
+        margin-right: 1em;
+      }
+      .yuga-title {
+        font-size: 2em;
+        font-weight: 600;
+        letter-spacing: 1px;
+      }
+      .yuga-container {
+        max-width: 1200px;
+        margin: 2em auto;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 16px rgba(23, 36, 71, 0.07);
+        padding: 2em 2.5em 2em 2.5em;
+      }
+      form#uploadForm {
+        display: flex;
+        gap: 1em;
+        align-items: center;
+        margin-bottom: 1.5em;
+      }
+      input[type="file"] {
+        border: 1px solid var(--yuga-border);
+        border-radius: 6px;
+        padding: 0.5em;
+        background: #fff;
+      }
+      button {
+        background: var(--yuga-orange);
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 0.6em 1.5em;
+        font-weight: 600;
+        font-size: 1em;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      button:hover {
+        background: #ffb347;
+      }
+      #controls {
+        margin-bottom: 2em;
+        display: flex;
+        gap: 2em;
+      }
+      label {
+        font-weight: 600;
+        color: var(--yuga-dark-gray);
+      }
+      select {
+        margin-left: 0.5em;
+        padding: 0.4em 1em 0.4em 0.5em;
+        border-radius: 6px;
+        border: 1px solid var(--yuga-border);
+        background: #fff;
+        font-size: 1em;
+      }
+      #histogram {
+        width: 100%;
+        max-width: 100%;
+        min-width: 350px;
+        height: 600px;
+        margin-top: 2em;
+        border-radius: 12px;
+        background: var(--yuga-gray);
+        box-shadow: 0 1px 8px rgba(23, 36, 71, 0.04);
+        padding: 1em 0.5em 0.5em 0.5em;
+        overflow-x: auto;
+      }
+      .node-table {
+        margin-bottom: 2.5em;
+        background: var(--yuga-gray);
+        border-radius: 10px;
+        box-shadow: 0 1px 6px rgba(23, 36, 71, 0.03);
+        padding: 1.2em 1em 1em 1em;
+      }
+      h3,
+      h4 {
+        margin-top: 0.5em;
+        margin-bottom: 0.5em;
+        color: var(--yuga-navy);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 0.5em;
+        background: #fff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 4px rgba(23, 36, 71, 0.03);
+      }
+      th,
+      td {
+        border: 1px solid var(--yuga-border);
+        padding: 0.7em 0.5em;
+        text-align: left;
+      }
+      th {
+        background: #f5f6fa;
+        color: var(--yuga-navy);
+        font-weight: 600;
+      }
+      tr:nth-child(even) td {
+        background: #f7f8fa;
+      }
+      .node-header {
+        background: #f5f6fa;
+        color: var(--yuga-navy);
+        border-radius: 8px;
+        padding: 0.7em 1.2em;
+        margin-bottom: 0.2em;
+        margin-top: 1.2em;
+        font-size: 1.18em;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        box-shadow: 0 1px 4px rgba(23, 36, 71, 0.07);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        transition: background 0.18s;
+      }
+      .node-header:hover {
+        background: #e2e8f0;
+      }
+      .node-header h3 {
+        margin: 0;
+        font-size: 1.18em;
+        font-weight: 600;
+        flex: 1;
+        color: inherit;
+        background: none;
+        border: none;
+        outline: none;
+        display: flex;
+        align-items: center;
+      }
+      .node-header .arrow {
+        font-size: 1.2em;
+        margin-right: 0.7em;
+        transition: transform 0.18s;
+      }
+      .node-table-collapsible {
+        margin-bottom: 2.2em;
+      }
+      .node-content {
+        padding: 0.5em 0.5em 0.5em 1.5em;
+        background: #f7f8fa;
+        border-radius: 0 0 8px 8px;
+        box-shadow: 0 1px 4px rgba(23, 36, 71, 0.03);
+      }
+      @media (max-width: 900px) {
         .yuga-container {
-            max-width: 1200px;
-            margin: 2em auto;
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 2px 16px rgba(23,36,71,0.07);
-            padding: 2em 2.5em 2em 2.5em;
-        }
-        form#uploadForm {
-            display: flex;
-            gap: 1em;
-            align-items: center;
-            margin-bottom: 1.5em;
-        }
-        input[type="file"] {
-            border: 1px solid var(--yuga-border);
-            border-radius: 6px;
-            padding: 0.5em;
-            background: #fff;
-        }
-        button {
-            background: var(--yuga-orange);
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            padding: 0.6em 1.5em;
-            font-weight: 600;
-            font-size: 1em;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        button:hover {
-            background: #ffb347;
-        }
-        #controls {
-            margin-bottom: 2em;
-            display: flex;
-            gap: 2em;
-        }
-        label {
-            font-weight: 600;
-            color: var(--yuga-dark-gray);
-        }
-        select {
-            margin-left: 0.5em;
-            padding: 0.4em 1em 0.4em 0.5em;
-            border-radius: 6px;
-            border: 1px solid var(--yuga-border);
-            background: #fff;
-            font-size: 1em;
+          padding: 1em;
         }
         #histogram {
-            width: 100%;
-            max-width: 100%;
-            min-width: 350px;
-            height: 600px;
-            margin-top: 2em;
-            border-radius: 12px;
-            background: var(--yuga-gray);
-            box-shadow: 0 1px 8px rgba(23,36,71,0.04);
-            padding: 1em 0.5em 0.5em 0.5em;
-            overflow-x: auto;
+          height: 350px;
         }
-        .node-table {
-            margin-bottom: 2.5em;
-            background: var(--yuga-gray);
-            border-radius: 10px;
-            box-shadow: 0 1px 6px rgba(23,36,71,0.03);
-            padding: 1.2em 1em 1em 1em;
-        }
-        h3, h4 {
-            margin-top: 0.5em;
-            margin-bottom: 0.5em;
-            color: var(--yuga-navy);
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 0.5em;
-            background: #fff;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 1px 4px rgba(23,36,71,0.03);
-        }
-        th, td {
-            border: 1px solid var(--yuga-border);
-            padding: 0.7em 0.5em;
-            text-align: left;
-        }
-        th {
-            background: var(--yuga-navy);
-            color: #fff;
-            font-weight: 600;
-        }
-        tr:nth-child(even) td {
-            background: #f7f8fa;
-        }
-        @media (max-width: 900px) {
-            .yuga-container { padding: 1em; }
-            #histogram { height: 350px; }
-        }
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="yuga-header">
-        <img class="yuga-logo" src="/img/yugabytedb-icon-seeklogo.svg" alt="YugabyteDB Logo" />
-        <span class="yuga-title">YugabyteDB Log Analyzer</span>
+      <img
+        class="yuga-logo"
+        src="/img/yugabytedb-icon-seeklogo.svg"
+        alt="YugabyteDB Logo"
+      />
+      <span class="yuga-title">YugabyteDB Log Analyzer</span>
     </div>
     <div class="yuga-container">
-        <form id="uploadForm">
-            <input type="file" id="jsonFile" accept=".json" required />
-            <button type="submit">Upload</button>
-        </form>
-        <div id="controls" style="display:none;">
-            <label>Node:
-                <select id="nodeSelect"></select>
-            </label>
-            <label>Process:
-                <select id="logTypeSelect"></select>
-            </label>
-        </div>
-        <div id="histogram"></div>
-        <div id="tables"></div>
+      <form id="uploadForm">
+        <input type="file" id="jsonFile" accept=".json" required />
+        <button type="submit">Upload</button>
+      </form>
+      <div id="controls" style="display: none">
+        <label
+          >Node:
+          <select id="nodeSelect"></select>
+        </label>
+        <label
+          >Process:
+          <select id="logTypeSelect"></select>
+        </label>
+      </div>
+      <div id="histogram"></div>
+      <div id="tables"></div>
     </div>
-</body>
+  </body>
 </html>
