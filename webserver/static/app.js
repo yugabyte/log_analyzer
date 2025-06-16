@@ -24,6 +24,23 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   };
 
+  // Auto-load report if report_uuid is present in the template context
+  const reportUuidFromTemplate = window.report_uuid || null;
+  if (reportUuidFromTemplate) {
+    fetch(`/api/reports/${reportUuidFromTemplate}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Report not found");
+        return res.json();
+      })
+      .then((data) => {
+        jsonData = data;
+        renderControlsAndData();
+      })
+      .catch((err) => {
+        alert("Failed to load report: " + err.message);
+      });
+  }
+
   function renderControlsAndData() {
     // Populate node and log type selectors
     const nodes = Object.keys(jsonData.nodes);
