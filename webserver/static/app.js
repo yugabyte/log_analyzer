@@ -223,4 +223,90 @@ document.addEventListener("DOMContentLoaded", function () {
       };
     });
   }
+
+  // Tab switching logic
+  const tabBtns = document.querySelectorAll(".tab-btn");
+  const tabPanels = document.querySelectorAll(".tab-panel");
+  tabBtns.forEach((btn) => {
+    btn.addEventListener("click", function () {
+      tabBtns.forEach((b) => b.classList.remove("active"));
+      tabPanels.forEach((p) => (p.style.display = "none"));
+      btn.classList.add("active");
+      const tabId = btn.getAttribute("data-tab");
+      document.getElementById(tabId).style.display = "block";
+      // Re-render histogram on tab switch for correct sizing
+      if (tabId === "histogram-tab" && jsonData) renderHistogram();
+      if (tabId === "table-tab" && jsonData) renderTables();
+      if (tabId === "gflags-tab" && jsonData) renderGFlags();
+    });
+  });
+
+  function renderGFlags() {
+    const gflagsDiv = document.getElementById("gflags");
+    const gflagsData = (jsonData && (jsonData.GFlags || jsonData.gflags)) || null;
+    if (!gflagsData) {
+      gflagsDiv.innerHTML = "<em>No GFlags data available.</em>";
+      return;
+    }
+    let html = "";
+    // Master GFlags collapsible
+    if (gflagsData.master) {
+      let masterHtml = "<table><tr><th>Flag</th><th>Value</th></tr>";
+      Object.entries(gflagsData.master).forEach(([k, v]) => {
+        masterHtml += `<tr><td>${k}</td><td>${v}</td></tr>`;
+      });
+      masterHtml += "</table>";
+      html += `
+        <div class="node-table-collapsible">
+          <div class="node-header gflag-header" data-node-idx="gflag-master">
+            <span class="arrow">&#9654;</span>
+            <span>Master GFlags</span>
+          </div>
+          <div class="node-content" style="display:none;">${masterHtml}</div>
+        </div>
+      `;
+    }
+    // TServer GFlags collapsible
+    if (gflagsData.tserver) {
+      let tserverHtml = "<table><tr><th>Flag</th><th>Value</th></tr>";
+      Object.entries(gflagsData.tserver).forEach(([k, v]) => {
+        tserverHtml += `<tr><td>${k}</td><td>${v}</td></tr>`;
+      });
+      tserverHtml += "</table>";
+      html += `
+        <div class="node-table-collapsible">
+          <div class="node-header gflag-header" data-node-idx="gflag-tserver">
+            <span class="arrow">&#9654;</span>
+            <span>TServer GFlags</span>
+          </div>
+          <div class="node-content" style="display:none;">${tserverHtml}</div>
+        </div>
+      `;
+    }
+    if (!html) html = "<em>No GFlags found for Master or TServer.</em>";
+    gflagsDiv.innerHTML = html;
+    // Accordion logic for Master/TServer
+    const gflagHeaders = gflagsDiv.querySelectorAll(".gflag-header");
+    gflagHeaders.forEach((header) => {
+      header.onclick = function () {
+        const content = header.nextElementSibling;
+        const arrow = header.querySelector(".arrow");
+        const isOpen = content.style.display === "block";
+        if (isOpen) {
+          content.style.display = "none";
+          arrow.innerHTML = "&#9654;";
+        } else {
+          // Collapse all
+          gflagsDiv.querySelectorAll(".node-content").forEach((c) => {
+            c.style.display = "none";
+          });
+          gflagsDiv.querySelectorAll(".gflag-header .arrow").forEach((a) => {
+            a.innerHTML = "&#9654;";
+          });
+          content.style.display = "block";
+          arrow.innerHTML = "&#9660;";
+        }
+      };
+    });
+  }
 });

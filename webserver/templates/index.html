@@ -162,6 +162,34 @@
         border-radius: 0 0 8px 8px;
         box-shadow: 0 1px 4px rgba(23, 36, 71, 0.03);
       }
+      .tab-bar {
+        display: flex;
+        gap: 1em;
+        margin-bottom: 1.5em;
+      }
+      .tab-btn {
+        background: #f5f6fa;
+        border: 1px solid var(--yuga-border);
+        border-bottom: none;
+        padding: 0.7em 2em;
+        font-size: 1.1em;
+        font-weight: 600;
+        color: var(--yuga-navy);
+        border-radius: 10px 10px 0 0;
+        cursor: pointer;
+        outline: none;
+        transition: background 0.15s;
+      }
+      .tab-btn.active {
+        background: #fff;
+        border-bottom: 2px solid #fff;
+      }
+      .tab-panel {
+        display: none;
+      }
+      .tab-panel[style*="display:block"] {
+        display: block;
+      }
       @media (max-width: 900px) {
         .yuga-container {
           padding: 1em;
@@ -221,8 +249,24 @@
           <select id="logTypeSelect"></select>
         </label>
       </div>
-      <div id="histogram"></div>
-      <div id="tables"></div>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="histogram-tab">
+          Histogram
+        </button>
+        <button class="tab-btn" data-tab="table-tab">Table View</button>
+        <button class="tab-btn" data-tab="gflags-tab">GFlags</button>
+      </div>
+      <div id="tab-panels">
+        <div id="histogram-tab" class="tab-panel" style="display: block">
+          <div id="histogram"></div>
+        </div>
+        <div id="table-tab" class="tab-panel" style="display: none">
+          <div id="tables"></div>
+        </div>
+        <div id="gflags-tab" class="tab-panel" style="display: none">
+          <div id="gflags"></div>
+        </div>
+      </div>
     </div>
     <script>
       window.report_uuid = "{{ report_uuid|default('') }}";
