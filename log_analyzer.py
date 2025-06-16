@@ -8,7 +8,8 @@ from lib.log_utils import (
     extractTarFile,
     getArchiveFiles,
     getLogFilesFromCurrentDir,
-    getTimeFromLog
+    getTimeFromLog,
+    get_gflags_from_nodes
 )
 from multiprocessing import Pool, Lock, Manager
 from colorama import Fore, Style
@@ -179,9 +180,14 @@ if __name__ == "__main__":
             nested_results[nodeName][logType] = {"logMessages": {}}
         for msg, stats in result["logMessages"].items():
             nested_results[nodeName][logType]["logMessages"][msg] = stats
-    # Write nested results to a JSON file, including universeName
+    # --- Add GFlags from server.conf for all nodes (top-level) ---
+    gflags = get_gflags_from_nodes(logFilesMetadata)
+    # --- End GFlags addition ---
+
+    # Write nested results to a JSON file, including universeName and top-level GFlags
     output_json = {
         "universeName": universeName,
+        "GFlags": gflags if gflags else {},
         "nodes": nested_results
     }
     with open("node_log_summary.json", "w") as f:
