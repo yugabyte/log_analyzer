@@ -238,12 +238,14 @@ document.addEventListener("DOMContentLoaded", function () {
       if (tabId === "histogram-tab" && jsonData) renderHistogram();
       if (tabId === "table-tab" && jsonData) renderTables();
       if (tabId === "gflags-tab" && jsonData) renderGFlags();
+      if (tabId === "nodeinfo-tab" && jsonData) renderNodeInfo();
     });
   });
 
   function renderGFlags() {
     const gflagsDiv = document.getElementById("gflags");
-    const gflagsData = (jsonData && (jsonData.GFlags || jsonData.gflags)) || null;
+    const gflagsData =
+      (jsonData && (jsonData.GFlags || jsonData.gflags)) || null;
     if (!gflagsData) {
       gflagsDiv.innerHTML = "<em>No GFlags data available.</em>";
       return;
@@ -308,5 +310,50 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       };
     });
+  }
+
+  function renderNodeInfo() {
+    const nodeinfoDiv = document.getElementById("nodeinfo");
+    if (!jsonData || !jsonData.nodes) {
+      nodeinfoDiv.innerHTML = "<em>No node info available.</em>";
+      return;
+    }
+    // Collect all node_info keys, but only first occurrence of 'node_name'
+    let nodeInfoKeys = [];
+    let seen = new Set();
+    Object.values(jsonData.nodes).forEach((nodeData) => {
+      if (nodeData.node_info) {
+        Object.keys(nodeData.node_info).forEach((k) => {
+          if (k === "node_name" && seen.has("node_name")) return;
+          if (!seen.has(k)) {
+            nodeInfoKeys.push(k);
+            seen.add(k);
+          }
+        });
+      }
+    });
+    if (nodeInfoKeys.length === 0) {
+      nodeinfoDiv.innerHTML = "<em>No node info available.</em>";
+      return;
+    }
+    let html =
+      "<table><tr><th>Node Name</th>" +
+      nodeInfoKeys
+        .filter((k, idx) => !(k === "node_name" && idx > 0))
+        .map((k) => `<th>${k}</th>`)
+        .join("") +
+      "</tr>";
+    Object.entries(jsonData.nodes).forEach(([node, nodeData]) => {
+      if (!nodeData.node_info) return;
+      html +=
+        `<tr><td>${node}</td>` +
+        nodeInfoKeys
+          .filter((k, idx) => !(k === "node_name" && idx > 0))
+          .map((k) => `<td>${nodeData.node_info[k] || ""}</td>`)
+          .join("") +
+        "</tr>";
+    });
+    html += "</table>";
+    nodeinfoDiv.innerHTML = html;
   }
 });
