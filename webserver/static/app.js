@@ -1,28 +1,10 @@
 document.addEventListener("DOMContentLoaded", function () {
-  const uploadForm = document.getElementById("uploadForm");
-  const jsonFile = document.getElementById("jsonFile");
   const nodeSelect = document.getElementById("nodeSelect");
   const logTypeSelect = document.getElementById("logTypeSelect");
   const controls = document.getElementById("controls");
   const histogramDiv = document.getElementById("histogram");
   const tablesDiv = document.getElementById("tables");
   let jsonData = null;
-
-  uploadForm.onsubmit = function (e) {
-    e.preventDefault();
-    const file = jsonFile.files[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.append("file", file);
-    fetch("/upload", { method: "POST", body: formData })
-      .then((res) => res.json())
-      .then(() => fetch("/data"))
-      .then((res) => res.json())
-      .then((data) => {
-        jsonData = data;
-        renderControlsAndData();
-      });
-  };
 
   // Auto-load report if report_uuid is present in the template context
   const reportUuidFromTemplate = window.report_uuid || null;
