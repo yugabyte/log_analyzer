@@ -10,7 +10,8 @@ from lib.log_utils import (
     getLogFilesFromCurrentDir,
     getTimeFromLog,
     get_gflags_from_nodes,
-    extract_node_info_from_logs
+    extract_node_info_from_logs,
+    count_tablets_per_tserver
 )
 from multiprocessing import Pool, Lock, Manager
 from colorama import Fore, Style
@@ -189,18 +190,24 @@ if __name__ == "__main__":
     node_infos = extract_node_info_from_logs(logFilesMetadata, logger)
     # --- End node info extraction ---
 
+    # --- Tablet count extraction ---
+    tablet_counts = count_tablets_per_tserver(logFilesMetadata)
+    # --- End tablet count extraction ---
+
     # Write nested results to a JSON file, including universeName and top-level GFlags
     output_json = {
         "universeName": universeName,
         "GFlags": gflags if gflags else {},
         "nodes": nested_results
     }
-    # Add node_info metadata under each node
+    # Add node_info metadata and tablet count under each node
     for node, info in node_infos.items():
         if node in output_json["nodes"]:
             output_json["nodes"][node]["node_info"] = info
         else:
             output_json["nodes"][node] = {"node_info": info}
+        # Add tablet count under node_info
+        output_json["nodes"][node]["node_info"]["tablet_count"] = tablet_counts.get(node, 0)
     with open("node_log_summary.json", "w") as f:
         json.dump(output_json, f, indent=2)
     logger.info("Wrote node log summary to node_log_summary.json")

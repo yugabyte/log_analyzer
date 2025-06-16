@@ -332,9 +332,9 @@ document.addEventListener("DOMContentLoaded", function () {
         });
       }
     });
-    if (nodeInfoKeys.length === 0) {
-      nodeinfoDiv.innerHTML = "<em>No node info available.</em>";
-      return;
+    // Add tablet_count to columns if present
+    if (!nodeInfoKeys.includes("tablet_count")) {
+      nodeInfoKeys.push("tablet_count");
     }
     let html =
       "<table><tr><th>Node Name</th>" +
@@ -349,7 +349,12 @@ document.addEventListener("DOMContentLoaded", function () {
         `<tr><td>${node}</td>` +
         nodeInfoKeys
           .filter((k, idx) => !(k === "node_name" && idx > 0))
-          .map((k) => `<td>${nodeData.node_info[k] || ""}</td>`)
+          .map(
+            (k) =>
+              `<td>${
+                nodeData.node_info[k] !== undefined ? nodeData.node_info[k] : ""
+              }</td>`
+          )
           .join("") +
         "</tr>";
     });

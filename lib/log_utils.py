@@ -340,3 +340,32 @@ def extract_node_info_from_logs(logFilesMetadata, logger):
                 node_info['ip_address'] = master_info['ip']
         node_infos[node] = node_info
     return node_infos
+
+def count_tablets_per_tserver(logFilesMetadata):
+    """
+    For each node, count the number of tablet-meta files in <node_dir>/tserver/tablet-meta/.
+    Returns: { nodeName: tablet_count }
+    """
+    import os, re
+    tablet_counts = {}
+    uuid_pattern = re.compile(r'^[a-f0-9]{32}$')
+    for node, logTypes in logFilesMetadata.items():
+        # Find any tserver log to get node_dir
+        tserver_logs = logTypes.get('yb-tserver', {}).get('INFO', {})
+        node_dir = None
+        for logFile in tserver_logs:
+            m = re.search(r"(.*/%s/)" % re.escape(node), logFile)
+            if m:
+                node_dir = m.group(1)
+                break
+        if not node_dir:
+            tablet_counts[node] = 0
+            continue
+        tablet_meta_dir = os.path.join(node_dir, 'tserver', 'tablet-meta')
+        count = 0
+        if os.path.isdir(tablet_meta_dir):
+            for fname in os.listdir(tablet_meta_dir):
+                if uuid_pattern.match(fname):
+                    count += 1
+        tablet_counts[node] = count
+    return tablet_counts
