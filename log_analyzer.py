@@ -9,7 +9,8 @@ from lib.log_utils import (
     getArchiveFiles,
     getLogFilesFromCurrentDir,
     getTimeFromLog,
-    get_gflags_from_nodes
+    get_gflags_from_nodes,
+    extract_node_info_from_logs
 )
 from multiprocessing import Pool, Lock, Manager
 from colorama import Fore, Style
@@ -184,12 +185,22 @@ if __name__ == "__main__":
     gflags = get_gflags_from_nodes(logFilesMetadata)
     # --- End GFlags addition ---
 
+    # --- Node info extraction ---
+    node_infos = extract_node_info_from_logs(logFilesMetadata, logger)
+    # --- End node info extraction ---
+
     # Write nested results to a JSON file, including universeName and top-level GFlags
     output_json = {
         "universeName": universeName,
         "GFlags": gflags if gflags else {},
         "nodes": nested_results
     }
+    # Add node_info metadata under each node
+    for node, info in node_infos.items():
+        if node in output_json["nodes"]:
+            output_json["nodes"][node]["node_info"] = info
+        else:
+            output_json["nodes"][node] = {"node_info": info}
     with open("node_log_summary.json", "w") as f:
         json.dump(output_json, f, indent=2)
     logger.info("Wrote node log summary to node_log_summary.json")

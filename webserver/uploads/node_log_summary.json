@@ -1,5 +1,98 @@
 {
   "universeName": "GMDS-Prod",
+  "GFlags": {
+    "tserver": {
+      "allow_insecure_connections": false,
+      "callhome_collection_level": "medium",
+      "cert_node_filename": "PLREBDBG0001.ap.lifeisgreat.net",
+      "certs_dir": "/home/yugabyte/yugabyte-tls-config",
+      "certs_for_cdc_dir": "/home/yugabyte/yugabyte-tls-producer",
+      "certs_for_client_dir": "/home/yugabyte/yugabyte-client-tls-config",
+      "cluster_uuid": "14505c32-0d53-48f0-82c4-318fc205b6c2",
+      "enable_ysql": true,
+      "fs_data_dirs": "/data",
+      "load_balancer_initial_delay_secs": 480,
+      "max_log_size": 256,
+      "metric_node_name": "yb-prod-GMDS-Prod-n1",
+      "pgsql_proxy_bind_address": "0.0.0.0:5450",
+      "pgsql_proxy_webserver_port": 13000,
+      "placement_cloud": "onprem",
+      "placement_region": "Singapore",
+      "placement_uuid": "3d610ae4-a324-4c78-8825-0fa7e466d95c",
+      "placement_zone": "AZ1",
+      "redis_proxy_bind_address": "PLREBDBG0001.ap.lifeisgreat.net:6379",
+      "replication_factor": 3,
+      "rpc_bind_addresses": "PLREBDBG0001.ap.lifeisgreat.net:9100",
+      "server_broadcast_addresses": "PLREBDBG0001.ap.lifeisgreat.net:9100",
+      "start_cql_proxy": false,
+      "start_redis_proxy": false,
+      "tserver_master_addrs": "PLREBDBG0001.ap.lifeisgreat.net:7100,PLREBDBG0002.ap.lifeisgreat.net:7100,PLREBDBG0003.ap.lifeisgreat.net:7100",
+      "txn_table_wait_min_ts_count": 3,
+      "undefok": "enable_ysql",
+      "use_client_to_server_encryption": true,
+      "use_memory_defaults_optimized_for_ysql": true,
+      "use_node_hostname_for_local_tserver": true,
+      "use_node_to_node_encryption": true,
+      "webserver_ca_certificate_file": "/home/yugabyte/yugabyte-tls-config/ca.crt",
+      "webserver_certificate_file": "/home/yugabyte/yugabyte-tls-config/node.PLREBDBG0001.ap.lifeisgreat.net.crt",
+      "webserver_interface": "PLREBDBG0001.ap.lifeisgreat.net",
+      "webserver_port": 9000,
+      "webserver_private_key_file": "/home/yugabyte/yugabyte-tls-config/node.PLREBDBG0001.ap.lifeisgreat.net.key",
+      "webserver_redirect_http_to_https": true,
+      "ysql_enable_auth": true,
+      "ysql_hba_conf_csv": "hostssl all yugabyte 10.156.16.132/32 trust,hostssl all yugabyte 10.156.16.133/32 trust,hostssl all yugabyte 10.156.16.134/32 trust,hostssl all yugabyte all reject,\"hostssl   all  all 0.0.0.0/0  ldap ldapserver=\"\"10.163.181.112 10.163.181.113\"\" ldapprefix=\"\"CN=\"\" ldapsuffix=\"\",OU=Accounts,OU=IT,OU=GE Singapore,OU=LifeisGreat,OU=SG-Users,OU=SG,DC=ap,DC=lifeisgreat,DC=net\"\" ldapport=389\",local all yugabyte trust",
+      "ssl_protocols": "tls12",
+      "timestamp_history_retention_interval_sec": 1800,
+      "yb_enable_read_committed_isolation": true,
+      "ysql_pg_conf_csv": "password_encryption=scram-sha-256,ssl_min_protocol_version=TLSv1.2,log_connections=on,log_disconnections=on,\"pgaudit.log='DDL,ROLE'\",shared_preload_libraries=passwordcheck,tcp_keepalives_idle=150,tcp_keepalives_interval=150,tcp_keepalives_count=3,log_destination = 'syslog',syslog_ident = 'postgres'"
+    },
+    "master": {
+      "allow_insecure_connections": false,
+      "callhome_collection_level": "medium",
+      "cert_node_filename": "PLREBDBG0001.ap.lifeisgreat.net",
+      "certs_dir": "/home/yugabyte/yugabyte-tls-config",
+      "certs_for_cdc_dir": "/home/yugabyte/yugabyte-tls-producer",
+      "certs_for_client_dir": "/home/yugabyte/yugabyte-client-tls-config",
+      "cluster_uuid": "14505c32-0d53-48f0-82c4-318fc205b6c2",
+      "enable_ysql": true,
+      "enforce_tablet_replica_limits": true,
+      "fs_data_dirs": "/data",
+      "load_balancer_initial_delay_secs": 480,
+      "master_addresses": "PLREBDBG0001.ap.lifeisgreat.net:7100,PLREBDBG0002.ap.lifeisgreat.net:7100,PLREBDBG0003.ap.lifeisgreat.net:7100",
+      "master_join_existing_universe": true,
+      "max_log_size": 256,
+      "metric_node_name": "yb-prod-GMDS-Prod-n1",
+      "notify_peer_of_removal_from_cluster": false,
+      "pgsql_proxy_bind_address": "0.0.0.0:5450",
+      "pgsql_proxy_webserver_port": 13000,
+      "placement_cloud": "onprem",
+      "placement_region": "Singapore",
+      "placement_uuid": "3d610ae4-a324-4c78-8825-0fa7e466d95c",
+      "placement_zone": "AZ1",
+      "replication_factor": 3,
+      "rpc_bind_addresses": "PLREBDBG0001.ap.lifeisgreat.net:7100",
+      "server_broadcast_addresses": "PLREBDBG0001.ap.lifeisgreat.net:7100",
+      "split_respects_tablet_replica_limits": true,
+      "start_cql_proxy": false,
+      "txn_table_wait_min_ts_count": 3,
+      "undefok": "notify_peer_of_removal_from_cluster,master_join_existing_universe,enable_ysql",
+      "use_client_to_server_encryption": true,
+      "use_memory_defaults_optimized_for_ysql": true,
+      "use_node_hostname_for_local_tserver": true,
+      "use_node_to_node_encryption": true,
+      "webserver_ca_certificate_file": "/home/yugabyte/yugabyte-tls-config/ca.crt",
+      "webserver_certificate_file": "/home/yugabyte/yugabyte-tls-config/node.PLREBDBG0001.ap.lifeisgreat.net.crt",
+      "webserver_interface": "PLREBDBG0001.ap.lifeisgreat.net",
+      "webserver_port": 7000,
+      "webserver_private_key_file": "/home/yugabyte/yugabyte-tls-config/node.PLREBDBG0001.ap.lifeisgreat.net.key",
+      "webserver_redirect_http_to_https": true,
+      "ysql_enable_auth": true,
+      "ysql_hba_conf_csv": "local all yugabyte trust",
+      "enable_truncate_on_pitr_table": true,
+      "ssl_protocols": "tls12",
+      "yb_enable_read_committed_isolation": true
+    }
+  },
   "nodes": {
     "yb-prod-GMDS-Prod-n1": {
       "postgres": {
@@ -315,6 +408,13 @@
             }
           }
         }
+      },
+      "node_info": {
+        "node_name": "yb-prod-GMDS-Prod-n1",
+        "master_uuid": "5e3a240921e04369a18d289e17a4aad3",
+        "tserver_uuid": "c195241f37de48fb88df68c7a1ae172d",
+        "hostname": "PLREBDBG0001",
+        "ip_address": "10.156.16.132"
       }
     },
     "yb-prod-GMDS-Prod-n2": {
@@ -620,6 +720,13 @@
             }
           }
         }
+      },
+      "node_info": {
+        "node_name": "yb-prod-GMDS-Prod-n2",
+        "master_uuid": "f669bc44e40e45a08bee04597e228a41",
+        "tserver_uuid": "401c9efdc8bc46d29d9b346d940b5db8",
+        "hostname": "PLREBDBG0002",
+        "ip_address": "10.156.16.133"
       }
     },
     "yb-prod-GMDS-Prod-n3": {
@@ -969,6 +1076,13 @@
       },
       "yb-master": {
         "logMessages": {}
+      },
+      "node_info": {
+        "node_name": "yb-prod-GMDS-Prod-n3",
+        "master_uuid": "6e5cc4ef97154322823f50078aec8c1c",
+        "tserver_uuid": "d61ea917f06e443fa1ef1d3fc5ad5d55",
+        "hostname": "PLREBDBG0003",
+        "ip_address": "10.156.16.134"
       }
     }
   }

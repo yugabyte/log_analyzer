@@ -280,3 +280,63 @@ def get_gflags_from_nodes(logFilesMetadata):
         if all(found.values()):
             break
     return gflags if gflags else None
+
+def extract_node_info_from_logs(logFilesMetadata, logger):
+    """
+    For each node, extract node info (name, master UUID, tserver UUID, hostname, IP) from INFO logs.
+    Returns: { nodeName: { ...info... } }
+    """
+    import re, gzip
+    def parse_node_info_line(line):
+        m = re.search(r"Node information: \{ hostname: '([^']+)', rpc_ip: '([^']+)', webserver_ip: '([^']+)', uuid: '([^']+)' \}", line)
+        if m:
+            return {
+                'hostname': m.group(1),
+                'ip': m.group(2),
+                'uuid': m.group(4)
+            }
+        return None
+    node_infos = {}
+    for node, logTypes in logFilesMetadata.items():
+        node_info = {'node_name': node, 'master_uuid': None, 'tserver_uuid': None, 'hostname': None, 'ip_address': None}
+        tserver_info = None
+        master_info = None
+        tserver_logs = logTypes.get('yb-tserver', {}).get('INFO', {})
+        for logFile in tserver_logs:
+            try:
+                opener = gzip.open if logFile.endswith('.gz') else open
+                with opener(logFile, 'rt', errors='ignore') as f:
+                    for line in f:
+                        info = parse_node_info_line(line)
+                        if info:
+                            tserver_info = info
+                            break
+                if tserver_info:
+                    break
+            except Exception as e:
+                logger.debug(f"Failed to parse tserver log {logFile}: {e}")
+        master_logs = logTypes.get('yb-master', {}).get('INFO', {})
+        for logFile in master_logs:
+            try:
+                opener = gzip.open if logFile.endswith('.gz') else open
+                with opener(logFile, 'rt', errors='ignore') as f:
+                    for line in f:
+                        info = parse_node_info_line(line)
+                        if info:
+                            master_info = info
+                            break
+                if master_info:
+                    break
+            except Exception as e:
+                logger.debug(f"Failed to parse master log {logFile}: {e}")
+        if tserver_info:
+            node_info['tserver_uuid'] = tserver_info['uuid']
+            node_info['hostname'] = tserver_info['hostname']
+            node_info['ip_address'] = tserver_info['ip']
+        if master_info:
+            node_info['master_uuid'] = master_info['uuid']
+            if not tserver_info:
+                node_info['hostname'] = master_info['hostname']
+                node_info['ip_address'] = master_info['ip']
+        node_infos[node] = node_info
+    return node_infos
