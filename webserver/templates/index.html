@@ -25,7 +25,6 @@
       >
     </div>
     <div class="yuga-container">
-      {% if not report_uuid %}
       <h2>Recent Reports</h2>
       <table style="margin-bottom: 2em">
         <thead>
@@ -51,44 +50,6 @@
           {% endfor %}
         </tbody>
       </table>
-      {% endif %}
-      <div id="controls" style="display: none">
-        <label
-          >Node:
-          <select id="nodeSelect"></select>
-        </label>
-        <label
-          >Process:
-          <select id="logTypeSelect"></select>
-        </label>
-      </div>
-      {% if report_uuid %}
-      <div class="tab-bar">
-        <button class="tab-btn active" data-tab="histogram-tab">
-          Histogram
-        </button>
-        <button class="tab-btn" data-tab="table-tab">Table View</button>
-        <button class="tab-btn" data-tab="gflags-tab">GFlags</button>
-        <button class="tab-btn" data-tab="nodeinfo-tab">Node Info</button>
-      </div>
-      <div id="tab-panels">
-        <div id="histogram-tab" class="tab-panel" style="display: block">
-          <div id="histogram"></div>
-        </div>
-        <div id="table-tab" class="tab-panel" style="display: none">
-          <div id="tables"></div>
-        </div>
-        <div id="gflags-tab" class="tab-panel" style="display: none">
-          <div id="gflags"></div>
-        </div>
-        <div id="nodeinfo-tab" class="tab-panel" style="display: none">
-          <div id="nodeinfo"></div>
-        </div>
-      </div>
-      {% endif %}
     </div>
-    <script>
-      window.report_uuid = "{{ report_uuid|default('') }}";
-    </script>
   </body>
 </html>

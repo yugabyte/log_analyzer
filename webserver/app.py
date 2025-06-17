@@ -84,7 +84,7 @@ def serve_img(filename):
 
 @app.route('/reports/<uuid>')
 def report_page(uuid):
-    return render_template('index.html', report_uuid=uuid)
+    return render_template('reports.html', report_uuid=uuid)
 
 @app.route('/reports/<int:report_id>')
 def report_json(report_id):
