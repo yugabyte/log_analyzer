@@ -249,6 +249,7 @@
           <select id="logTypeSelect"></select>
         </label>
       </div>
+      {% if report_uuid %}
       <div class="tab-bar">
         <button class="tab-btn active" data-tab="histogram-tab">
           Histogram
@@ -271,6 +272,7 @@
           <div id="nodeinfo"></div>
         </div>
       </div>
+      {% endif %}
     </div>
     <script>
       window.report_uuid = "{{ report_uuid|default('') }}";
