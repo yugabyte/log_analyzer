@@ -4,23 +4,86 @@ document.addEventListener("DOMContentLoaded", function () {
   const controls = document.getElementById("controls");
   const histogramDiv = document.getElementById("histogram");
   const tablesDiv = document.getElementById("tables");
+  const intervalSelect = document.getElementById("intervalSelect");
+  const startTimePicker = document.getElementById("startTimePicker");
+  const endTimePicker = document.getElementById("endTimePicker");
+  const applyHistogramFilter = document.getElementById("applyHistogramFilter");
   let jsonData = null;
+  let currentReportId = null;
 
   // Auto-load report if report_uuid is present in the template context
   const reportUuidFromTemplate = window.report_uuid || null;
   if (reportUuidFromTemplate) {
-    fetch(`/api/reports/${reportUuidFromTemplate}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Report not found");
-        return res.json();
-      })
+    currentReportId = reportUuidFromTemplate;
+    // Instead of fetching /api/reports, fetch histogram with default interval and no range
+    fetchAndRenderHistogram();
+  }
+
+  // Helper to get ISO string for API from datetime-local input
+  function toApiIso(dtStr) {
+    if (!dtStr) return null;
+    // dtStr is 'YYYY-MM-DDTHH:MM', convert to 'YYYY-MM-DDTHH:MM:00Z'
+    return dtStr + ":00Z";
+  }
+
+  // Helper to get query params from URL
+  function getQueryParams() {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      interval: params.get('interval'),
+      start: params.get('start'),
+      end: params.get('end'),
+    };
+  }
+
+  // Helper to update URL with current filter state
+  function updateUrlWithFilters() {
+    const params = new URLSearchParams(window.location.search);
+    if (intervalSelect && intervalSelect.value) params.set('interval', intervalSelect.value);
+    if (startTimePicker && startTimePicker.value) params.set('start', toApiIso(startTimePicker.value));
+    else params.delete('start');
+    if (endTimePicker && endTimePicker.value) params.set('end', toApiIso(endTimePicker.value));
+    else params.delete('end');
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState({}, '', newUrl);
+  }
+
+  // On page load, set controls from URL if present
+  document.addEventListener('DOMContentLoaded', function () {
+    const params = getQueryParams();
+    if (intervalSelect && params.interval) intervalSelect.value = params.interval;
+    if (startTimePicker && params.start) startTimePicker.value = params.start.slice(0, 16);
+    if (endTimePicker && params.end) endTimePicker.value = params.end.slice(0, 16);
+  });
+
+  // Update fetchAndRenderHistogram to update URL
+  function fetchAndRenderHistogram() {
+    updateUrlWithFilters();
+    if (!currentReportId) return;
+    const interval = intervalSelect ? parseInt(intervalSelect.value) : 1;
+    const start = toApiIso(startTimePicker ? startTimePicker.value : null);
+    const end = toApiIso(endTimePicker ? endTimePicker.value : null);
+    let url = `/api/histogram/${currentReportId}?interval=${interval}`;
+    if (start) url += `&start=${encodeURIComponent(start)}`;
+    if (end) url += `&end=${encodeURIComponent(end)}`;
+    fetch(url)
+      .then((res) => res.json())
       .then((data) => {
         jsonData = data;
         renderControlsAndData();
-      })
-      .catch((err) => {
-        alert("Failed to load report: " + err.message);
       });
+  }
+
+  if (applyHistogramFilter) {
+    applyHistogramFilter.onclick = fetchAndRenderHistogram;
+  }
+  if (intervalSelect) {
+    intervalSelect.onchange = fetchAndRenderHistogram;
+  }
+
+  // Optionally, auto-load histogram on page load
+  if (intervalSelect && startTimePicker && endTimePicker) {
+    fetchAndRenderHistogram();
   }
 
   function renderControlsAndData() {

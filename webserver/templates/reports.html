@@ -45,6 +45,27 @@
       </div>
       <div id="tab-panels">
         <div id="histogram-tab" class="tab-panel" style="display: block">
+          <div id="histogram-controls" style="margin-bottom: 18px">
+            <label
+              >Time Interval:
+              <select id="intervalSelect">
+                <option value="1">1 minute</option>
+                <option value="5">5 minutes</option>
+                <option value="15">15 minutes</option>
+                <option value="30">30 minutes</option>
+                <option value="60">1 hour</option>
+              </select>
+            </label>
+            <label style="margin-left: 16px"
+              >Time Range:
+              <input type="datetime-local" id="startTimePicker" />
+              to
+              <input type="datetime-local" id="endTimePicker" />
+            </label>
+            <button id="applyHistogramFilter" style="margin-left: 12px">
+              Apply
+            </button>
+          </div>
           <div id="histogram"></div>
         </div>
         <div id="table-tab" class="tab-panel" style="display: none">

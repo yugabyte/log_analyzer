@@ -76,10 +76,11 @@ def analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logF
                                                 message_stats[msg_type]["EndTime"] = logTime
                                             message_stats[msg_type]["count"] += 1
                                         # Update histogram
-                                        hour_key = hour_bucket.strftime('%Y-%m-%dT%H:00:00Z')
-                                        if hour_key not in message_stats[msg_type]["histogram"]:
-                                            message_stats[msg_type]["histogram"][hour_key] = 0
-                                        message_stats[msg_type]["histogram"][hour_key] += 1
+                                        minute_bucket = logTime.replace(second=0, microsecond=0)
+                                        minute_key = minute_bucket.strftime('%Y-%m-%dT%H:%M:00Z')
+                                        if minute_key not in message_stats[msg_type]["histogram"]:
+                                            message_stats[msg_type]["histogram"][minute_key] = 0
+                                        message_stats[msg_type]["histogram"][minute_key] += 1
                                         break
                         except ValueError:
                             logger.error(f"Invalid log time format in file {logFile}: {line.strip()}")

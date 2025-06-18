@@ -3,6 +3,7 @@ import json
 from collections import defaultdict
 import os
 import psycopg2
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -133,6 +134,82 @@ def get_report_api(uuid):
             return jsonify(row[0])
         else:
             return jsonify({'error': 'Report not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/histogram/<report_id>')
+def histogram_api(report_id):
+    """
+    Query params:
+      - interval: int (minutes, one of 1,5,15,30,60)
+      - start: ISO8601 string (inclusive)
+      - end: ISO8601 string (inclusive)
+    """
+    interval = int(request.args.get('interval', 1))
+    start = request.args.get('start')
+    end = request.args.get('end')
+    try:
+        conn = psycopg2.connect(
+            dbname="postgres",
+            user="log_analyzer_user",
+            password="changeme",
+            host="localhost",
+            port=5432
+        )
+        cur = conn.cursor()
+        # Try both int and str for report_id
+        try:
+            cur.execute("""
+                SELECT json_report FROM log_analyzer.reports WHERE id = %s
+            """, (int(report_id),))
+        except Exception:
+            cur.execute("""
+                SELECT json_report FROM log_analyzer.reports WHERE id::text = %s
+            """, (str(report_id),))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        if not row:
+            return jsonify({'error': 'Report not found'}), 404
+        data = row[0]
+        if isinstance(data, str):
+            data = json.loads(data)
+        # Filter and aggregate histogram
+        def parse_time(s):
+            return datetime.strptime(s, '%Y-%m-%dT%H:%M:%SZ')
+        def format_time(dt):
+            return dt.strftime('%Y-%m-%dT%H:%M:00Z')
+        if start:
+            start_dt = parse_time(start)
+        else:
+            start_dt = None
+        if end:
+            end_dt = parse_time(end)
+        else:
+            end_dt = None
+        for node, node_data in data.get('nodes', {}).items():
+            for proc, proc_data in node_data.items():
+                for msg, msg_stats in proc_data.get('logMessages', {}).items():
+                    hist = msg_stats.get('histogram', {})
+                    # Filter by time range
+                    filtered = {}
+                    for k, v in hist.items():
+                        t = parse_time(k)
+                        if (not start_dt or t >= start_dt) and (not end_dt or t <= end_dt):
+                            filtered[k] = v
+                    # Aggregate by interval
+                    if interval > 1:
+                        agg = {}
+                        for k, v in filtered.items():
+                            t = parse_time(k)
+                            bucket_minute = (t.minute // interval) * interval
+                            bucket = t.replace(minute=bucket_minute, second=0, microsecond=0)
+                            bucket_key = format_time(bucket)
+                            agg[bucket_key] = agg.get(bucket_key, 0) + v
+                        msg_stats['histogram'] = agg
+                    else:
+                        msg_stats['histogram'] = filtered
+        return jsonify(data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
