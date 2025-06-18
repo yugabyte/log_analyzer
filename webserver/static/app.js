@@ -30,30 +30,36 @@ document.addEventListener("DOMContentLoaded", function () {
   function getQueryParams() {
     const params = new URLSearchParams(window.location.search);
     return {
-      interval: params.get('interval'),
-      start: params.get('start'),
-      end: params.get('end'),
+      interval: params.get("interval"),
+      start: params.get("start"),
+      end: params.get("end"),
     };
   }
 
   // Helper to update URL with current filter state
   function updateUrlWithFilters() {
     const params = new URLSearchParams(window.location.search);
-    if (intervalSelect && intervalSelect.value) params.set('interval', intervalSelect.value);
-    if (startTimePicker && startTimePicker.value) params.set('start', toApiIso(startTimePicker.value));
-    else params.delete('start');
-    if (endTimePicker && endTimePicker.value) params.set('end', toApiIso(endTimePicker.value));
-    else params.delete('end');
+    if (intervalSelect && intervalSelect.value)
+      params.set("interval", intervalSelect.value);
+    if (startTimePicker && startTimePicker.value)
+      params.set("start", toApiIso(startTimePicker.value));
+    else params.delete("start");
+    if (endTimePicker && endTimePicker.value)
+      params.set("end", toApiIso(endTimePicker.value));
+    else params.delete("end");
     const newUrl = `${window.location.pathname}?${params.toString()}`;
-    window.history.replaceState({}, '', newUrl);
+    window.history.replaceState({}, "", newUrl);
   }
 
   // On page load, set controls from URL if present
-  document.addEventListener('DOMContentLoaded', function () {
+  document.addEventListener("DOMContentLoaded", function () {
     const params = getQueryParams();
-    if (intervalSelect && params.interval) intervalSelect.value = params.interval;
-    if (startTimePicker && params.start) startTimePicker.value = params.start.slice(0, 16);
-    if (endTimePicker && params.end) endTimePicker.value = params.end.slice(0, 16);
+    if (intervalSelect && params.interval)
+      intervalSelect.value = params.interval;
+    if (startTimePicker && params.start)
+      startTimePicker.value = params.start.slice(0, 16);
+    if (endTimePicker && params.end)
+      endTimePicker.value = params.end.slice(0, 16);
   });
 
   // Update fetchAndRenderHistogram to update URL
