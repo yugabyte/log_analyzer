@@ -39,8 +39,17 @@ def analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logF
         return dt.strftime('%Y-%m-%dT%H:%M:%SZ')
 
     # Prepare a fixed-width description for alignment
-    desc = f"Analyzing {nodeName} ({logType}/{subType})"
-    desc = desc[:40].ljust(40)  # pad/truncate to 40 chars
+    # Always show logType/subType, truncate nodeName if needed
+    max_desc_len = 40
+    logtype_str = f"({logType}/{subType})"
+    prefix = "Analyzing "
+    max_node_len = max_desc_len - len(prefix) - len(logtype_str) - 3  # 3 for ellipsis if needed
+    if len(nodeName) > max_node_len:
+        node_disp = nodeName[:max_node_len] + "..."
+    else:
+        node_disp = nodeName
+    desc = f"{prefix}{node_disp} {logtype_str}"
+    desc = desc.ljust(max_desc_len)
 
     # Use tqdm progress bar for filteredLogs with only elapsed time and file counts
     with tqdm(
