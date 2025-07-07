@@ -11,7 +11,7 @@ from colorama import just_fix_windows_console
 just_fix_windows_console()
 
 # Function to analyze the log files from the nodes
-def analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger):
+def analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, position=0):
     logger.info(f"Analyzing logs for node: {nodeName}, logType: {logType}, subType: {subType}")
     filteredLogs = []
     for logFile, metadata in logFilesMetadata[nodeName][logType][subType].items():
@@ -39,67 +39,65 @@ def analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logF
         return dt.strftime('%Y-%m-%dT%H:%M:%SZ')
 
     # Prepare a fixed-width description for alignment
-    # Always show logType/subType, truncate nodeName if needed
-    max_desc_len = 40
-    logtype_str = f"({logType}/{subType})"
-    prefix = "Analyzing "
-    max_node_len = max_desc_len - len(prefix) - len(logtype_str) - 3  # 3 for ellipsis if needed
-    if len(nodeName) > max_node_len:
-        node_disp = nodeName[:max_node_len] + "..."
-    else:
-        node_disp = nodeName
-    desc = f"{prefix}{node_disp} {logtype_str}"
-    desc = desc.ljust(max_desc_len)
+    # Show only last 40 chars of nodeName if longer, and only first 8 chars of logType
+    node_disp = nodeName[-40:] if len(nodeName) > 40 else nodeName
+    logtype_disp = logType[:8]
+    logtype_str = f"({logtype_disp}/{subType})"
+    desc = f"{node_disp} {logtype_str}"
+    desc = desc.ljust(50)
 
     # Use tqdm progress bar for filteredLogs with only elapsed time and file counts
-    with tqdm(
-        filteredLogs,
-        desc=desc,
-        unit="file",
-        ncols=None,  # Let tqdm auto-detect terminal width
-        bar_format="{l_bar}{bar:80}| {n_fmt}/{total_fmt} files [elapsed: {elapsed}]",
-        colour="CYAN"
-    ) as pbar:
-        for logFile in pbar:
-            logger.info(f"Processing log file: {logFile}")
-            try:
-                with openLogFile(logFile) as logs:
-                    if logs is None:
-                        continue
-                    previousTime = '0101 00:00'
-                    for line in logs:
-                        try:
-                            logTime = getTimeFromLog(line, previousTime)
-                            previousTime = logTime.strftime("%m%d %H:%M")
-                            if startTimeLong <= logTime <= endTimeLong:
-                                for idx, pattern in enumerate(patterns):
-                                    if re.search(pattern, line):
-                                        msg_type = pattern_names[idx]
-                                        hour_bucket = logTime.replace(minute=0, second=0, microsecond=0)
-                                        if msg_type not in message_stats:
-                                            message_stats[msg_type] = {"StartTime": logTime, "EndTime": logTime, "count": 1, "histogram": {}}
-                                        else:
-                                            if logTime < message_stats[msg_type]["StartTime"]:
-                                                message_stats[msg_type]["StartTime"] = logTime
-                                            if logTime > message_stats[msg_type]["EndTime"]:
-                                                message_stats[msg_type]["EndTime"] = logTime
-                                            message_stats[msg_type]["count"] += 1
-                                        # Update histogram
-                                        minute_bucket = logTime.replace(second=0, microsecond=0)
-                                        minute_key = minute_bucket.strftime('%Y-%m-%dT%H:%M:00Z')
-                                        if minute_key not in message_stats[msg_type]["histogram"]:
-                                            message_stats[msg_type]["histogram"][minute_key] = 0
-                                        message_stats[msg_type]["histogram"][minute_key] += 1
-                                        break
-                        except ValueError:
-                            logger.error(f"Invalid log time format in file {logFile}: {line.strip()}")
+    # Only analyze if filteredLogs is not empty
+    if filteredLogs:
+        with tqdm(
+            filteredLogs,
+            desc=desc,
+            unit="file",
+            ncols=None,  # Let tqdm auto-detect terminal width
+            bar_format="{l_bar}{bar:80}| {n_fmt}/{total_fmt} files [elapsed: {elapsed}]",
+            colour="CYAN",
+            position=position
+        ) as pbar:
+            for logFile in pbar:
+                logger.info(f"Processing log file: {logFile}")
+                try:
+                    with openLogFile(logFile) as logs:
+                        if logs is None:
                             continue
-                        except Exception as e:
-                            logger.error(f"Error processing line in file {logFile}: {e}")
-                            continue
-                    logs.close()
-            except Exception as e:
-                logger.error(f"Error reading log file {logFile}: {e}")
+                        previousTime = '0101 00:00'
+                        for line in logs:
+                            try:
+                                logTime = getTimeFromLog(line, previousTime)
+                                previousTime = logTime.strftime("%m%d %H:%M")
+                                if startTimeLong <= logTime <= endTimeLong:
+                                    for idx, pattern in enumerate(patterns):
+                                        if re.search(pattern, line):
+                                            msg_type = pattern_names[idx]
+                                            hour_bucket = logTime.replace(minute=0, second=0, microsecond=0)
+                                            if msg_type not in message_stats:
+                                                message_stats[msg_type] = {"StartTime": logTime, "EndTime": logTime, "count": 1, "histogram": {}}
+                                            else:
+                                                if logTime < message_stats[msg_type]["StartTime"]:
+                                                    message_stats[msg_type]["StartTime"] = logTime
+                                                if logTime > message_stats[msg_type]["EndTime"]:
+                                                    message_stats[msg_type]["EndTime"] = logTime
+                                                message_stats[msg_type]["count"] += 1
+                                            # Update histogram
+                                            minute_bucket = logTime.replace(second=0, microsecond=0)
+                                            minute_key = minute_bucket.strftime('%Y-%m-%dT%H:%M:00Z')
+                                            if minute_key not in message_stats[msg_type]["histogram"]:
+                                                message_stats[msg_type]["histogram"][minute_key] = 0
+                                            message_stats[msg_type]["histogram"][minute_key] += 1
+                                            break
+                            except ValueError:
+                                logger.error(f"Invalid log time format in file {logFile}: {line.strip()}")
+                                continue
+                            except Exception as e:
+                                logger.error(f"Error processing line in file {logFile}: {e}")
+                                continue
+                        logs.close()
+                except Exception as e:
+                    logger.error(f"Error reading log file {logFile}: {e}")
 
     # Format times for output
     logMessages = {}
@@ -119,8 +117,9 @@ def analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logF
     return result
 
 def analyze_log_file_worker(args_tuple):
-    nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger = args_tuple
-    return analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger)
+    # Unpack with position
+    nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, position = args_tuple
+    return analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, position=position)
 
 def getUniverseNameFromManifest(logger):
     universeName = "unknown"

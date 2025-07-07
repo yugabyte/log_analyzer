@@ -121,49 +121,54 @@ logger.addHandler(file_handler)
 if __name__ == "__main__":
     logFilesMetadata = {}
     logFilesMetadataFile = 'log_files_metadata.json'
-    logFileList = getLogFilesToBuildMetadata(args, logger, logFile)
-    if not logFileList:
-        logger.error("No log files found in the specified directory or support bundle.")
-        exit(1)
-    done = False
+    if os.path.exists(logFilesMetadataFile):
+        logger.info(f"Loading log files metadata from {logFilesMetadataFile}")
+        with open(logFilesMetadataFile, 'r') as f:
+            logFilesMetadata = json.load(f)
+    else:
+        logFileList = getLogFilesToBuildMetadata(args, logger, logFile)
+        if not logFileList:
+            logger.error("No log files found in the specified directory or support bundle.")
+            exit(1)
+        done = False
 
-    # Start the spinner in a separate thread
-    stop_event = threading.Event()
-    spinner_thread = threading.Thread(target=spinner, args=(stop_event,))
-    spinner_thread.start()
+        # Start the spinner in a separate thread
+        stop_event = threading.Event()
+        spinner_thread = threading.Thread(target=spinner, args=(stop_event,))
+        spinner_thread.start()
 
-    # Build the metadata for the log files
-    for logFile in logFileList:
-        metadata = getFileMetadata(logFile, logger)
-        if metadata:
-            node = metadata["nodeName"]
-            logType = metadata["logType"]
-            subType = metadata["subType"]
-            if node not in logFilesMetadata:
-                logFilesMetadata[node] = {}
-            if logType not in logFilesMetadata[node]:
-                logFilesMetadata[node][logType] = {}
-            if subType not in logFilesMetadata[node][logType]:
-                logFilesMetadata[node][logType][subType] = {}
-            logFilesMetadata[node][logType][subType][logFile] = {
-                "logStartsAt": str(metadata["logStartsAt"]),
-                "logEndsAt": str(metadata["logEndsAt"])
-            }
-    # Save the metadata to a file
-    with open(logFilesMetadataFile, 'w') as f:
-        json.dump(logFilesMetadata, f, indent=4)
-    stop_event.set()
-    spinner_thread.join()
-    logger.info(f"Log files metadata saved to {logFilesMetadataFile}")
+        # Build the metadata for the log files
+        for logFile in logFileList:
+            metadata = getFileMetadata(logFile, logger)
+            if metadata:
+                node = metadata["nodeName"]
+                logType = metadata["logType"]
+                subType = metadata["subType"]
+                if node not in logFilesMetadata:
+                    logFilesMetadata[node] = {}
+                if logType not in logFilesMetadata[node]:
+                    logFilesMetadata[node][logType] = {}
+                if subType not in logFilesMetadata[node][logType]:
+                    logFilesMetadata[node][logType][subType] = {}
+                logFilesMetadata[node][logType][subType][logFile] = {
+                    "logStartsAt": str(metadata["logStartsAt"]),
+                    "logEndsAt": str(metadata["logEndsAt"])
+                }
+        # Save the metadata to a file
+        with open(logFilesMetadataFile, 'w') as f:
+            json.dump(logFilesMetadata, f, indent=4)
+        stop_event.set()
+        spinner_thread.join()
+        logger.info(f"Log files metadata saved to {logFilesMetadataFile}")
     # Get long and short start and end times
     startTimeLong, endTimeLong, startTimeShort, endTimeShort = getStartAndEndTimes(args)
     logger.info(f"Analyzing logs from {startTimeShort} to {endTimeShort}")
     # Prepare tasks for parallel processing
     tasks = []
-    for nodeName, nodeData in logFilesMetadata.items():
+    for idx, (nodeName, nodeData) in enumerate(logFilesMetadata.items()):
         for logType, logTypeData in nodeData.items():
             for subType, subTypeData in logTypeData.items():
-                tasks.append((nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger))
+                tasks.append((nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, idx))
     # Get the universe name from manifest.json
     universeName = getUniverseNameFromManifest(logger)
     logger.info(f"Universe name: {universeName}")
