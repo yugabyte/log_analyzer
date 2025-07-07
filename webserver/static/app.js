@@ -97,7 +97,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const nodes = Object.keys(jsonData.nodes);
     let logTypes = new Set();
     nodes.forEach((node) => {
-      Object.keys(jsonData.nodes[node]).forEach((type) => logTypes.add(type));
+      Object.keys(jsonData.nodes[node])
+        .filter((type) => type !== "node_info")
+        .forEach((type) => logTypes.add(type));
     });
     nodeSelect.innerHTML =
       '<option value="all">All</option>' +
