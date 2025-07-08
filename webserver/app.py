@@ -14,16 +14,23 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 # In-memory storage for uploaded data
 uploaded_data = {}
 
+# Helper to load DB config
+
+def load_db_config():
+    with open(os.path.join(os.path.dirname(__file__), '..', 'db_config.json')) as f:
+        return json.load(f)
+
 @app.route('/')
 def index():
     # Fetch recent reports from DB
     try:
+        db_config = load_db_config()
         conn = psycopg2.connect(
-            dbname="postgres",
-            user="log_analyzer_user",
-            password="changeme",
-            host="localhost",
-            port=5432
+            dbname=db_config["dbname"],
+            user=db_config["user"],
+            password=db_config["password"],
+            host=db_config["host"],
+            port=db_config["port"]
         )
         cur = conn.cursor()
         cur.execute("""
@@ -52,12 +59,13 @@ def upload():
         universe_name = data['universe_name']
         ticket = data.get('ticket', '')
         json_report = json.dumps(data['json_report'])
+        db_config = load_db_config()
         conn = psycopg2.connect(
-            dbname="postgres",
-            user="log_analyzer_user",
-            password="changeme",
-            host="localhost",
-            port=5432
+            dbname=db_config["dbname"],
+            user=db_config["user"],
+            password=db_config["password"],
+            host=db_config["host"],
+            port=db_config["port"]
         )
         cur = conn.cursor()
         cur.execute("""
@@ -91,12 +99,13 @@ def report_page(uuid):
 def report_json(report_id):
     # Return the report in JSON format from DB
     try:
+        db_config = load_db_config()
         conn = psycopg2.connect(
-            dbname="postgres",
-            user="log_analyzer_user",
-            password="changeme",
-            host="localhost",
-            port=5432
+            dbname=db_config["dbname"],
+            user=db_config["user"],
+            password=db_config["password"],
+            host=db_config["host"],
+            port=db_config["port"]
         )
         cur = conn.cursor()
         cur.execute("""
@@ -116,12 +125,13 @@ def report_json(report_id):
 @app.route('/api/reports/<uuid>')
 def get_report_api(uuid):
     try:
+        db_config = load_db_config()
         conn = psycopg2.connect(
-            dbname="postgres",
-            user="log_analyzer_user",
-            password="changeme",
-            host="localhost",
-            port=5432
+            dbname=db_config["dbname"],
+            user=db_config["user"],
+            password=db_config["password"],
+            host=db_config["host"],
+            port=db_config["port"]
         )
         cur = conn.cursor()
         cur.execute("""
@@ -149,12 +159,13 @@ def histogram_api(report_id):
     start = request.args.get('start')
     end = request.args.get('end')
     try:
+        db_config = load_db_config()
         conn = psycopg2.connect(
-            dbname="postgres",
-            user="log_analyzer_user",
-            password="changeme",
-            host="localhost",
-            port=5432
+            dbname=db_config["dbname"],
+            user=db_config["user"],
+            password=db_config["password"],
+            host=db_config["host"],
+            port=db_config["port"]
         )
         cur = conn.cursor()
         # Try both int and str for report_id
