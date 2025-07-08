@@ -5,6 +5,7 @@
     <title>YugabyteDB Log Analyzer - Report</title>
     <link rel="stylesheet" href="/static/app.css" />
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
     <script src="/static/app.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -42,6 +43,7 @@
         <button class="tab-btn" data-tab="table-tab">Table View</button>
         <button class="tab-btn" data-tab="gflags-tab">GFlags</button>
         <button class="tab-btn" data-tab="nodeinfo-tab">Node Info</button>
+        <button class="tab-btn" data-tab="logsolutions-tab">Log Solutions</button>
       </div>
       <div id="tab-panels">
         <div id="histogram-tab" class="tab-panel" style="display: block">
@@ -77,10 +79,14 @@
         <div id="nodeinfo-tab" class="tab-panel" style="display: none">
           <div id="nodeinfo"></div>
         </div>
+        <div id="logsolutions-tab" class="tab-panel" style="display: none">
+          <div id="logsolutions"></div>
+        </div>
       </div>
     </div>
     <script>
       window.report_uuid = "{{ report_uuid|default('') }}";
+      window.logSolutionsMap = {{ log_solutions_map|tojson|safe }};
     </script>
   </body>
 </html>

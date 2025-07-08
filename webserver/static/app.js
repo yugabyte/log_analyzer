@@ -310,6 +310,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (tabId === "table-tab" && jsonData) renderTables();
       if (tabId === "gflags-tab" && jsonData) renderGFlags();
       if (tabId === "nodeinfo-tab" && jsonData) renderNodeInfo();
+      if (tabId === "logsolutions-tab" && jsonData) renderLogSolutions();
     });
   });
 
@@ -431,5 +432,70 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     html += "</table>";
     nodeinfoDiv.innerHTML = html;
+  }
+
+  function renderLogSolutions() {
+    const logsolutionsDiv = document.getElementById("logsolutions");
+    if (!jsonData) {
+      logsolutionsDiv.innerHTML = "<em>No log data loaded.</em>";
+      return;
+    }
+    const foundMessages = new Set();
+    Object.values(jsonData.nodes).forEach((nodeData) => {
+      Object.values(nodeData).forEach((logTypeData) => {
+        if (logTypeData.logMessages) {
+          Object.keys(logTypeData.logMessages).forEach((msg) => foundMessages.add(msg));
+        }
+      });
+    });
+    const solutionsMap = window.logSolutionsMap || {};
+    let html = "";
+    if (foundMessages.size === 0) {
+      html = "<em>No log messages found in this report.</em>";
+    } else {
+      html = '<div class="log-solutions-list">';
+      const converter = new showdown.Converter();
+      let idx = 0;
+      foundMessages.forEach((msg) => {
+        const solutionMd = solutionsMap[msg] || "<em>No solution available for this log message.</em>";
+        const solutionHtml = converter.makeHtml(solutionMd);
+        html += `<div class=\"log-solution-collapsible\" style=\"margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fafbfc;\">
+          <div class=\"log-solution-header\" data-idx=\"${idx}\" style=\"cursor:pointer; display:flex; align-items:center; padding: 12px 18px; font-weight:600; font-size:1.08em; color:#172447; border-radius:6px 6px 0 0; background:#f1f3f7; transition:background 0.2s;\">
+            <span class=\"arrow\" style=\"margin-right:10px; font-size:1.2em; color:#888;\">&#9654;</span>
+            <span>${msg}</span>
+          </div>
+          <div class=\"log-solution-body\" style=\"display:none; padding: 18px; background: #fff; border-radius:0 0 6px 6px; border-top:1px solid #e2e8f0;\">${solutionHtml}</div>
+        </div>`;
+        idx++;
+      });
+      html += "</div>";
+    }
+    logsolutionsDiv.innerHTML = html;
+    // Accordion logic: only one open at a time
+    const headers = logsolutionsDiv.querySelectorAll(".log-solution-header");
+    headers.forEach((header) => {
+      header.onmouseenter = function() { header.style.background = '#e6eaf3'; };
+      header.onmouseleave = function() { header.style.background = '#f1f3f7'; };
+      header.onclick = function () {
+        const content = header.nextElementSibling;
+        const arrow = header.querySelector(".arrow");
+        const isOpen = content.style.display === "block";
+        if (isOpen) {
+          content.style.display = "none";
+          arrow.innerHTML = "&#9654;";
+        } else {
+          // Collapse all
+          logsolutionsDiv.querySelectorAll(".log-solution-body").forEach((c) => {
+            c.style.display = "none";
+          });
+          logsolutionsDiv.querySelectorAll(".log-solution-header .arrow").forEach((a) => {
+            a.innerHTML = "&#9654;";
+          });
+          // Expand this one
+          content.style.display = "block";
+          arrow.innerHTML = "&#9660;";
+        }
+      };
+    });
   }
 });

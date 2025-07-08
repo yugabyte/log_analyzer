@@ -1,9 +1,12 @@
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory
 import json
 from collections import defaultdict
-import os
 import psycopg2
 from datetime import datetime, timedelta
+from patterns_lib import solutions
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -93,7 +96,8 @@ def serve_img(filename):
 
 @app.route('/reports/<uuid>')
 def report_page(uuid):
-    return render_template('reports.html', report_uuid=uuid)
+    # Inject solutions as a JS object for the frontend
+    return render_template('reports.html', report_uuid=uuid, log_solutions_map=solutions)
 
 @app.route('/reports/<int:report_id>')
 def report_json(report_id):
