@@ -233,5 +233,42 @@ def histogram_api(report_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/gflags/<uuid>')
+def gflags_api(uuid):
+    try:
+        db_config = load_db_config()
+        conn = psycopg2.connect(
+            dbname=db_config["dbname"],
+            user=db_config["user"],
+            password=db_config["password"],
+            host=db_config["host"],
+            port=db_config["port"]
+        )
+        cur = conn.cursor()
+        # Get support_bundle_name for this report
+        cur.execute("SELECT support_bundle_name FROM public.reports WHERE id::text = %s", (str(uuid),))
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            conn.close()
+            return jsonify({'error': 'Report not found'}), 404
+        support_bundle_name = row[0]
+        # Query GFlags for this support_bundle, grouped by server_type and gflag
+        cur.execute("""
+            SELECT server_type, gflag, value
+            FROM public.support_bundle_gflags
+            WHERE support_bundle = %s
+        """, (support_bundle_name,))
+        gflags = {}
+        for server_type, gflag, value in cur.fetchall():
+            if server_type not in gflags:
+                gflags[server_type] = {}
+            gflags[server_type][gflag] = value
+        cur.close()
+        conn.close()
+        return jsonify(gflags)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True)

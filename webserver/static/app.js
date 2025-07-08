@@ -316,72 +316,99 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function renderGFlags() {
     const gflagsDiv = document.getElementById("gflags");
-    const gflagsData =
-      (jsonData && (jsonData.GFlags || jsonData.gflags)) || null;
-    if (!gflagsData) {
-      gflagsDiv.innerHTML = "<em>No GFlags data available.</em>";
+    gflagsDiv.innerHTML = '<em>Loading GFlags...</em>';
+    if (!window.report_uuid) {
+      gflagsDiv.innerHTML = "<em>No report selected.</em>";
       return;
     }
-    let html = "";
-    // Master GFlags collapsible
-    if (gflagsData.master) {
-      let masterHtml = "<table><tr><th>Flag</th><th>Value</th></tr>";
-      Object.entries(gflagsData.master).forEach(([k, v]) => {
-        masterHtml += `<tr><td>${k}</td><td>${v}</td></tr>`;
-      });
-      masterHtml += "</table>";
-      html += `
-        <div class="node-table-collapsible">
-          <div class="node-header gflag-header" data-node-idx="gflag-master">
-            <span class="arrow">&#9654;</span>
-            <span>Master GFlags</span>
-          </div>
-          <div class="node-content" style="display:none;">${masterHtml}</div>
-        </div>
-      `;
-    }
-    // TServer GFlags collapsible
-    if (gflagsData.tserver) {
-      let tserverHtml = "<table><tr><th>Flag</th><th>Value</th></tr>";
-      Object.entries(gflagsData.tserver).forEach(([k, v]) => {
-        tserverHtml += `<tr><td>${k}</td><td>${v}</td></tr>`;
-      });
-      tserverHtml += "</table>";
-      html += `
-        <div class="node-table-collapsible">
-          <div class="node-header gflag-header" data-node-idx="gflag-tserver">
-            <span class="arrow">&#9654;</span>
-            <span>TServer GFlags</span>
-          </div>
-          <div class="node-content" style="display:none;">${tserverHtml}</div>
-        </div>
-      `;
-    }
-    if (!html) html = "<em>No GFlags found for Master or TServer.</em>";
-    gflagsDiv.innerHTML = html;
-    // Accordion logic for Master/TServer
-    const gflagHeaders = gflagsDiv.querySelectorAll(".gflag-header");
-    gflagHeaders.forEach((header) => {
-      header.onclick = function () {
-        const content = header.nextElementSibling;
-        const arrow = header.querySelector(".arrow");
-        const isOpen = content.style.display === "block";
-        if (isOpen) {
-          content.style.display = "none";
-          arrow.innerHTML = "&#9654;";
-        } else {
-          // Collapse all
-          gflagsDiv.querySelectorAll(".node-content").forEach((c) => {
-            c.style.display = "none";
-          });
-          gflagsDiv.querySelectorAll(".gflag-header .arrow").forEach((a) => {
-            a.innerHTML = "&#9654;";
-          });
-          content.style.display = "block";
-          arrow.innerHTML = "&#9660;";
+    fetch(`/api/gflags/${window.report_uuid}`)
+      .then((resp) => resp.json())
+      .then((gflagsData) => {
+        if (!gflagsData || Object.keys(gflagsData).length === 0 || gflagsData.error) {
+          gflagsDiv.innerHTML = "<em>No GFlags data available.</em>";
+          return;
         }
-      };
-    });
+        let html = "";
+        // Master GFlags collapsible
+        if (gflagsData.master) {
+          let masterHtml = "<table><tr><th>Flag</th><th>Value</th></tr>";
+          Object.entries(gflagsData.master).forEach(([k, v]) => {
+            masterHtml += `<tr><td>${k}</td><td>${v}</td></tr>`;
+          });
+          masterHtml += "</table>";
+          html += `
+            <div class="node-table-collapsible">
+              <div class="node-header gflag-header" data-node-idx="gflag-master">
+                <span class="arrow">&#9654;</span>
+                <span>Master GFlags</span>
+              </div>
+              <div class="node-content" style="display:none;">${masterHtml}</div>
+            </div>
+          `;
+        }
+        // TServer GFlags collapsible
+        if (gflagsData.tserver) {
+          let tserverHtml = "<table><tr><th>Flag</th><th>Value</th></tr>";
+          Object.entries(gflagsData.tserver).forEach(([k, v]) => {
+            tserverHtml += `<tr><td>${k}</td><td>${v}</td></tr>`;
+          });
+          tserverHtml += "</table>";
+          html += `
+            <div class="node-table-collapsible">
+              <div class="node-header gflag-header" data-node-idx="gflag-tserver">
+                <span class="arrow">&#9654;</span>
+                <span>TServer GFlags</span>
+              </div>
+              <div class="node-content" style="display:none;">${tserverHtml}</div>
+            </div>
+          `;
+        }
+        // Controller GFlags collapsible
+        if (gflagsData.controller) {
+          let controllerHtml = "<table><tr><th>Flag</th><th>Value</th></tr>";
+          Object.entries(gflagsData.controller).forEach(([k, v]) => {
+            controllerHtml += `<tr><td>${k}</td><td>${v}</td></tr>`;
+          });
+          controllerHtml += "</table>";
+          html += `
+            <div class="node-table-collapsible">
+              <div class="node-header gflag-header" data-node-idx="gflag-controller">
+                <span class="arrow">&#9654;</span>
+                <span>Controller GFlags</span>
+              </div>
+              <div class="node-content" style="display:none;">${controllerHtml}</div>
+            </div>
+          `;
+        }
+        if (!html) html = "<em>No GFlags found for Master, TServer, or Controller.</em>";
+        gflagsDiv.innerHTML = html;
+        // Accordion logic for Master/TServer/Controller
+        const gflagHeaders = gflagsDiv.querySelectorAll(".gflag-header");
+        gflagHeaders.forEach((header) => {
+          header.onclick = function () {
+            const content = header.nextElementSibling;
+            const arrow = header.querySelector(".arrow");
+            const isOpen = content.style.display === "block";
+            if (isOpen) {
+              content.style.display = "none";
+              arrow.innerHTML = "&#9654;";
+            } else {
+              // Collapse all
+              gflagsDiv.querySelectorAll(".node-content").forEach((c) => {
+                c.style.display = "none";
+              });
+              gflagsDiv.querySelectorAll(".gflag-header .arrow").forEach((a) => {
+                a.innerHTML = "&#9654;";
+              });
+              content.style.display = "block";
+              arrow.innerHTML = "&#9660;";
+            }
+          };
+        });
+      })
+      .catch(() => {
+        gflagsDiv.innerHTML = "<em>Failed to load GFlags data.</em>";
+      });
   }
 
   function renderNodeInfo() {
