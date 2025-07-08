@@ -311,6 +311,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (tabId === "gflags-tab" && jsonData) renderGFlags();
       if (tabId === "nodeinfo-tab" && jsonData) renderNodeInfo();
       if (tabId === "logsolutions-tab" && jsonData) renderLogSolutions();
+      if (tabId === "related-tab") renderRelatedReports();
     });
   });
 
@@ -543,5 +544,106 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       };
     });
+  }
+
+  function renderRelatedReports() {
+    const relatedDiv = document.getElementById("related-reports");
+    relatedDiv.innerHTML = "<em>Loading related reports...</em>";
+    if (!window.report_uuid) {
+      relatedDiv.innerHTML = "<em>No report selected.</em>";
+      return;
+    }
+    fetch(`/api/related_reports/${window.report_uuid}`)
+      .then((resp) => resp.json())
+      .then((related) => {
+        if (!related || related.length === 0 || related.error) {
+          relatedDiv.innerHTML = "<em>No related reports found.</em>";
+          return;
+        }
+        // Separate by cluster and organization
+        const seenIds = new Set();
+        let sameCluster = [];
+        let sameOrg = [];
+        let currentClusterUuid = null;
+        let currentOrg = null;
+        // Find current cluster/org from first result (all have at least one matching field)
+        if (related.length > 0) {
+          currentClusterUuid = related[0].cluster_uuid;
+          currentOrg = related[0].organization;
+        }
+        related.forEach((r) => {
+          if (r.cluster_uuid === currentClusterUuid) {
+            sameCluster.push(r);
+            seenIds.add(r.id);
+          }
+        });
+        related.forEach((r) => {
+          if (r.organization === currentOrg && !seenIds.has(r.id)) {
+            sameOrg.push(r);
+            seenIds.add(r.id);
+          }
+        });
+        let html = "";
+        html += `<h4>Reports for Cluster: <span style='color:#172447'>${sameCluster.length > 0 ? (sameCluster[0].cluster_name || sameCluster[0].cluster_uuid) : (currentClusterUuid || '')}</span></h4>`;
+        if (sameCluster.length === 0) {
+          html += '<em>No other reports for this cluster.</em>';
+        } else {
+          html += `<table><thead><tr>
+            <th>UUID</th>
+            <th>Support Bundle Name</th>
+            <th>Cluster Name</th>
+            <th>Organization</th>
+            <th>Cluster UUID</th>
+            <th>Case ID</th>
+            <th>Created At</th>
+            <th>View</th>
+          </tr></thead><tbody>`;
+          sameCluster.forEach(r => {
+            html += `<tr>
+              <td>${r.id}</td>
+              <td>${r.support_bundle_name}</td>
+              <td>${r.cluster_name || ''}</td>
+              <td>${r.organization || ''}</td>
+              <td>${r.cluster_uuid || ''}</td>
+              <td>${r.case_id ? `<a href='https://yugabyte.zendesk.com/agent/tickets/${r.case_id}' target='_blank'>${r.case_id}</a>` : '-'}</td>
+              <td>${r.created_at}</td>
+              <td><a href="/reports/${r.id}">View Report</a></td>
+            </tr>`;
+          });
+          html += '</tbody></table>';
+        }
+        html += `<h4 style="margin-top:2em;">Reports for Organization: <span style='color:#172447'>${sameOrg.length > 0 ? (sameOrg[0].organization || '') : (currentOrg || '')}</span></h4>`;
+        if (sameOrg.length === 0) {
+          html += '<em>No other reports for this organization.</em>';
+        } else {
+          html += `<table><thead><tr>
+            <th>UUID</th>
+            <th>Support Bundle Name</th>
+            <th>Cluster Name</th>
+            <th>Organization</th>
+            <th>Cluster UUID</th>
+            <th>Case ID</th>
+            <th>Created At</th>
+            <th>View</th>
+          </tr></thead><tbody>`;
+          sameOrg.forEach(r => {
+            html += `<tr>
+              <td>${r.id}</td>
+              <td>${r.support_bundle_name}</td>
+              <td>${r.cluster_name || ''}</td>
+              <td>${r.organization || ''}</td>
+              <td>${r.cluster_uuid || ''}</td>
+              <td>${r.case_id ? `<a href='https://yugabyte.zendesk.com/agent/tickets/${r.case_id}' target='_blank'>${r.case_id}</a>` : '-'}</td>
+              <td>${r.created_at}</td>
+              <td><a href="/reports/${r.id}">View Report</a></td>
+            </tr>`;
+          });
+          html += '</tbody></table>';
+        }
+        relatedDiv.innerHTML = html;
+      })
+      .catch(() => {
+        relatedDiv.innerHTML = "<em>Failed to load related reports.</em>";
+      });
   }
 });

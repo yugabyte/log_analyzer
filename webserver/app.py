@@ -37,7 +37,7 @@ def index():
         )
         cur = conn.cursor()
         cur.execute("""
-            SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, r.created_at
+            SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.case_id, r.created_at
             FROM public.reports r
             LEFT JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
             ORDER BY r.created_at DESC LIMIT 10
@@ -48,7 +48,8 @@ def index():
                 'support_bundle_name': row[1],
                 'universe_name': row[2] or '',
                 'organization_name': row[3] or '',
-                'created_at': row[4].strftime('%Y-%m-%d %H:%M')
+                'case_id': row[4],
+                'created_at': row[5].strftime('%Y-%m-%d %H:%M')
             }
             for row in cur.fetchall()
         ]
@@ -267,6 +268,65 @@ def gflags_api(uuid):
         cur.close()
         conn.close()
         return jsonify(gflags)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/related_reports/<uuid>')
+def related_reports_api(uuid):
+    try:
+        db_config = load_db_config()
+        conn = psycopg2.connect(
+            dbname=db_config["dbname"],
+            user=db_config["user"],
+            password=db_config["password"],
+            host=db_config["host"],
+            port=db_config["port"]
+        )
+        cur = conn.cursor()
+        # Get support_bundle_name for this report
+        cur.execute("SELECT support_bundle_name FROM public.reports WHERE id::text = %s", (str(uuid),))
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            conn.close()
+            return jsonify({'error': 'Report not found'}), 404
+        support_bundle_name = row[0]
+        # Get cluster_uuid and organization for this report
+        cur.execute("""
+            SELECT h.cluster_uuid, h.organization
+            FROM public.support_bundle_header h
+            WHERE h.support_bundle = %s
+        """, (support_bundle_name,))
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            conn.close()
+            return jsonify([])  # No header info, so no related reports
+        cluster_uuid, organization = row
+        # Find all support_bundle_names for same org or cluster_uuid (excluding current)
+        cur.execute("""
+            SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.cluster_uuid, h.case_id, r.created_at
+            FROM public.reports r
+            JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
+            WHERE (h.organization = %s OR h.cluster_uuid = %s)
+              AND r.id::text != %s
+            ORDER BY r.created_at DESC LIMIT 20
+        """, (organization, str(cluster_uuid), str(uuid)))
+        related = [
+            {
+                'id': str(r[0]),
+                'support_bundle_name': r[1],
+                'cluster_name': r[2],
+                'organization': r[3],
+                'cluster_uuid': str(r[4]),
+                'case_id': r[5],
+                'created_at': r[6].strftime('%Y-%m-%d %H:%M')
+            }
+            for r in cur.fetchall()
+        ]
+        cur.close()
+        conn.close()
+        return jsonify(related)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

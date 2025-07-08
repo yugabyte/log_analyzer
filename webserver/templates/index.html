@@ -33,6 +33,7 @@
             <th>Support Bundle Name</th>
             <th>Universe/Cluster Name</th>
             <th>Organization Name</th>
+            <th>Case ID</th>
             <th>Created At</th>
             <th>View</th>
           </tr>
@@ -44,6 +45,15 @@
             <td>{{ report.support_bundle_name }}</td>
             <td>{{ report.universe_name }}</td>
             <td>{{ report.organization_name }}</td>
+            <td>
+              {% if report.case_id %}
+              <a
+                href="https://yugabyte.zendesk.com/agent/tickets/{{ report.case_id }}"
+                target="_blank"
+                >{{ report.case_id }}</a
+              >
+              {% else %}-{% endif %}
+            </td>
             <td>{{ report.created_at }}</td>
             <td>
               <a href="/reports/{{ report.id }}">View Report</a>
