@@ -182,13 +182,7 @@ def getFileMetadata(logFile, logger):
 
 def getLogFilesToBuildMetadata(args, logger, log_file=None):
     logFiles = []
-    if args.directory:
-        if not args.skip_tar:
-            extractAllTarFiles(args.directory, logger, log_file)
-        for root, dirs, files in os.walk(args.directory):
-            for file in files:
-                if ("INFO" in file or "postgres" in file) and file[0] != ".":
-                    logFiles.append(os.path.join(root, file))
+    # Removed directory support, only support_bundle is supported
     if args.support_bundle:
         extractedDir = None
         if args.support_bundle.endswith(".tar.gz") or args.support_bundle.endswith(".tgz"):

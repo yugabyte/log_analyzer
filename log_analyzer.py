@@ -69,7 +69,6 @@ class ColoredHelpFormatter(argparse.RawTextHelpFormatter):
 
 # Command line arguments
 parser = argparse.ArgumentParser(description="Log Analyzer for YugabyteDB logs", formatter_class=ColoredHelpFormatter)
-parser.add_argument("-d", "--directory", help="Directory containing log files")
 parser.add_argument("-s","--support_bundle", help="Support bundle file name")
 parser.add_argument("--types", metavar="LIST", help="List of log types to analyze \n Example: --types 'ms,ybc' \n Default: --types 'pg,ts,ms'")
 parser.add_argument("-n", "--nodes", metavar="LIST", help="List of nodes to analyze \n Example: --nodes 'n1,n2'")
@@ -126,9 +125,10 @@ if __name__ == "__main__":
         with open(logFilesMetadataFile, 'r') as f:
             logFilesMetadata = json.load(f)
     else:
+        # Only support_bundle is supported now
         logFileList = getLogFilesToBuildMetadata(args, logger, logFile)
         if not logFileList:
-            logger.error("No log files found in the specified directory or support bundle.")
+            logger.error("No log files found in the specified support bundle.")
             exit(1)
         done = False
 
@@ -222,8 +222,9 @@ if __name__ == "__main__":
     import psycopg2
     from psycopg2.extras import Json
     try:
-        # Read DB config from db_config.json
-        with open("db_config.json") as config_file:
+        # Read DB config from db_config.json (always from script directory)
+        config_path = os.path.join(os.path.dirname(__file__), "db_config.json")
+        with open(config_path) as config_file:
             db_config = json.load(config_file)
         conn = psycopg2.connect(
             dbname=db_config["dbname"],
