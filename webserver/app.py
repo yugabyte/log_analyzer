@@ -37,14 +37,18 @@ def index():
         )
         cur = conn.cursor()
         cur.execute("""
-            SELECT id, universe_name, ticket, created_at FROM log_analyzer.reports ORDER BY created_at DESC LIMIT 10
+            SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, r.created_at
+            FROM public.reports r
+            LEFT JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
+            ORDER BY r.created_at DESC LIMIT 10
         """)
         reports = [
             {
-                'id': row[0],
-                'universe_name': row[1],
-                'ticket': row[2],
-                'created_at': row[3].strftime('%Y-%m-%d %H:%M')
+                'id': str(row[0]),
+                'support_bundle_name': row[1],
+                'universe_name': row[2] or '',
+                'organization_name': row[3] or '',
+                'created_at': row[4].strftime('%Y-%m-%d %H:%M')
             }
             for row in cur.fetchall()
         ]
@@ -52,6 +56,7 @@ def index():
         conn.close()
     except Exception as e:
         reports = []
+    print('DEBUG: reports fetched for index:', reports)
     return render_template('index.html', reports=reports)
 
 @app.route('/upload', methods=['POST'])
@@ -139,8 +144,8 @@ def get_report_api(uuid):
         )
         cur = conn.cursor()
         cur.execute("""
-            SELECT json_report FROM log_analyzer.reports WHERE id = %s
-        """, (uuid,))
+            SELECT json_report FROM public.reports WHERE id::text = %s
+        """, (str(uuid),))
         row = cur.fetchone()
         cur.close()
         conn.close()
@@ -175,12 +180,12 @@ def histogram_api(report_id):
         # Try both int and str for report_id
         try:
             cur.execute("""
-                SELECT json_report FROM log_analyzer.reports WHERE id = %s
-            """, (int(report_id),))
+                SELECT json_report FROM public.reports WHERE id::text = %s
+            """, (str(report_id),))
         except Exception:
             cur.execute("""
-                SELECT json_report FROM log_analyzer.reports WHERE id::text = %s
-            """, (str(report_id),))
+                SELECT json_report FROM public.reports WHERE id = %s
+            """, (report_id,))
         row = cur.fetchone()
         cur.close()
         conn.close()

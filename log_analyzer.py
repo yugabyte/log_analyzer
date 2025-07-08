@@ -236,18 +236,22 @@ if __name__ == "__main__":
         cur = conn.cursor()
         with open("node_log_summary.json") as f:
             report_json = json.load(f)
-        universe_name = report_json.get("universeName", "unknown")
-        ticket = '1111'
+        # Extract support_bundle_name from args.support_bundle (remove .tar.gz or .tgz)
+        support_bundle_name = os.path.basename(args.support_bundle) if args.support_bundle else "unknown"
+        if support_bundle_name.endswith(".tar.gz"):
+            support_bundle_name = support_bundle_name[:-7]
+        elif support_bundle_name.endswith(".tgz"):
+            support_bundle_name = support_bundle_name[:-4]
         cur.execute(
             """
-            INSERT INTO log_analyzer.reports (universe_name, ticket, json_report, created_at)
-            VALUES (%s, %s, %s, NOW())
+            INSERT INTO public.reports (id, support_bundle_name, json_report, created_at)
+            VALUES (gen_random_uuid(), %s, %s, NOW())
             """,
-            (universe_name, ticket, Json(report_json))
+            (support_bundle_name, Json(report_json))
         )
         conn.commit()
         cur.close()
         conn.close()
-        logger.info("Report inserted into PostgreSQL reports table.")
+        logger.info("Report inserted into public.reports table.")
     except Exception as e:
         logger.error(f"Failed to insert report into PostgreSQL: {e}")

@@ -29,9 +29,10 @@
       <table style="margin-bottom: 2em">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Universe Name</th>
-            <th>Ticket</th>
+            <th>UUID</th>
+            <th>Support Bundle Name</th>
+            <th>Universe/Cluster Name</th>
+            <th>Organization Name</th>
             <th>Created At</th>
             <th>View</th>
           </tr>
@@ -40,8 +41,9 @@
           {% for report in reports %}
           <tr>
             <td>{{ report.id }}</td>
+            <td>{{ report.support_bundle_name }}</td>
             <td>{{ report.universe_name }}</td>
-            <td>{{ report.ticket }}</td>
+            <td>{{ report.organization_name }}</td>
             <td>{{ report.created_at }}</td>
             <td>
               <a href="/reports/{{ report.id }}">View Report</a>
