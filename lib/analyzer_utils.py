@@ -12,7 +12,7 @@ just_fix_windows_console()
 
 # Function to analyze the log files from the nodes
 def analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, position=0):
-    logger.info(f"Analyzing logs for node: {nodeName}, logType: {logType}, subType: {subType}")
+    logger.debug(f"Analyzing logs for node: {nodeName}, logType: {logType}, subType: {subType}")
     filteredLogs = []
     for logFile, metadata in logFilesMetadata[nodeName][logType][subType].items():
         logStartsAt = datetime.datetime.strptime(metadata["logStartsAt"], '%Y-%m-%d %H:%M:%S')
@@ -20,7 +20,7 @@ def analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logF
         if (logStartsAt >= startTimeLong and logStartsAt <= endTimeLong) or (logEndsAt >= startTimeLong and logEndsAt <= endTimeLong):
             filteredLogs.append(logFile)
     # print(f"Filtered logs for node {nodeName}, logType {logType}, subType {subType}: {len(filteredLogs)} files")
-    logger.info(f"Filtered logs: {len(filteredLogs)} files found for node {nodeName}, logType {logType}, subType {subType}")
+    logger.debug(f"Filtered logs: {len(filteredLogs)} files found for node {nodeName}, logType {logType}, subType {subType}")
 
     # Select patterns and names
     if logType == "postgres":
@@ -59,7 +59,7 @@ def analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logF
             position=position
         ) as pbar:
             for logFile in pbar:
-                logger.info(f"Processing log file: {logFile}")
+                logger.debug(f"Processing log file: {logFile}")
                 try:
                     with openLogFile(logFile) as logs:
                         if logs is None:
