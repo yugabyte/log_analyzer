@@ -3,3 +3,4 @@ analyzer.log
 log_files_metadata.json
 node_log_summary.json
 lib/__pycache__/*.pyc
+webserver/__pycache__/*.pyc
