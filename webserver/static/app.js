@@ -316,7 +316,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function renderGFlags() {
     const gflagsDiv = document.getElementById("gflags");
-    gflagsDiv.innerHTML = '<em>Loading GFlags...</em>';
+    gflagsDiv.innerHTML = "<em>Loading GFlags...</em>";
     if (!window.report_uuid) {
       gflagsDiv.innerHTML = "<em>No report selected.</em>";
       return;
@@ -324,7 +324,11 @@ document.addEventListener("DOMContentLoaded", function () {
     fetch(`/api/gflags/${window.report_uuid}`)
       .then((resp) => resp.json())
       .then((gflagsData) => {
-        if (!gflagsData || Object.keys(gflagsData).length === 0 || gflagsData.error) {
+        if (
+          !gflagsData ||
+          Object.keys(gflagsData).length === 0 ||
+          gflagsData.error
+        ) {
           gflagsDiv.innerHTML = "<em>No GFlags data available.</em>";
           return;
         }
@@ -380,7 +384,8 @@ document.addEventListener("DOMContentLoaded", function () {
             </div>
           `;
         }
-        if (!html) html = "<em>No GFlags found for Master, TServer, or Controller.</em>";
+        if (!html)
+          html = "<em>No GFlags found for Master, TServer, or Controller.</em>";
         gflagsDiv.innerHTML = html;
         // Accordion logic for Master/TServer/Controller
         const gflagHeaders = gflagsDiv.querySelectorAll(".gflag-header");
@@ -397,9 +402,11 @@ document.addEventListener("DOMContentLoaded", function () {
               gflagsDiv.querySelectorAll(".node-content").forEach((c) => {
                 c.style.display = "none";
               });
-              gflagsDiv.querySelectorAll(".gflag-header .arrow").forEach((a) => {
-                a.innerHTML = "&#9654;";
-              });
+              gflagsDiv
+                .querySelectorAll(".gflag-header .arrow")
+                .forEach((a) => {
+                  a.innerHTML = "&#9654;";
+                });
               content.style.display = "block";
               arrow.innerHTML = "&#9660;";
             }
@@ -471,7 +478,9 @@ document.addEventListener("DOMContentLoaded", function () {
     Object.values(jsonData.nodes).forEach((nodeData) => {
       Object.values(nodeData).forEach((logTypeData) => {
         if (logTypeData.logMessages) {
-          Object.keys(logTypeData.logMessages).forEach((msg) => foundMessages.add(msg));
+          Object.keys(logTypeData.logMessages).forEach((msg) =>
+            foundMessages.add(msg)
+          );
         }
       });
     });
@@ -484,7 +493,9 @@ document.addEventListener("DOMContentLoaded", function () {
       const converter = new showdown.Converter();
       let idx = 0;
       foundMessages.forEach((msg) => {
-        const solutionMd = solutionsMap[msg] || "<em>No solution available for this log message.</em>";
+        const solutionMd =
+          solutionsMap[msg] ||
+          "<em>No solution available for this log message.</em>";
         const solutionHtml = converter.makeHtml(solutionMd);
         html += `<div class=\"log-solution-collapsible\" style=\"margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fafbfc;\">
           <div class=\"log-solution-header\" data-idx=\"${idx}\" style=\"cursor:pointer; display:flex; align-items:center; padding: 12px 18px; font-weight:600; font-size:1.08em; color:#172447; border-radius:6px 6px 0 0; background:#f1f3f7; transition:background 0.2s;\">
@@ -501,8 +512,12 @@ document.addEventListener("DOMContentLoaded", function () {
     // Accordion logic: only one open at a time
     const headers = logsolutionsDiv.querySelectorAll(".log-solution-header");
     headers.forEach((header) => {
-      header.onmouseenter = function() { header.style.background = '#e6eaf3'; };
-      header.onmouseleave = function() { header.style.background = '#f1f3f7'; };
+      header.onmouseenter = function () {
+        header.style.background = "#e6eaf3";
+      };
+      header.onmouseleave = function () {
+        header.style.background = "#f1f3f7";
+      };
       header.onclick = function () {
         const content = header.nextElementSibling;
         const arrow = header.querySelector(".arrow");
@@ -512,12 +527,16 @@ document.addEventListener("DOMContentLoaded", function () {
           arrow.innerHTML = "&#9654;";
         } else {
           // Collapse all
-          logsolutionsDiv.querySelectorAll(".log-solution-body").forEach((c) => {
-            c.style.display = "none";
-          });
-          logsolutionsDiv.querySelectorAll(".log-solution-header .arrow").forEach((a) => {
-            a.innerHTML = "&#9654;";
-          });
+          logsolutionsDiv
+            .querySelectorAll(".log-solution-body")
+            .forEach((c) => {
+              c.style.display = "none";
+            });
+          logsolutionsDiv
+            .querySelectorAll(".log-solution-header .arrow")
+            .forEach((a) => {
+              a.innerHTML = "&#9654;";
+            });
           // Expand this one
           content.style.display = "block";
           arrow.innerHTML = "&#9660;";
