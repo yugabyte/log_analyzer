@@ -584,9 +584,13 @@ document.addEventListener("DOMContentLoaded", function () {
           }
         });
         let html = "";
-        html += `<h4>Reports for Cluster: <span style='color:#172447'>${sameCluster.length > 0 ? (sameCluster[0].cluster_name || sameCluster[0].cluster_uuid) : (currentClusterUuid || '')}</span></h4>`;
+        html += `<h4>Reports for Cluster: <span style='color:#172447'>${
+          sameCluster.length > 0
+            ? sameCluster[0].cluster_name || sameCluster[0].cluster_uuid
+            : currentClusterUuid || ""
+        }</span></h4>`;
         if (sameCluster.length === 0) {
-          html += '<em>No other reports for this cluster.</em>';
+          html += "<em>No other reports for this cluster.</em>";
         } else {
           html += `<table><thead><tr>
             <th>UUID</th>
@@ -598,23 +602,29 @@ document.addEventListener("DOMContentLoaded", function () {
             <th>Created At</th>
             <th>View</th>
           </tr></thead><tbody>`;
-          sameCluster.forEach(r => {
+          sameCluster.forEach((r) => {
             html += `<tr>
               <td>${r.id}</td>
               <td>${r.support_bundle_name}</td>
-              <td>${r.cluster_name || ''}</td>
-              <td>${r.organization || ''}</td>
-              <td>${r.cluster_uuid || ''}</td>
-              <td>${r.case_id ? `<a href='https://yugabyte.zendesk.com/agent/tickets/${r.case_id}' target='_blank'>${r.case_id}</a>` : '-'}</td>
+              <td>${r.cluster_name || ""}</td>
+              <td>${r.organization || ""}</td>
+              <td>${r.cluster_uuid || ""}</td>
+              <td>${
+                r.case_id
+                  ? `<a href='https://yugabyte.zendesk.com/agent/tickets/${r.case_id}' target='_blank'>${r.case_id}</a>`
+                  : "-"
+              }</td>
               <td>${r.created_at}</td>
               <td><a href="/reports/${r.id}">View Report</a></td>
             </tr>`;
           });
-          html += '</tbody></table>';
+          html += "</tbody></table>";
         }
-        html += `<h4 style="margin-top:2em;">Reports for Organization: <span style='color:#172447'>${sameOrg.length > 0 ? (sameOrg[0].organization || '') : (currentOrg || '')}</span></h4>`;
+        html += `<h4 style="margin-top:2em;">Reports for Organization: <span style='color:#172447'>${
+          sameOrg.length > 0 ? sameOrg[0].organization || "" : currentOrg || ""
+        }</span></h4>`;
         if (sameOrg.length === 0) {
-          html += '<em>No other reports for this organization.</em>';
+          html += "<em>No other reports for this organization.</em>";
         } else {
           html += `<table><thead><tr>
             <th>UUID</th>
@@ -626,19 +636,23 @@ document.addEventListener("DOMContentLoaded", function () {
             <th>Created At</th>
             <th>View</th>
           </tr></thead><tbody>`;
-          sameOrg.forEach(r => {
+          sameOrg.forEach((r) => {
             html += `<tr>
               <td>${r.id}</td>
               <td>${r.support_bundle_name}</td>
-              <td>${r.cluster_name || ''}</td>
-              <td>${r.organization || ''}</td>
-              <td>${r.cluster_uuid || ''}</td>
-              <td>${r.case_id ? `<a href='https://yugabyte.zendesk.com/agent/tickets/${r.case_id}' target='_blank'>${r.case_id}</a>` : '-'}</td>
+              <td>${r.cluster_name || ""}</td>
+              <td>${r.organization || ""}</td>
+              <td>${r.cluster_uuid || ""}</td>
+              <td>${
+                r.case_id
+                  ? `<a href='https://yugabyte.zendesk.com/agent/tickets/${r.case_id}' target='_blank'>${r.case_id}</a>`
+                  : "-"
+              }</td>
               <td>${r.created_at}</td>
               <td><a href="/reports/${r.id}">View Report</a></td>
             </tr>`;
           });
-          html += '</tbody></table>';
+          html += "</tbody></table>";
         }
         relatedDiv.innerHTML = html;
       })

@@ -25,7 +25,10 @@ def load_db_config():
 
 @app.route('/')
 def index():
-    # Fetch recent reports from DB
+    # Fetch paginated reports from DB
+    page = int(request.args.get('page', 1))
+    per_page = 10
+    offset = (page - 1) * per_page
     try:
         db_config = load_db_config()
         conn = psycopg2.connect(
@@ -37,11 +40,15 @@ def index():
         )
         cur = conn.cursor()
         cur.execute("""
+            SELECT COUNT(*) FROM public.reports
+        """)
+        total_reports = cur.fetchone()[0]
+        cur.execute("""
             SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.case_id, r.created_at
             FROM public.reports r
             LEFT JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
-            ORDER BY r.created_at DESC LIMIT 10
-        """)
+            ORDER BY r.created_at DESC LIMIT %s OFFSET %s
+        """, (per_page, offset))
         reports = [
             {
                 'id': str(row[0]),
@@ -327,6 +334,50 @@ def related_reports_api(uuid):
         cur.close()
         conn.close()
         return jsonify(related)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/search_reports')
+def search_reports():
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify([])
+    try:
+        db_config = load_db_config()
+        conn = psycopg2.connect(
+            dbname=db_config["dbname"],
+            user=db_config["user"],
+            password=db_config["password"],
+            host=db_config["host"],
+            port=db_config["port"]
+        )
+        cur = conn.cursor()
+        # Search by id, support_bundle_name, cluster_name, organization, or case_id
+        cur.execute("""
+            SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.case_id, r.created_at
+            FROM public.reports r
+            LEFT JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
+            WHERE r.id::text ILIKE %s
+               OR r.support_bundle_name ILIKE %s
+               OR h.cluster_name ILIKE %s
+               OR h.organization ILIKE %s
+               OR h.case_id::text ILIKE %s
+            ORDER BY r.created_at DESC LIMIT 20
+        """, tuple(['%' + query + '%'] * 5))
+        reports = [
+            {
+                'id': str(row[0]),
+                'support_bundle_name': row[1],
+                'universe_name': row[2] or '',
+                'organization_name': row[3] or '',
+                'case_id': row[4],
+                'created_at': row[5].strftime('%Y-%m-%d %H:%M')
+            }
+            for row in cur.fetchall()
+        ]
+        cur.close()
+        conn.close()
+        return jsonify(reports)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
