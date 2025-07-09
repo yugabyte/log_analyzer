@@ -168,7 +168,7 @@ if __name__ == "__main__":
     for idx, (nodeName, nodeData) in enumerate(logFilesMetadata.items()):
         for logType, logTypeData in nodeData.items():
             for subType, subTypeData in logTypeData.items():
-                tasks.append((nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, idx))
+                tasks.append((nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, idx, args.histogram_mode))
     # Get the universe name from manifest.json
     universeName = getUniverseNameFromManifest(logger)
     logger.info(f"Universe name: {universeName}")

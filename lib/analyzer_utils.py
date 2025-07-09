@@ -11,7 +11,7 @@ from colorama import just_fix_windows_console
 just_fix_windows_console()
 
 # Function to analyze the log files from the nodes
-def analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, position=0):
+def analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, position=0, histogram_mode=None):
     logger.debug(f"Analyzing logs for node: {nodeName}, logType: {logType}, subType: {subType}")
     filteredLogs = []
     for logFile, metadata in logFilesMetadata[nodeName][logType][subType].items():
@@ -19,16 +19,21 @@ def analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logF
         logEndsAt = datetime.datetime.strptime(metadata["logEndsAt"], '%Y-%m-%d %H:%M:%S')
         if (logStartsAt >= startTimeLong and logStartsAt <= endTimeLong) or (logEndsAt >= startTimeLong and logEndsAt <= endTimeLong):
             filteredLogs.append(logFile)
-    # print(f"Filtered logs for node {nodeName}, logType {logType}, subType {subType}: {len(filteredLogs)} files")
     logger.debug(f"Filtered logs: {len(filteredLogs)} files found for node {nodeName}, logType {logType}, subType {subType}")
 
-    # Select patterns and names
-    if logType == "postgres":
-        patterns = list(pg_regex_patterns.values())
-        pattern_names = list(pg_regex_patterns.keys())
+    # If histogram_mode is set, use only those patterns (custom or named), else use defaults
+    if histogram_mode:
+        # histogram_mode can be a comma-separated list of patterns (regexes)
+        custom_patterns = [p.strip() for p in histogram_mode.split(",") if p.strip()]
+        patterns = custom_patterns
+        pattern_names = custom_patterns
     else:
-        patterns = list(universe_regex_patterns.values())
-        pattern_names = list(universe_regex_patterns.keys())
+        if logType == "postgres":
+            patterns = list(pg_regex_patterns.values())
+            pattern_names = list(pg_regex_patterns.keys())
+        else:
+            patterns = list(universe_regex_patterns.values())
+            pattern_names = list(universe_regex_patterns.keys())
 
     # Track per-message stats
     message_stats = {}
@@ -117,9 +122,13 @@ def analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logF
     return result
 
 def analyze_log_file_worker(args_tuple):
-    # Unpack with position
-    nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, position = args_tuple
-    return analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, position=position)
+    # Unpack with position and histogram_mode
+    if len(args_tuple) == 9:
+        nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, position, histogram_mode = args_tuple
+        return analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, position=position, histogram_mode=histogram_mode)
+    else:
+        nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, position = args_tuple
+        return analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, position=position)
 
 def getUniverseNameFromManifest(logger):
     universeName = "unknown"
