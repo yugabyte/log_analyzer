@@ -43,6 +43,7 @@ def index():
             SELECT COUNT(*) FROM public.reports
         """)
         total_reports = cur.fetchone()[0]
+        total_pages = (total_reports + per_page - 1) // per_page
         cur.execute("""
             SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.case_id, r.created_at
             FROM public.reports r
@@ -64,8 +65,9 @@ def index():
         conn.close()
     except Exception as e:
         reports = []
+        total_pages = 1
     print('DEBUG: reports fetched for index:', reports)
-    return render_template('index.html', reports=reports)
+    return render_template('index.html', reports=reports, page=page, total_pages=total_pages)
 
 @app.route('/upload', methods=['POST'])
 def upload():

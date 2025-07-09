@@ -129,25 +129,3 @@ def analyze_log_file_worker(args_tuple):
     else:
         nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, position = args_tuple
         return analyzeNodeLogs(nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, position=position)
-
-def getUniverseNameFromManifest(logger):
-    universeName = "unknown"
-    manifestFile = "manifest.json"
-
-    # Search for manifest.json in the current directory and its subdirectories with depth 1
-    for root, _, files in os.walk(os.getcwd()):
-        if manifestFile in files:
-            manifestPath = os.path.join(root, manifestFile)
-            with open(manifestPath, 'r') as f:
-                manifestData = json.load(f)
-                # Extract the universe name from the path
-                path = manifestData.get("path", "")
-                # Updated regex to allow dashes in universe name
-                match = re.search(r'yb-support-bundle-(.+)-\d{14}\.\d+-logs', path)
-                if match:
-                    universeName = match.group(1)
-                logger.info(f"Universe name extracted from manifest: {universeName}")
-                break
-    else:
-        logger.warning(f"manifest.json not found in the current directory or its subdirectories. Using default universe name: {universeName}")
-    return universeName

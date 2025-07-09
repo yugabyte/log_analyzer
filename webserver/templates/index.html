@@ -121,6 +121,7 @@
           {% endfor %}
         </tbody>
       </table>
+      <div id="modern-pagination"></div>
     </div>
     <script>
       const searchBox = document.getElementById('searchBox');
@@ -151,14 +152,19 @@
         }
       }
       function renderPagination(page, totalPages) {
-        const pagination = document.getElementById('pagination');
+        const pagination = document.getElementById('modern-pagination');
         if (totalPages <= 1) { pagination.innerHTML = ''; return; }
-        let html = '';
-        if (page > 1) html += `<button class="page-btn" data-page="${page-1}">&laquo; Prev</button>`;
-        for (let p = Math.max(1, page-2); p <= Math.min(totalPages, page+2); ++p) {
-          html += `<button class="page-btn${p===page?' active':''}" data-page="${p}">${p}</button>`;
+        let html = `<nav class="modern-pager"><ul>`;
+        if (page > 1) html += `<li><button class="page-btn" data-page="${page-1}">&laquo;</button></li>`;
+        for (let p = 1; p <= totalPages; ++p) {
+          if (p === 1 || p === totalPages || (p >= page-2 && p <= page+2)) {
+            html += `<li><button class="page-btn${p===page?' active':''}" data-page="${p}">${p}</button></li>`;
+          } else if (p === page-3 || p === page+3) {
+            html += `<li><span class="dots">...</span></li>`;
+          }
         }
-        if (page < totalPages) html += `<button class="page-btn" data-page="${page+1}">Next &raquo;</button>`;
+        if (page < totalPages) html += `<li><button class="page-btn" data-page="${page+1}">&raquo;</button></li>`;
+        html += `</ul></nav>`;
         pagination.innerHTML = html;
         document.querySelectorAll('.page-btn').forEach(btn => {
           btn.onclick = function() {
@@ -220,5 +226,47 @@
       });
       renderPagination(currentPage, totalPages);
     </script>
+    <style>
+      #modern-pagination {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 2em;
+      }
+      .modern-pager ul {
+        list-style: none;
+        display: flex;
+        gap: 0.25em;
+        padding: 0;
+        margin: 0;
+      }
+      .modern-pager li {
+        display: flex;
+      }
+      .modern-pager .page-btn {
+        border: none;
+        background: #f5f6fa;
+        color: #172447;
+        padding: 0.5em 1em;
+        margin: 0 0.1em;
+        border-radius: 6px;
+        font-size: 1em;
+        cursor: pointer;
+        transition: background 0.2s, color 0.2s;
+      }
+      .modern-pager .page-btn.active {
+        background: #172447;
+        color: #fff;
+        font-weight: bold;
+      }
+      .modern-pager .page-btn:hover:not(.active) {
+        background: #e2e8f0;
+      }
+      .modern-pager .dots {
+        color: #888;
+        padding: 0.5em 0.7em;
+        font-size: 1em;
+        user-select: none;
+      }
+    </style>
   </body>
 </html>

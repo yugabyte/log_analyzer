@@ -1,4 +1,4 @@
-from lib.analyzer_utils import analyzeNodeLogs, analyze_log_file_worker, getUniverseNameFromManifest
+from lib.analyzer_utils import analyzeNodeLogs, analyze_log_file_worker
 from lib.helper_utils import spinner, openLogFile
 from lib.log_utils import (
     getFileMetadata,
@@ -9,7 +9,6 @@ from lib.log_utils import (
     getArchiveFiles,
     getLogFilesFromCurrentDir,
     getTimeFromLog,
-    get_gflags_from_nodes,
     extract_node_info_from_logs,
     count_tablets_per_tserver
 )
@@ -169,10 +168,6 @@ if __name__ == "__main__":
         for logType, logTypeData in nodeData.items():
             for subType, subTypeData in logTypeData.items():
                 tasks.append((nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, idx, args.histogram_mode))
-    # Get the universe name from manifest.json
-    universeName = getUniverseNameFromManifest(logger)
-    logger.info(f"Universe name: {universeName}")
-
     # Analyze in parallel
     with Pool(processes=args.numThreads) as pool:
         results = pool.map(analyze_log_file_worker, tasks)
@@ -187,9 +182,7 @@ if __name__ == "__main__":
             nested_results[nodeName][logType] = {"logMessages": {}}
         for msg, stats in result["logMessages"].items():
             nested_results[nodeName][logType]["logMessages"][msg] = stats
-    # --- Add GFlags from server.conf for all nodes (top-level) ---
-    gflags = get_gflags_from_nodes(logFilesMetadata)
-    # --- End GFlags addition ---
+
 
     # --- Node info extraction ---
     node_infos = extract_node_info_from_logs(logFilesMetadata, logger)
@@ -199,10 +192,8 @@ if __name__ == "__main__":
     tablet_counts = count_tablets_per_tserver(logFilesMetadata)
     # --- End tablet count extraction ---
 
-    # Write nested results to a JSON file, including universeName and top-level GFlags
+    # Write nested results to a JSON file (remove GFlags from output)
     output_json = {
-        "universeName": universeName,
-        "GFlags": gflags if gflags else {},
         "nodes": nested_results
     }
     # Add node_info metadata and tablet count under each node
