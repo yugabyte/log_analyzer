@@ -93,15 +93,17 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function renderWarningsTab() {
-    const warningsTabBtn = document.querySelector('.tab-btn[data-tab="warnings-tab"]');
-    const warningsPanel = document.getElementById('warnings-tab');
-    const warningsDiv = document.getElementById('warnings');
+    const warningsTabBtn = document.querySelector(
+      '.tab-btn[data-tab="warnings-tab"]'
+    );
+    const warningsPanel = document.getElementById("warnings-tab");
+    const warningsDiv = document.getElementById("warnings");
     if (!jsonData || !jsonData.warnings || jsonData.warnings.length === 0) {
-      warningsTabBtn.style.display = 'none';
-      if (warningsPanel) warningsPanel.style.display = 'none';
+      warningsTabBtn.style.display = "none";
+      if (warningsPanel) warningsPanel.style.display = "none";
       return;
     }
-    warningsTabBtn.style.display = '';
+    warningsTabBtn.style.display = "";
     let html = '<div class="warnings-list">';
     jsonData.warnings.forEach((warn, idx) => {
       html += `<div class="log-solution-collapsible" style="margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fafbfc;">
@@ -111,15 +113,23 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
         <div class="log-solution-body" style="display:none; padding: 18px; background: #fff; border-radius:0 0 6px 6px; border-top:1px solid #e2e8f0; color:#172447;">
           <div><b>Message:</b> ${warn.message}</div>
-          ${warn.node ? `<div><b>Node:</b> ${warn.node}</div>` : ''}
-          ${warn.file ? `<div><b>File:</b> <span style='word-break:break-all;'>${warn.file}</span></div>` : ''}
-          ${warn.type ? `<div><b>Type:</b> ${warn.type}</div>` : ''}
-          ${warn.level ? `<div><b>Level:</b> ${warn.level}</div>` : ''}
-          ${warn.additional_details ? `<div><b>Details:</b> ${warn.additional_details}</div>` : ''}
+          ${warn.node ? `<div><b>Node:</b> ${warn.node}</div>` : ""}
+          ${
+            warn.file
+              ? `<div><b>File:</b> <span style='word-break:break-all;'>${warn.file}</span></div>`
+              : ""
+          }
+          ${warn.type ? `<div><b>Type:</b> ${warn.type}</div>` : ""}
+          ${warn.level ? `<div><b>Level:</b> ${warn.level}</div>` : ""}
+          ${
+            warn.additional_details
+              ? `<div><b>Details:</b> ${warn.additional_details}</div>`
+              : ""
+          }
         </div>
       </div>`;
     });
-    html += '</div>';
+    html += "</div>";
     warningsDiv.innerHTML = html;
     // Accordion logic: only one open at a time
     const headers = warningsDiv.querySelectorAll(".log-solution-header");
@@ -136,9 +146,11 @@ document.addEventListener("DOMContentLoaded", function () {
           warningsDiv.querySelectorAll(".log-solution-body").forEach((c) => {
             c.style.display = "none";
           });
-          warningsDiv.querySelectorAll(".log-solution-header .arrow").forEach((a) => {
-            a.innerHTML = "&#9654;";
-          });
+          warningsDiv
+            .querySelectorAll(".log-solution-header .arrow")
+            .forEach((a) => {
+              a.innerHTML = "&#9654;";
+            });
           // Expand this one
           content.style.display = "block";
           arrow.innerHTML = "&#9660;";

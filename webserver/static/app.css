@@ -243,7 +243,8 @@ tr:nth-child(even) td {
   font-weight: 600;
   color: #ad6800;
 }
-.warning-node, .warning-file {
+.warning-node,
+.warning-file {
   margin-left: 0.7em;
   color: #8d6b00;
   font-size: 0.98em;
