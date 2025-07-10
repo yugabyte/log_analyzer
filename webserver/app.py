@@ -379,7 +379,11 @@ def search_reports():
         ]
         cur.close()
         conn.close()
-        return jsonify(reports)
+        return jsonify({
+            "reports": reports,
+            "page": 1,
+            "total_pages": 1
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
