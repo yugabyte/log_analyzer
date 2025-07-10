@@ -625,43 +625,29 @@ document.addEventListener("DOMContentLoaded", function () {
     fetch(`/api/related_reports/${window.report_uuid}`)
       .then((resp) => resp.json())
       .then((related) => {
-        if (!related || related.length === 0 || related.error) {
+        if (!related || related.error) {
           relatedDiv.innerHTML = "<em>No related reports found.</em>";
           return;
         }
-        // Separate by cluster and organization
-        const seenIds = new Set();
-        let sameCluster = [];
-        let sameOrg = [];
-        let currentClusterUuid = null;
-        let currentOrg = null;
-        // Find current cluster/org from first result (all have at least one matching field)
-        if (related.length > 0) {
-          currentClusterUuid = related[0].cluster_uuid;
-          currentOrg = related[0].organization;
-        }
-        related.forEach((r) => {
-          if (r.cluster_uuid === currentClusterUuid) {
-            sameCluster.push(r);
-            seenIds.add(r.id);
-          }
-        });
-        related.forEach((r) => {
-          if (r.organization === currentOrg && !seenIds.has(r.id)) {
-            sameOrg.push(r);
-            seenIds.add(r.id);
-          }
-        });
+        const sameCluster = related.same_cluster || [];
+        const sameOrg = related.same_org || [];
         let html = "";
-        html += `<h4>Reports for Cluster: <span style='color:#172447'>${
-          sameCluster.length > 0
-            ? sameCluster[0].cluster_name || sameCluster[0].cluster_uuid
-            : currentClusterUuid || ""
-        }</span></h4>`;
+        // Expand/collapse for cluster
+        html += `<div class='related-section-collapsible'>
+          <div class='related-section-header' style='cursor:pointer; display:flex; align-items:center; font-weight:600; font-size:1.15em; background:#f5f6fa; border-radius:8px 8px 0 0; padding:12px 18px; margin-bottom:0;'>
+            <span class='arrow' style='margin-right:10px; font-size:1.2em; color:#888;'>&#9654;</span>
+            Reports for Cluster: <span style='color:#172447; margin-left:8px;'>${
+              sameCluster.length > 0
+                ? sameCluster[0].cluster_name || sameCluster[0].cluster_uuid
+                : "(none)"
+            }</span>
+          </div>
+          <div class='related-section-body' style='display:none; padding:0 0 18px 0; background:#fff; border-radius:0 0 8px 8px;'>`;
         if (sameCluster.length === 0) {
-          html += "<em>No other reports for this cluster.</em>";
+          html +=
+            "<em style='margin-left:18px;'>No other reports for this cluster.</em>";
         } else {
-          html += `<table><thead><tr>
+          html += `<table style='margin:18px 0 0 0;'><thead><tr>
             <th>UUID</th>
             <th>Support Bundle Name</th>
             <th>Cluster Name</th>
@@ -689,13 +675,21 @@ document.addEventListener("DOMContentLoaded", function () {
           });
           html += "</tbody></table>";
         }
-        html += `<h4 style="margin-top:2em;">Reports for Organization: <span style='color:#172447'>${
-          sameOrg.length > 0 ? sameOrg[0].organization || "" : currentOrg || ""
-        }</span></h4>`;
+        html += `</div></div>`;
+        // Expand/collapse for org
+        html += `<div class='related-section-collapsible' style='margin-top:2em;'>
+          <div class='related-section-header' style='cursor:pointer; display:flex; align-items:center; font-weight:600; font-size:1.15em; background:#f5f6fa; border-radius:8px 8px 0 0; padding:12px 18px; margin-bottom:0;'>
+            <span class='arrow' style='margin-right:10px; font-size:1.2em; color:#888;'>&#9654;</span>
+            Reports for Organization: <span style='color:#172447; margin-left:8px;'>${
+              sameOrg.length > 0 ? sameOrg[0].organization || "" : "(none)"
+            }</span>
+          </div>
+          <div class='related-section-body' style='display:none; padding:0 0 18px 0; background:#fff; border-radius:0 0 8px 8px;'>`;
         if (sameOrg.length === 0) {
-          html += "<em>No other reports for this organization.</em>";
+          html +=
+            "<em style='margin-left:18px;'>No other reports for this organization.</em>";
         } else {
-          html += `<table><thead><tr>
+          html += `<table style='margin:18px 0 0 0;'><thead><tr>
             <th>UUID</th>
             <th>Support Bundle Name</th>
             <th>Cluster Name</th>
@@ -723,7 +717,47 @@ document.addEventListener("DOMContentLoaded", function () {
           });
           html += "</tbody></table>";
         }
+        html += `</div></div>`;
         relatedDiv.innerHTML = html;
+        // Accordion logic for both sections
+        const sectionHeaders = relatedDiv.querySelectorAll(
+          ".related-section-header"
+        );
+        sectionHeaders.forEach((header) => {
+          header.onclick = function () {
+            const body = header.nextElementSibling;
+            const arrow = header.querySelector(".arrow");
+            const isOpen = body.style.display === "block";
+            if (isOpen) {
+              body.style.display = "none";
+              arrow.innerHTML = "&#9654;";
+            } else {
+              // Collapse all
+              relatedDiv
+                .querySelectorAll(".related-section-body")
+                .forEach((b) => {
+                  b.style.display = "none";
+                });
+              relatedDiv
+                .querySelectorAll(".related-section-header .arrow")
+                .forEach((a) => {
+                  a.innerHTML = "&#9654;";
+                });
+              // Expand this one
+              body.style.display = "block";
+              arrow.innerHTML = "&#9660;";
+            }
+          };
+        });
+        // Optionally, expand the first section by default
+        const firstBody = relatedDiv.querySelector(".related-section-body");
+        const firstArrow = relatedDiv.querySelector(
+          ".related-section-header .arrow"
+        );
+        if (firstBody && firstArrow) {
+          firstBody.style.display = "block";
+          firstArrow.innerHTML = "&#9660;";
+        }
       })
       .catch(() => {
         relatedDiv.innerHTML = "<em>Failed to load related reports.</em>";

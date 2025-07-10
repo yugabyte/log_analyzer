@@ -310,18 +310,40 @@ def related_reports_api(uuid):
         if not row:
             cur.close()
             conn.close()
-            return jsonify([])  # No header info, so no related reports
+            return jsonify({'same_cluster': [], 'same_org': []})
         cluster_uuid, organization = row
-        # Find all support_bundle_names for same org or cluster_uuid (excluding current)
+        # Find all reports for the same cluster (excluding current)
         cur.execute("""
             SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.cluster_uuid, h.case_id, r.created_at
             FROM public.reports r
             JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
-            WHERE (h.organization = %s OR h.cluster_uuid = %s)
+            WHERE h.cluster_uuid = %s
+              AND r.id::text != %s
+            ORDER BY r.created_at DESC LIMIT 20
+        """, (str(cluster_uuid), str(uuid)))
+        same_cluster = [
+            {
+                'id': str(r[0]),
+                'support_bundle_name': r[1],
+                'cluster_name': r[2],
+                'organization': r[3],
+                'cluster_uuid': str(r[4]),
+                'case_id': r[5],
+                'created_at': r[6].strftime('%Y-%m-%d %H:%M')
+            }
+            for r in cur.fetchall()
+        ]
+        # Find all reports for the same organization, but NOT in the same cluster (excluding current)
+        cur.execute("""
+            SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.cluster_uuid, h.case_id, r.created_at
+            FROM public.reports r
+            JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
+            WHERE h.organization = %s
+              AND h.cluster_uuid != %s
               AND r.id::text != %s
             ORDER BY r.created_at DESC LIMIT 20
         """, (organization, str(cluster_uuid), str(uuid)))
-        related = [
+        same_org = [
             {
                 'id': str(r[0]),
                 'support_bundle_name': r[1],
@@ -335,7 +357,7 @@ def related_reports_api(uuid):
         ]
         cur.close()
         conn.close()
-        return jsonify(related)
+        return jsonify({'same_cluster': same_cluster, 'same_org': same_org})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
