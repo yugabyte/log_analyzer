@@ -290,3 +290,49 @@ def count_tablets_per_tserver(logFilesMetadata):
                     count += 1
         tablet_counts[node] = count
     return tablet_counts
+
+def check_tserver_log_utc(logFilesMetadata, logger=None):
+    """
+    Check if any tserver INFO log is not in UTC by reading the first two lines.
+    Returns a warning dict if not UTC, else None.
+    """
+    for node, logTypes in logFilesMetadata.items():
+        tserver_logs = logTypes.get('yb-tserver', {}).get('INFO', {})
+        for logFile in tserver_logs:
+            try:
+                opener = gzip.open if logFile.endswith('.gz') else open
+                with opener(logFile, 'rt', errors='ignore') as f:
+                    first = f.readline().strip()
+                    second = f.readline().strip()
+                    # Look for the expected lines
+                    if first.startswith('Log file created at:') and second.startswith('Current UTC time:'):
+                        # Extract times
+                        t1 = first.split('Log file created at:')[1].strip()
+                        t2 = second.split('Current UTC time:')[1].strip()
+                        if t1 != t2:
+                            return {
+                                'type': 'log_timezone',
+                                'level': 'warning',
+                                'message': 'TServer logs are not in UTC.',
+                                'node': node,
+                                'file': logFile,
+                                'additional_details': 'Log file created at: {} | Current UTC time: {}'.format(t1, t2)
+                            }
+                        else:
+                            return None  # Found a UTC log, no warning
+            except Exception as e:
+                if logger:
+                    logger.debug(f"Failed to check UTC for {logFile}: {e}")
+                continue
+    return None  # No tserver INFO log found or all are UTC
+
+def collect_report_warnings(logFilesMetadata, logger=None):
+    """
+    Collect all warnings for the report. Returns a list of warning dicts.
+    """
+    warnings = []
+    utc_warn = check_tserver_log_utc(logFilesMetadata, logger)
+    if utc_warn:
+        warnings.append(utc_warn)
+    # Add more warning checks here in the future
+    return warnings

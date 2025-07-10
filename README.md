@@ -7,7 +7,7 @@ YugabyteDB Log Analyzer is a tool for uploading, analyzing, and visualizing Yuga
 - Upload YugabyteDB log bundles and generate analysis reports
 - View detailed report data, histograms, and GFlags
 - Search and filter reports by cluster, org, or case ID
-- Explore related reports and log solutions
+- Explore related reports and Log Details
 
 ## Project Structure
 

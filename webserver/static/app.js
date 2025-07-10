@@ -92,6 +92,62 @@ document.addEventListener("DOMContentLoaded", function () {
     fetchAndRenderHistogram();
   }
 
+  function renderWarningsTab() {
+    const warningsTabBtn = document.querySelector('.tab-btn[data-tab="warnings-tab"]');
+    const warningsPanel = document.getElementById('warnings-tab');
+    const warningsDiv = document.getElementById('warnings');
+    if (!jsonData || !jsonData.warnings || jsonData.warnings.length === 0) {
+      warningsTabBtn.style.display = 'none';
+      if (warningsPanel) warningsPanel.style.display = 'none';
+      return;
+    }
+    warningsTabBtn.style.display = '';
+    let html = '<div class="warnings-list">';
+    jsonData.warnings.forEach((warn, idx) => {
+      html += `<div class="log-solution-collapsible" style="margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fafbfc;">
+        <div class="log-solution-header" data-idx="${idx}" style="cursor:pointer; display:flex; align-items:center; padding: 12px 18px; font-weight:600; font-size:1.08em; color:#172447; border-radius:6px 6px 0 0; background:#f1f3f7; transition:background 0.2s;">
+          <span class="arrow" style="margin-right:10px; font-size:1.2em; color:#888;">&#9654;</span>
+          <span>${warn.message}</span>
+        </div>
+        <div class="log-solution-body" style="display:none; padding: 18px; background: #fff; border-radius:0 0 6px 6px; border-top:1px solid #e2e8f0; color:#172447;">
+          <div><b>Message:</b> ${warn.message}</div>
+          ${warn.node ? `<div><b>Node:</b> ${warn.node}</div>` : ''}
+          ${warn.file ? `<div><b>File:</b> <span style='word-break:break-all;'>${warn.file}</span></div>` : ''}
+          ${warn.type ? `<div><b>Type:</b> ${warn.type}</div>` : ''}
+          ${warn.level ? `<div><b>Level:</b> ${warn.level}</div>` : ''}
+          ${warn.additional_details ? `<div><b>Details:</b> ${warn.additional_details}</div>` : ''}
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+    warningsDiv.innerHTML = html;
+    // Accordion logic: only one open at a time
+    const headers = warningsDiv.querySelectorAll(".log-solution-header");
+    headers.forEach((header) => {
+      header.onclick = function () {
+        const content = header.nextElementSibling;
+        const arrow = header.querySelector(".arrow");
+        const isOpen = content.style.display === "block";
+        if (isOpen) {
+          content.style.display = "none";
+          arrow.innerHTML = "&#9654;";
+        } else {
+          // Collapse all
+          warningsDiv.querySelectorAll(".log-solution-body").forEach((c) => {
+            c.style.display = "none";
+          });
+          warningsDiv.querySelectorAll(".log-solution-header .arrow").forEach((a) => {
+            a.innerHTML = "&#9654;";
+          });
+          // Expand this one
+          content.style.display = "block";
+          arrow.innerHTML = "&#9660;";
+        }
+      };
+    });
+  }
+
+  // Call renderWarningsTab after jsonData is loaded
   function renderControlsAndData() {
     // Populate node and log type selectors
     const nodes = Object.keys(jsonData.nodes);
@@ -113,6 +169,7 @@ document.addEventListener("DOMContentLoaded", function () {
     nodeSelect.onchange = logTypeSelect.onchange = renderHistogram;
     renderHistogram();
     renderTables();
+    renderWarningsTab();
   }
 
   function renderHistogram() {

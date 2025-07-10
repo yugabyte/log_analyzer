@@ -10,7 +10,8 @@ from lib.log_utils import (
     getLogFilesFromCurrentDir,
     getTimeFromLog,
     extract_node_info_from_logs,
-    count_tablets_per_tserver
+    count_tablets_per_tserver,
+    collect_report_warnings
 )
 from multiprocessing import Pool, Lock, Manager
 from colorama import Fore, Style
@@ -204,6 +205,12 @@ if __name__ == "__main__":
             output_json["nodes"][node] = {"node_info": info}
         # Add tablet count under node_info
         output_json["nodes"][node]["node_info"]["tablet_count"] = tablet_counts.get(node, 0)
+
+    # --- Add warnings to the root of the JSON ---
+    warnings = collect_report_warnings(logFilesMetadata, logger)
+    if warnings:
+        output_json["warnings"] = warnings
+
     with open("node_log_summary.json", "w") as f:
         json.dump(output_json, f, indent=2)
     logger.info("Wrote node log summary to node_log_summary.json")
