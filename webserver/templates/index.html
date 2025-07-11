@@ -26,22 +26,93 @@
     </div>
     <div class="yuga-container">
       <h2>Recent Reports</h2>
-      <table style="margin-bottom: 2em">
+      <div
+        style="
+          margin-bottom: 1.5em;
+          display: flex;
+          gap: 0.5em;
+          align-items: center;
+        "
+      >
+        <input
+          id="searchBox"
+          type="text"
+          placeholder="Search by UUID, bundle, cluster, org, or case ID..."
+          style="
+            padding: 0.5em 1em;
+            font-size: 1em;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            width: 320px;
+          "
+        />
+        <button
+          id="searchBtn"
+          style="
+            padding: 0.5em 1.2em;
+            font-size: 1em;
+            background: #172447;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+          "
+        >
+          Search
+        </button>
+        <button
+          id="clearSearchBtn"
+          style="
+            padding: 0.5em 1.2em;
+            font-size: 1em;
+            background: #f5f6fa;
+            color: #172447;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            cursor: pointer;
+          "
+        >
+          Clear
+        </button>
+      </div>
+      <div
+        id="pagination"
+        style="
+          display: flex;
+          gap: 0.5em;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 2em;
+        "
+      ></div>
+      <table id="reportsTable" style="margin-bottom: 2em">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Universe Name</th>
-            <th>Ticket</th>
+            <th>UUID</th>
+            <th>Support Bundle Name</th>
+            <th>Universe/Cluster Name</th>
+            <th>Organization Name</th>
+            <th>Case ID</th>
             <th>Created At</th>
             <th>View</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="reportsTableBody">
           {% for report in reports %}
           <tr>
             <td>{{ report.id }}</td>
+            <td>{{ report.support_bundle_name }}</td>
             <td>{{ report.universe_name }}</td>
-            <td>{{ report.ticket }}</td>
+            <td>{{ report.organization_name }}</td>
+            <td>
+              {% if report.case_id %}
+              <a
+                href="https://yugabyte.zendesk.com/agent/tickets/{{ report.case_id }}"
+                target="_blank"
+                >{{ report.case_id }}</a
+              >
+              {% else %}-{% endif %}
+            </td>
             <td>{{ report.created_at }}</td>
             <td>
               <a href="/reports/{{ report.id }}">View Report</a>
@@ -50,6 +121,110 @@
           {% endfor %}
         </tbody>
       </table>
+      <div id="modern-pagination"></div>
     </div>
+    <script>
+      const searchBox = document.getElementById('searchBox');
+      const searchBtn = document.getElementById('searchBtn');
+      const clearSearchBtn = document.getElementById('clearSearchBtn');
+      const reportsTableBody = document.getElementById('reportsTableBody');
+      let currentPage = {{ page|default(1) }};
+      let totalPages = {{ total_pages|default(1) }};
+      let lastQuery = '';
+      function renderReportsTable(reports) {
+        reportsTableBody.innerHTML = '';
+        if (!reports || reports.length === 0) {
+          reportsTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#888;">No reports found.</td></tr>';
+          return;
+        }
+        for (const report of reports) {
+          reportsTableBody.innerHTML += `
+            <tr>
+              <td>${report.id}</td>
+              <td>${report.support_bundle_name}</td>
+              <td>${report.universe_name}</td>
+              <td>${report.organization_name}</td>
+              <td>${report.case_id ? `<a href='https://yugabyte.zendesk.com/agent/tickets/${report.case_id}' target='_blank'>${report.case_id}</a>` : '-'}</td>
+              <td>${report.created_at}</td>
+              <td><a href="/reports/${report.id}">View Report</a></td>
+            </tr>
+          `;
+        }
+      }
+      function renderPagination(page, totalPages) {
+        const pagination = document.getElementById('modern-pagination');
+        if (totalPages <= 1) { pagination.innerHTML = ''; return; }
+        let html = `<nav class="modern-pager"><ul>`;
+        if (page > 1) html += `<li><button class="page-btn" data-page="${page-1}">&laquo;</button></li>`;
+        for (let p = 1; p <= totalPages; ++p) {
+          if (p === 1 || p === totalPages || (p >= page-2 && p <= page+2)) {
+            html += `<li><button class="page-btn${p===page?' active':''}" data-page="${p}">${p}</button></li>`;
+          } else if (p === page-3 || p === page+3) {
+            html += `<li><span class="dots">...</span></li>`;
+          }
+        }
+        if (page < totalPages) html += `<li><button class="page-btn" data-page="${page+1}">&raquo;</button></li>`;
+        html += `</ul></nav>`;
+        pagination.innerHTML = html;
+        document.querySelectorAll('.page-btn').forEach(btn => {
+          btn.onclick = function() {
+            goToPage(parseInt(btn.getAttribute('data-page')));
+          };
+        });
+      }
+      function goToPage(page) {
+        currentPage = page;
+        if (lastQuery) {
+          searchBtn.disabled = true;
+          searchBtn.textContent = 'Searching...';
+          fetch(`/api/search_reports?q=${encodeURIComponent(lastQuery)}&page=${page}`)
+            .then(r => r.json())
+            .then(data => {
+              renderReportsTable(data.reports);
+              renderPagination(data.page, data.total_pages);
+              searchBtn.disabled = false;
+              searchBtn.textContent = 'Search';
+            })
+            .catch(() => {
+              renderReportsTable([]);
+              renderPagination(1, 1);
+              searchBtn.disabled = false;
+              searchBtn.textContent = 'Search';
+            });
+        } else {
+          window.location = `/?page=${page}`;
+        }
+      }
+      searchBtn.onclick = function() {
+        const q = searchBox.value.trim();
+        if (!q) return;
+        lastQuery = q;
+        currentPage = 1;
+        searchBtn.disabled = true;
+        searchBtn.textContent = 'Searching...';
+        fetch(`/api/search_reports?q=${encodeURIComponent(q)}&page=1`)
+          .then(r => r.json())
+          .then(data => {
+            renderReportsTable(data.reports);
+            renderPagination(data.page, data.total_pages);
+            searchBtn.disabled = false;
+            searchBtn.textContent = 'Search';
+          })
+          .catch(() => {
+            renderReportsTable([]);
+            renderPagination(1, 1);
+            searchBtn.disabled = false;
+            searchBtn.textContent = 'Search';
+          });
+      };
+      clearSearchBtn.onclick = function() {
+        searchBox.value = '';
+        window.location.reload();
+      };
+      searchBox.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') searchBtn.onclick();
+      });
+      renderPagination(currentPage, totalPages);
+    </script>
   </body>
 </html>

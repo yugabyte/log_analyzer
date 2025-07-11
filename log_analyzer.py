@@ -1,4 +1,4 @@
-from lib.analyzer_utils import analyzeNodeLogs, analyze_log_file_worker, getUniverseNameFromManifest
+from lib.analyzer_utils import analyzeNodeLogs, analyze_log_file_worker
 from lib.helper_utils import spinner, openLogFile
 from lib.log_utils import (
     getFileMetadata,
@@ -9,9 +9,9 @@ from lib.log_utils import (
     getArchiveFiles,
     getLogFilesFromCurrentDir,
     getTimeFromLog,
-    get_gflags_from_nodes,
     extract_node_info_from_logs,
-    count_tablets_per_tserver
+    count_tablets_per_tserver,
+    collect_report_warnings
 )
 from multiprocessing import Pool, Lock, Manager
 from colorama import Fore, Style
@@ -19,6 +19,8 @@ from patterns_lib import (
     universe_regex_patterns,
     pg_regex_patterns,
 )
+import psycopg2
+from psycopg2.extras import Json
 from collections import deque
 import logging
 import datetime
@@ -69,7 +71,6 @@ class ColoredHelpFormatter(argparse.RawTextHelpFormatter):
 
 # Command line arguments
 parser = argparse.ArgumentParser(description="Log Analyzer for YugabyteDB logs", formatter_class=ColoredHelpFormatter)
-parser.add_argument("-d", "--directory", help="Directory containing log files")
 parser.add_argument("-s","--support_bundle", help="Support bundle file name")
 parser.add_argument("--types", metavar="LIST", help="List of log types to analyze \n Example: --types 'ms,ybc' \n Default: --types 'pg,ts,ms'")
 parser.add_argument("-n", "--nodes", metavar="LIST", help="List of nodes to analyze \n Example: --nodes 'n1,n2'")
@@ -119,16 +120,24 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 if __name__ == "__main__":
+    # Extract support_bundle_name from args.support_bundle (remove .tar.gz or .tgz)
+    support_bundle_name = os.path.basename(args.support_bundle) if args.support_bundle else "unknown"
+    if support_bundle_name.endswith(".tar.gz"):
+        support_bundle_name = support_bundle_name[:-7]
+    elif support_bundle_name.endswith(".tgz"):
+        support_bundle_name = support_bundle_name[:-4]
     logFilesMetadata = {}
-    logFilesMetadataFile = 'log_files_metadata.json'
+    logFilesMetadataFile = support_bundle_name + '_log_files_metadata.json'
+    nodeLogSummaryFile = support_bundle_name + '_node_log_summary.json'
     if os.path.exists(logFilesMetadataFile):
         logger.info(f"Loading log files metadata from {logFilesMetadataFile}")
         with open(logFilesMetadataFile, 'r') as f:
             logFilesMetadata = json.load(f)
     else:
+        # Only support_bundle is supported now
         logFileList = getLogFilesToBuildMetadata(args, logger, logFile)
         if not logFileList:
-            logger.error("No log files found in the specified directory or support bundle.")
+            logger.error("No log files found in the specified support bundle.")
             exit(1)
         done = False
 
@@ -168,11 +177,7 @@ if __name__ == "__main__":
     for idx, (nodeName, nodeData) in enumerate(logFilesMetadata.items()):
         for logType, logTypeData in nodeData.items():
             for subType, subTypeData in logTypeData.items():
-                tasks.append((nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, idx))
-    # Get the universe name from manifest.json
-    universeName = getUniverseNameFromManifest(logger)
-    logger.info(f"Universe name: {universeName}")
-
+                tasks.append((nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, idx, args.histogram_mode))
     # Analyze in parallel
     with Pool(processes=args.numThreads) as pool:
         results = pool.map(analyze_log_file_worker, tasks)
@@ -187,9 +192,7 @@ if __name__ == "__main__":
             nested_results[nodeName][logType] = {"logMessages": {}}
         for msg, stats in result["logMessages"].items():
             nested_results[nodeName][logType]["logMessages"][msg] = stats
-    # --- Add GFlags from server.conf for all nodes (top-level) ---
-    gflags = get_gflags_from_nodes(logFilesMetadata)
-    # --- End GFlags addition ---
+
 
     # --- Node info extraction ---
     node_infos = extract_node_info_from_logs(logFilesMetadata, logger)
@@ -199,10 +202,8 @@ if __name__ == "__main__":
     tablet_counts = count_tablets_per_tserver(logFilesMetadata)
     # --- End tablet count extraction ---
 
-    # Write nested results to a JSON file, including universeName and top-level GFlags
+    # Write nested results to a JSON file (remove GFlags from output)
     output_json = {
-        "universeName": universeName,
-        "GFlags": gflags if gflags else {},
         "nodes": nested_results
     }
     # Add node_info metadata and tablet count under each node
@@ -213,17 +214,23 @@ if __name__ == "__main__":
             output_json["nodes"][node] = {"node_info": info}
         # Add tablet count under node_info
         output_json["nodes"][node]["node_info"]["tablet_count"] = tablet_counts.get(node, 0)
-    with open("node_log_summary.json", "w") as f:
+
+    # --- Add warnings to the root of the JSON ---
+    warnings = collect_report_warnings(logFilesMetadata, logger)
+    if warnings:
+        output_json["warnings"] = warnings
+
+    with open(nodeLogSummaryFile, "w") as f:
         json.dump(output_json, f, indent=2)
-    logger.info("Wrote node log summary to node_log_summary.json")
+
+    logger.info("Wrote node log summary to " + nodeLogSummaryFile)
     logger.info("Log analysis completed.")
 
     # --- Insert report into PostgreSQL ---
-    import psycopg2
-    from psycopg2.extras import Json
     try:
-        # Read DB config from db_config.json
-        with open("db_config.json") as config_file:
+        # Read DB config from db_config.json (always from script directory)
+        config_path = os.path.join(os.path.dirname(__file__), "db_config.json")
+        with open(config_path) as config_file:
             db_config = json.load(config_file)
         conn = psycopg2.connect(
             dbname=db_config["dbname"],
@@ -233,20 +240,24 @@ if __name__ == "__main__":
             port=db_config["port"]
         )
         cur = conn.cursor()
-        with open("node_log_summary.json") as f:
+        with open(nodeLogSummaryFile) as f:
             report_json = json.load(f)
-        universe_name = report_json.get("universeName", "unknown")
-        ticket = '1111'
+        # Extract support_bundle_name from args.support_bundle (remove .tar.gz or .tgz)
+        support_bundle_name = os.path.basename(args.support_bundle) if args.support_bundle else "unknown"
+        if support_bundle_name.endswith(".tar.gz"):
+            support_bundle_name = support_bundle_name[:-7]
+        elif support_bundle_name.endswith(".tgz"):
+            support_bundle_name = support_bundle_name[:-4]
         cur.execute(
             """
-            INSERT INTO log_analyzer.reports (universe_name, ticket, json_report, created_at)
-            VALUES (%s, %s, %s, NOW())
+            INSERT INTO public.reports (id, support_bundle_name, json_report, created_at)
+            VALUES (gen_random_uuid(), %s, %s, NOW())
             """,
-            (universe_name, ticket, Json(report_json))
+            (support_bundle_name, Json(report_json))
         )
         conn.commit()
         cur.close()
         conn.close()
-        logger.info("Report inserted into PostgreSQL reports table.")
+        logger.info("Report inserted into public.reports table.")
     except Exception as e:
         logger.error(f"Failed to insert report into PostgreSQL: {e}")

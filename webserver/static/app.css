@@ -177,6 +177,82 @@ tr:nth-child(even) td {
 .tab-panel[style*="display:block"] {
   display: block;
 }
+/* Modern pagination styles */
+#modern-pagination {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2em;
+}
+.modern-pager ul {
+  list-style: none;
+  display: flex;
+  gap: 0.25em;
+  padding: 0;
+  margin: 0;
+}
+.modern-pager li {
+  display: flex;
+}
+.modern-pager .page-btn {
+  border: none;
+  background: #f5f6fa;
+  color: #172447;
+  padding: 0.5em 1em;
+  margin: 0 0.1em;
+  border-radius: 6px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.modern-pager .page-btn.active {
+  background: #172447;
+  color: #fff;
+  font-weight: bold;
+}
+.modern-pager .page-btn:hover:not(.active) {
+  background: #e2e8f0;
+}
+.modern-pager .dots {
+  color: #888;
+  padding: 0.5em 0.7em;
+  font-size: 1em;
+  user-select: none;
+}
+.report-warning-box {
+  background: #fffbe6;
+  border: 1.5px solid #ffe58f;
+  color: #ad6800;
+  border-radius: 8px;
+  padding: 1.1em 1.5em 1.1em 1.1em;
+  margin-bottom: 1.2em;
+  margin-top: 1.2em;
+  font-size: 1.08em;
+  display: flex;
+  align-items: flex-start;
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.08);
+  gap: 0.8em;
+}
+.warning-icon {
+  font-size: 1.6em;
+  margin-right: 0.7em;
+  color: #faad14;
+  flex-shrink: 0;
+  margin-top: 0.1em;
+}
+.warning-msg {
+  font-weight: 600;
+  color: #ad6800;
+}
+.warning-node,
+.warning-file {
+  margin-left: 0.7em;
+  color: #8d6b00;
+  font-size: 0.98em;
+  font-weight: 400;
+}
+#warnings {
+  margin-top: 2em;
+}
 @media (max-width: 900px) {
   .yuga-container {
     padding: 1em;

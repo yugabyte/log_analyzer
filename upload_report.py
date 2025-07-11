@@ -10,15 +10,4 @@ if __name__ == "__main__":
     parser.add_argument("--url", default="http://localhost:5000/upload", help="Upload endpoint URL")
     args = parser.parse_args()
 
-    with open(args.file, "r") as f:
-        json_report = json.load(f)
-
-    payload = {
-        "universe_name": args.universe,
-        "ticket": args.ticket,
-        "json_report": json_report
-    }
-
-    resp = requests.post(args.url, json=payload)
-    print(f"Status: {resp.status_code}")
-    print(resp.text)
+    # Functionality for manual report upload has been removed.

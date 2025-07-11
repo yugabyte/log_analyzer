@@ -92,6 +92,74 @@ document.addEventListener("DOMContentLoaded", function () {
     fetchAndRenderHistogram();
   }
 
+  function renderWarningsTab() {
+    const warningsTabBtn = document.querySelector(
+      '.tab-btn[data-tab="warnings-tab"]'
+    );
+    const warningsPanel = document.getElementById("warnings-tab");
+    const warningsDiv = document.getElementById("warnings");
+    if (!jsonData || !jsonData.warnings || jsonData.warnings.length === 0) {
+      warningsTabBtn.style.display = "none";
+      if (warningsPanel) warningsPanel.style.display = "none";
+      return;
+    }
+    warningsTabBtn.style.display = "";
+    let html = '<div class="warnings-list">';
+    jsonData.warnings.forEach((warn, idx) => {
+      html += `<div class="log-solution-collapsible" style="margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fafbfc;">
+        <div class="log-solution-header" data-idx="${idx}" style="cursor:pointer; display:flex; align-items:center; padding: 12px 18px; font-weight:600; font-size:1.08em; color:#172447; border-radius:6px 6px 0 0; background:#f1f3f7; transition:background 0.2s;">
+          <span class="arrow" style="margin-right:10px; font-size:1.2em; color:#888;">&#9654;</span>
+          <span>${warn.message}</span>
+        </div>
+        <div class="log-solution-body" style="display:none; padding: 18px; background: #fff; border-radius:0 0 6px 6px; border-top:1px solid #e2e8f0; color:#172447;">
+          <div><b>Message:</b> ${warn.message}</div>
+          ${warn.node ? `<div><b>Node:</b> ${warn.node}</div>` : ""}
+          ${
+            warn.file
+              ? `<div><b>File:</b> <span style='word-break:break-all;'>${warn.file}</span></div>`
+              : ""
+          }
+          ${warn.type ? `<div><b>Type:</b> ${warn.type}</div>` : ""}
+          ${warn.level ? `<div><b>Level:</b> ${warn.level}</div>` : ""}
+          ${
+            warn.additional_details
+              ? `<div><b>Details:</b> ${warn.additional_details}</div>`
+              : ""
+          }
+        </div>
+      </div>`;
+    });
+    html += "</div>";
+    warningsDiv.innerHTML = html;
+    // Accordion logic: only one open at a time
+    const headers = warningsDiv.querySelectorAll(".log-solution-header");
+    headers.forEach((header) => {
+      header.onclick = function () {
+        const content = header.nextElementSibling;
+        const arrow = header.querySelector(".arrow");
+        const isOpen = content.style.display === "block";
+        if (isOpen) {
+          content.style.display = "none";
+          arrow.innerHTML = "&#9654;";
+        } else {
+          // Collapse all
+          warningsDiv.querySelectorAll(".log-solution-body").forEach((c) => {
+            c.style.display = "none";
+          });
+          warningsDiv
+            .querySelectorAll(".log-solution-header .arrow")
+            .forEach((a) => {
+              a.innerHTML = "&#9654;";
+            });
+          // Expand this one
+          content.style.display = "block";
+          arrow.innerHTML = "&#9660;";
+        }
+      };
+    });
+  }
+
+  // Call renderWarningsTab after jsonData is loaded
   function renderControlsAndData() {
     // Populate node and log type selectors
     const nodes = Object.keys(jsonData.nodes);
@@ -113,6 +181,7 @@ document.addEventListener("DOMContentLoaded", function () {
     nodeSelect.onchange = logTypeSelect.onchange = renderHistogram;
     renderHistogram();
     renderTables();
+    renderWarningsTab();
   }
 
   function renderHistogram() {
@@ -311,77 +380,112 @@ document.addEventListener("DOMContentLoaded", function () {
       if (tabId === "gflags-tab" && jsonData) renderGFlags();
       if (tabId === "nodeinfo-tab" && jsonData) renderNodeInfo();
       if (tabId === "logsolutions-tab" && jsonData) renderLogSolutions();
+      if (tabId === "related-tab") renderRelatedReports();
     });
   });
 
   function renderGFlags() {
     const gflagsDiv = document.getElementById("gflags");
-    const gflagsData =
-      (jsonData && (jsonData.GFlags || jsonData.gflags)) || null;
-    if (!gflagsData) {
-      gflagsDiv.innerHTML = "<em>No GFlags data available.</em>";
+    gflagsDiv.innerHTML = "<em>Loading GFlags...</em>";
+    if (!window.report_uuid) {
+      gflagsDiv.innerHTML = "<em>No report selected.</em>";
       return;
     }
-    let html = "";
-    // Master GFlags collapsible
-    if (gflagsData.master) {
-      let masterHtml = "<table><tr><th>Flag</th><th>Value</th></tr>";
-      Object.entries(gflagsData.master).forEach(([k, v]) => {
-        masterHtml += `<tr><td>${k}</td><td>${v}</td></tr>`;
-      });
-      masterHtml += "</table>";
-      html += `
-        <div class="node-table-collapsible">
-          <div class="node-header gflag-header" data-node-idx="gflag-master">
-            <span class="arrow">&#9654;</span>
-            <span>Master GFlags</span>
-          </div>
-          <div class="node-content" style="display:none;">${masterHtml}</div>
-        </div>
-      `;
-    }
-    // TServer GFlags collapsible
-    if (gflagsData.tserver) {
-      let tserverHtml = "<table><tr><th>Flag</th><th>Value</th></tr>";
-      Object.entries(gflagsData.tserver).forEach(([k, v]) => {
-        tserverHtml += `<tr><td>${k}</td><td>${v}</td></tr>`;
-      });
-      tserverHtml += "</table>";
-      html += `
-        <div class="node-table-collapsible">
-          <div class="node-header gflag-header" data-node-idx="gflag-tserver">
-            <span class="arrow">&#9654;</span>
-            <span>TServer GFlags</span>
-          </div>
-          <div class="node-content" style="display:none;">${tserverHtml}</div>
-        </div>
-      `;
-    }
-    if (!html) html = "<em>No GFlags found for Master or TServer.</em>";
-    gflagsDiv.innerHTML = html;
-    // Accordion logic for Master/TServer
-    const gflagHeaders = gflagsDiv.querySelectorAll(".gflag-header");
-    gflagHeaders.forEach((header) => {
-      header.onclick = function () {
-        const content = header.nextElementSibling;
-        const arrow = header.querySelector(".arrow");
-        const isOpen = content.style.display === "block";
-        if (isOpen) {
-          content.style.display = "none";
-          arrow.innerHTML = "&#9654;";
-        } else {
-          // Collapse all
-          gflagsDiv.querySelectorAll(".node-content").forEach((c) => {
-            c.style.display = "none";
-          });
-          gflagsDiv.querySelectorAll(".gflag-header .arrow").forEach((a) => {
-            a.innerHTML = "&#9654;";
-          });
-          content.style.display = "block";
-          arrow.innerHTML = "&#9660;";
+    fetch(`/api/gflags/${window.report_uuid}`)
+      .then((resp) => resp.json())
+      .then((gflagsData) => {
+        if (
+          !gflagsData ||
+          Object.keys(gflagsData).length === 0 ||
+          gflagsData.error
+        ) {
+          gflagsDiv.innerHTML = "<em>No GFlags data available.</em>";
+          return;
         }
-      };
-    });
+        let html = "";
+        // Master GFlags collapsible
+        if (gflagsData.master) {
+          let masterHtml = "<table><tr><th>Flag</th><th>Value</th></tr>";
+          Object.entries(gflagsData.master).forEach(([k, v]) => {
+            masterHtml += `<tr><td>${k}</td><td>${v}</td></tr>`;
+          });
+          masterHtml += "</table>";
+          html += `
+            <div class="node-table-collapsible">
+              <div class="node-header gflag-header" data-node-idx="gflag-master">
+                <span class="arrow">&#9654;</span>
+                <span>Master GFlags</span>
+              </div>
+              <div class="node-content" style="display:none;">${masterHtml}</div>
+            </div>
+          `;
+        }
+        // TServer GFlags collapsible
+        if (gflagsData.tserver) {
+          let tserverHtml = "<table><tr><th>Flag</th><th>Value</th></tr>";
+          Object.entries(gflagsData.tserver).forEach(([k, v]) => {
+            tserverHtml += `<tr><td>${k}</td><td>${v}</td></tr>`;
+          });
+          tserverHtml += "</table>";
+          html += `
+            <div class="node-table-collapsible">
+              <div class="node-header gflag-header" data-node-idx="gflag-tserver">
+                <span class="arrow">&#9654;</span>
+                <span>TServer GFlags</span>
+              </div>
+              <div class="node-content" style="display:none;">${tserverHtml}</div>
+            </div>
+          `;
+        }
+        // Controller GFlags collapsible
+        if (gflagsData.controller) {
+          let controllerHtml = "<table><tr><th>Flag</th><th>Value</th></tr>";
+          Object.entries(gflagsData.controller).forEach(([k, v]) => {
+            controllerHtml += `<tr><td>${k}</td><td>${v}</td></tr>`;
+          });
+          controllerHtml += "</table>";
+          html += `
+            <div class="node-table-collapsible">
+              <div class="node-header gflag-header" data-node-idx="gflag-controller">
+                <span class="arrow">&#9654;</span>
+                <span>Controller GFlags</span>
+              </div>
+              <div class="node-content" style="display:none;">${controllerHtml}</div>
+            </div>
+          `;
+        }
+        if (!html)
+          html = "<em>No GFlags found for Master, TServer, or Controller.</em>";
+        gflagsDiv.innerHTML = html;
+        // Accordion logic for Master/TServer/Controller
+        const gflagHeaders = gflagsDiv.querySelectorAll(".gflag-header");
+        gflagHeaders.forEach((header) => {
+          header.onclick = function () {
+            const content = header.nextElementSibling;
+            const arrow = header.querySelector(".arrow");
+            const isOpen = content.style.display === "block";
+            if (isOpen) {
+              content.style.display = "none";
+              arrow.innerHTML = "&#9654;";
+            } else {
+              // Collapse all
+              gflagsDiv.querySelectorAll(".node-content").forEach((c) => {
+                c.style.display = "none";
+              });
+              gflagsDiv
+                .querySelectorAll(".gflag-header .arrow")
+                .forEach((a) => {
+                  a.innerHTML = "&#9654;";
+                });
+              content.style.display = "block";
+              arrow.innerHTML = "&#9660;";
+            }
+          };
+        });
+      })
+      .catch(() => {
+        gflagsDiv.innerHTML = "<em>Failed to load GFlags data.</em>";
+      });
   }
 
   function renderNodeInfo() {
@@ -444,7 +548,9 @@ document.addEventListener("DOMContentLoaded", function () {
     Object.values(jsonData.nodes).forEach((nodeData) => {
       Object.values(nodeData).forEach((logTypeData) => {
         if (logTypeData.logMessages) {
-          Object.keys(logTypeData.logMessages).forEach((msg) => foundMessages.add(msg));
+          Object.keys(logTypeData.logMessages).forEach((msg) =>
+            foundMessages.add(msg)
+          );
         }
       });
     });
@@ -457,7 +563,9 @@ document.addEventListener("DOMContentLoaded", function () {
       const converter = new showdown.Converter();
       let idx = 0;
       foundMessages.forEach((msg) => {
-        const solutionMd = solutionsMap[msg] || "<em>No solution available for this log message.</em>";
+        const solutionMd =
+          solutionsMap[msg] ||
+          "<em>No solution available for this log message.</em>";
         const solutionHtml = converter.makeHtml(solutionMd);
         html += `<div class=\"log-solution-collapsible\" style=\"margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fafbfc;\">
           <div class=\"log-solution-header\" data-idx=\"${idx}\" style=\"cursor:pointer; display:flex; align-items:center; padding: 12px 18px; font-weight:600; font-size:1.08em; color:#172447; border-radius:6px 6px 0 0; background:#f1f3f7; transition:background 0.2s;\">
@@ -474,8 +582,12 @@ document.addEventListener("DOMContentLoaded", function () {
     // Accordion logic: only one open at a time
     const headers = logsolutionsDiv.querySelectorAll(".log-solution-header");
     headers.forEach((header) => {
-      header.onmouseenter = function() { header.style.background = '#e6eaf3'; };
-      header.onmouseleave = function() { header.style.background = '#f1f3f7'; };
+      header.onmouseenter = function () {
+        header.style.background = "#e6eaf3";
+      };
+      header.onmouseleave = function () {
+        header.style.background = "#f1f3f7";
+      };
       header.onclick = function () {
         const content = header.nextElementSibling;
         const arrow = header.querySelector(".arrow");
@@ -485,17 +597,170 @@ document.addEventListener("DOMContentLoaded", function () {
           arrow.innerHTML = "&#9654;";
         } else {
           // Collapse all
-          logsolutionsDiv.querySelectorAll(".log-solution-body").forEach((c) => {
-            c.style.display = "none";
-          });
-          logsolutionsDiv.querySelectorAll(".log-solution-header .arrow").forEach((a) => {
-            a.innerHTML = "&#9654;";
-          });
+          logsolutionsDiv
+            .querySelectorAll(".log-solution-body")
+            .forEach((c) => {
+              c.style.display = "none";
+            });
+          logsolutionsDiv
+            .querySelectorAll(".log-solution-header .arrow")
+            .forEach((a) => {
+              a.innerHTML = "&#9654;";
+            });
           // Expand this one
           content.style.display = "block";
           arrow.innerHTML = "&#9660;";
         }
       };
     });
+  }
+
+  function renderRelatedReports() {
+    const relatedDiv = document.getElementById("related-reports");
+    relatedDiv.innerHTML = "<em>Loading related reports...</em>";
+    if (!window.report_uuid) {
+      relatedDiv.innerHTML = "<em>No report selected.</em>";
+      return;
+    }
+    fetch(`/api/related_reports/${window.report_uuid}`)
+      .then((resp) => resp.json())
+      .then((related) => {
+        if (!related || related.error) {
+          relatedDiv.innerHTML = "<em>No related reports found.</em>";
+          return;
+        }
+        const sameCluster = related.same_cluster || [];
+        const sameOrg = related.same_org || [];
+        let html = "";
+        // Expand/collapse for cluster
+        html += `<div class='related-section-collapsible'>
+          <div class='related-section-header' style='cursor:pointer; display:flex; align-items:center; font-weight:600; font-size:1.15em; background:#f5f6fa; border-radius:8px 8px 0 0; padding:12px 18px; margin-bottom:0;'>
+            <span class='arrow' style='margin-right:10px; font-size:1.2em; color:#888;'>&#9654;</span>
+            Reports for Cluster: <span style='color:#172447; margin-left:8px;'>${
+              sameCluster.length > 0
+                ? sameCluster[0].cluster_name || sameCluster[0].cluster_uuid
+                : "(none)"
+            }</span>
+          </div>
+          <div class='related-section-body' style='display:none; padding:0 0 18px 0; background:#fff; border-radius:0 0 8px 8px;'>`;
+        if (sameCluster.length === 0) {
+          html +=
+            "<em style='margin-left:18px;'>No other reports for this cluster.</em>";
+        } else {
+          html += `<table style='margin:18px 0 0 0;'><thead><tr>
+            <th>UUID</th>
+            <th>Support Bundle Name</th>
+            <th>Cluster Name</th>
+            <th>Organization</th>
+            <th>Cluster UUID</th>
+            <th>Case ID</th>
+            <th>Created At</th>
+            <th>View</th>
+          </tr></thead><tbody>`;
+          sameCluster.forEach((r) => {
+            html += `<tr>
+              <td>${r.id}</td>
+              <td>${r.support_bundle_name}</td>
+              <td>${r.cluster_name || ""}</td>
+              <td>${r.organization || ""}</td>
+              <td>${r.cluster_uuid || ""}</td>
+              <td>${
+                r.case_id
+                  ? `<a href='https://yugabyte.zendesk.com/agent/tickets/${r.case_id}' target='_blank'>${r.case_id}</a>`
+                  : "-"
+              }</td>
+              <td>${r.created_at}</td>
+              <td><a href="/reports/${r.id}">View Report</a></td>
+            </tr>`;
+          });
+          html += "</tbody></table>";
+        }
+        html += `</div></div>`;
+        // Expand/collapse for org
+        html += `<div class='related-section-collapsible' style='margin-top:2em;'>
+          <div class='related-section-header' style='cursor:pointer; display:flex; align-items:center; font-weight:600; font-size:1.15em; background:#f5f6fa; border-radius:8px 8px 0 0; padding:12px 18px; margin-bottom:0;'>
+            <span class='arrow' style='margin-right:10px; font-size:1.2em; color:#888;'>&#9654;</span>
+            Reports for Organization: <span style='color:#172447; margin-left:8px;'>${
+              sameOrg.length > 0 ? sameOrg[0].organization || "" : "(none)"
+            }</span>
+          </div>
+          <div class='related-section-body' style='display:none; padding:0 0 18px 0; background:#fff; border-radius:0 0 8px 8px;'>`;
+        if (sameOrg.length === 0) {
+          html +=
+            "<em style='margin-left:18px;'>No other reports for this organization.</em>";
+        } else {
+          html += `<table style='margin:18px 0 0 0;'><thead><tr>
+            <th>UUID</th>
+            <th>Support Bundle Name</th>
+            <th>Cluster Name</th>
+            <th>Organization</th>
+            <th>Cluster UUID</th>
+            <th>Case ID</th>
+            <th>Created At</th>
+            <th>View</th>
+          </tr></thead><tbody>`;
+          sameOrg.forEach((r) => {
+            html += `<tr>
+              <td>${r.id}</td>
+              <td>${r.support_bundle_name}</td>
+              <td>${r.cluster_name || ""}</td>
+              <td>${r.organization || ""}</td>
+              <td>${r.cluster_uuid || ""}</td>
+              <td>${
+                r.case_id
+                  ? `<a href='https://yugabyte.zendesk.com/agent/tickets/${r.case_id}' target='_blank'>${r.case_id}</a>`
+                  : "-"
+              }</td>
+              <td>${r.created_at}</td>
+              <td><a href="/reports/${r.id}">View Report</a></td>
+            </tr>`;
+          });
+          html += "</tbody></table>";
+        }
+        html += `</div></div>`;
+        relatedDiv.innerHTML = html;
+        // Accordion logic for both sections
+        const sectionHeaders = relatedDiv.querySelectorAll(
+          ".related-section-header"
+        );
+        sectionHeaders.forEach((header) => {
+          header.onclick = function () {
+            const body = header.nextElementSibling;
+            const arrow = header.querySelector(".arrow");
+            const isOpen = body.style.display === "block";
+            if (isOpen) {
+              body.style.display = "none";
+              arrow.innerHTML = "&#9654;";
+            } else {
+              // Collapse all
+              relatedDiv
+                .querySelectorAll(".related-section-body")
+                .forEach((b) => {
+                  b.style.display = "none";
+                });
+              relatedDiv
+                .querySelectorAll(".related-section-header .arrow")
+                .forEach((a) => {
+                  a.innerHTML = "&#9654;";
+                });
+              // Expand this one
+              body.style.display = "block";
+              arrow.innerHTML = "&#9660;";
+            }
+          };
+        });
+        // Optionally, expand the first section by default
+        const firstBody = relatedDiv.querySelector(".related-section-body");
+        const firstArrow = relatedDiv.querySelector(
+          ".related-section-header .arrow"
+        );
+        if (firstBody && firstArrow) {
+          firstBody.style.display = "block";
+          firstArrow.innerHTML = "&#9660;";
+        }
+      })
+      .catch(() => {
+        relatedDiv.innerHTML = "<em>Failed to load related reports.</em>";
+      });
   }
 });

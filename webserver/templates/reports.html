@@ -26,16 +26,7 @@
       >
     </div>
     <div class="yuga-container">
-      <div id="controls" style="display: none">
-        <label
-          >Node:
-          <select id="nodeSelect"></select>
-        </label>
-        <label
-          >Process:
-          <select id="logTypeSelect"></select>
-        </label>
-      </div>
+      <div id="report-warnings"></div>
       <div class="tab-bar">
         <button class="tab-btn active" data-tab="histogram-tab">
           Histogram
@@ -43,10 +34,24 @@
         <button class="tab-btn" data-tab="table-tab">Table View</button>
         <button class="tab-btn" data-tab="gflags-tab">GFlags</button>
         <button class="tab-btn" data-tab="nodeinfo-tab">Node Info</button>
-        <button class="tab-btn" data-tab="logsolutions-tab">Log Solutions</button>
+        <button class="tab-btn" data-tab="logsolutions-tab">Log Details</button>
+        <button class="tab-btn" data-tab="warnings-tab" style="display: none">
+          Warnings
+        </button>
+        <button class="tab-btn" data-tab="related-tab">Related Reports</button>
       </div>
       <div id="tab-panels">
         <div id="histogram-tab" class="tab-panel" style="display: block">
+          <div id="controls" style="display: none">
+            <label
+              >Node:
+              <select id="nodeSelect"></select
+            ></label>
+            <label
+              >Process:
+              <select id="logTypeSelect"></select
+            ></label>
+          </div>
           <div id="histogram-controls" style="margin-bottom: 18px">
             <label
               >Time Interval:
@@ -81,6 +86,12 @@
         </div>
         <div id="logsolutions-tab" class="tab-panel" style="display: none">
           <div id="logsolutions"></div>
+        </div>
+        <div id="warnings-tab" class="tab-panel" style="display: none">
+          <div id="warnings"></div>
+        </div>
+        <div id="related-tab" class="tab-panel" style="display: none">
+          <div id="related-reports"></div>
         </div>
       </div>
     </div>

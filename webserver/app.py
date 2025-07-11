@@ -25,7 +25,10 @@ def load_db_config():
 
 @app.route('/')
 def index():
-    # Fetch recent reports from DB
+    # Fetch paginated reports from DB
+    page = int(request.args.get('page', 1))
+    per_page = 10
+    offset = (page - 1) * per_page
     try:
         db_config = load_db_config()
         conn = psycopg2.connect(
@@ -37,14 +40,24 @@ def index():
         )
         cur = conn.cursor()
         cur.execute("""
-            SELECT id, universe_name, ticket, created_at FROM log_analyzer.reports ORDER BY created_at DESC LIMIT 10
+            SELECT COUNT(*) FROM public.reports
         """)
+        total_reports = cur.fetchone()[0]
+        total_pages = (total_reports + per_page - 1) // per_page
+        cur.execute("""
+            SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.case_id, r.created_at
+            FROM public.reports r
+            LEFT JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
+            ORDER BY r.created_at DESC LIMIT %s OFFSET %s
+        """, (per_page, offset))
         reports = [
             {
-                'id': row[0],
-                'universe_name': row[1],
-                'ticket': row[2],
-                'created_at': row[3].strftime('%Y-%m-%d %H:%M')
+                'id': str(row[0]),
+                'support_bundle_name': row[1],
+                'universe_name': row[2] or '',
+                'organization_name': row[3] or '',
+                'case_id': row[4],
+                'created_at': row[5].strftime('%Y-%m-%d %H:%M')
             }
             for row in cur.fetchall()
         ]
@@ -52,7 +65,9 @@ def index():
         conn.close()
     except Exception as e:
         reports = []
-    return render_template('index.html', reports=reports)
+        total_pages = 1
+    print('DEBUG: reports fetched for index:', reports)
+    return render_template('index.html', reports=reports, page=page, total_pages=total_pages)
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -139,8 +154,8 @@ def get_report_api(uuid):
         )
         cur = conn.cursor()
         cur.execute("""
-            SELECT json_report FROM log_analyzer.reports WHERE id = %s
-        """, (uuid,))
+            SELECT json_report FROM public.reports WHERE id::text = %s
+        """, (str(uuid),))
         row = cur.fetchone()
         cur.close()
         conn.close()
@@ -175,12 +190,12 @@ def histogram_api(report_id):
         # Try both int and str for report_id
         try:
             cur.execute("""
-                SELECT json_report FROM log_analyzer.reports WHERE id = %s
-            """, (int(report_id),))
+                SELECT json_report FROM public.reports WHERE id::text = %s
+            """, (str(report_id),))
         except Exception:
             cur.execute("""
-                SELECT json_report FROM log_analyzer.reports WHERE id::text = %s
-            """, (str(report_id),))
+                SELECT json_report FROM public.reports WHERE id = %s
+            """, (report_id,))
         row = cur.fetchone()
         cur.close()
         conn.close()
@@ -225,6 +240,172 @@ def histogram_api(report_id):
                     else:
                         msg_stats['histogram'] = filtered
         return jsonify(data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/gflags/<uuid>')
+def gflags_api(uuid):
+    try:
+        db_config = load_db_config()
+        conn = psycopg2.connect(
+            dbname=db_config["dbname"],
+            user=db_config["user"],
+            password=db_config["password"],
+            host=db_config["host"],
+            port=db_config["port"]
+        )
+        cur = conn.cursor()
+        # Get support_bundle_name for this report
+        cur.execute("SELECT support_bundle_name FROM public.reports WHERE id::text = %s", (str(uuid),))
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            conn.close()
+            return jsonify({'error': 'Report not found'}), 404
+        support_bundle_name = row[0]
+        # Query GFlags for this support_bundle, grouped by server_type and gflag
+        cur.execute("""
+            SELECT server_type, gflag, value
+            FROM public.support_bundle_gflags
+            WHERE support_bundle = %s
+        """, (support_bundle_name,))
+        gflags = {}
+        for server_type, gflag, value in cur.fetchall():
+            if server_type not in gflags:
+                gflags[server_type] = {}
+            gflags[server_type][gflag] = value
+        cur.close()
+        conn.close()
+        return jsonify(gflags)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/related_reports/<uuid>')
+def related_reports_api(uuid):
+    try:
+        db_config = load_db_config()
+        conn = psycopg2.connect(
+            dbname=db_config["dbname"],
+            user=db_config["user"],
+            password=db_config["password"],
+            host=db_config["host"],
+            port=db_config["port"]
+        )
+        cur = conn.cursor()
+        # Get support_bundle_name for this report
+        cur.execute("SELECT support_bundle_name FROM public.reports WHERE id::text = %s", (str(uuid),))
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            conn.close()
+            return jsonify({'error': 'Report not found'}), 404
+        support_bundle_name = row[0]
+        # Get cluster_uuid and organization for this report
+        cur.execute("""
+            SELECT h.cluster_uuid, h.organization
+            FROM public.support_bundle_header h
+            WHERE h.support_bundle = %s
+        """, (support_bundle_name,))
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            conn.close()
+            return jsonify({'same_cluster': [], 'same_org': []})
+        cluster_uuid, organization = row
+        # Find all reports for the same cluster (excluding current)
+        cur.execute("""
+            SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.cluster_uuid, h.case_id, r.created_at
+            FROM public.reports r
+            JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
+            WHERE h.cluster_uuid = %s
+              AND r.id::text != %s
+            ORDER BY r.created_at DESC LIMIT 20
+        """, (str(cluster_uuid), str(uuid)))
+        same_cluster = [
+            {
+                'id': str(r[0]),
+                'support_bundle_name': r[1],
+                'cluster_name': r[2],
+                'organization': r[3],
+                'cluster_uuid': str(r[4]),
+                'case_id': r[5],
+                'created_at': r[6].strftime('%Y-%m-%d %H:%M')
+            }
+            for r in cur.fetchall()
+        ]
+        # Find all reports for the same organization, but NOT in the same cluster (excluding current)
+        cur.execute("""
+            SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.cluster_uuid, h.case_id, r.created_at
+            FROM public.reports r
+            JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
+            WHERE h.organization = %s
+              AND h.cluster_uuid != %s
+              AND r.id::text != %s
+            ORDER BY r.created_at DESC LIMIT 20
+        """, (organization, str(cluster_uuid), str(uuid)))
+        same_org = [
+            {
+                'id': str(r[0]),
+                'support_bundle_name': r[1],
+                'cluster_name': r[2],
+                'organization': r[3],
+                'cluster_uuid': str(r[4]),
+                'case_id': r[5],
+                'created_at': r[6].strftime('%Y-%m-%d %H:%M')
+            }
+            for r in cur.fetchall()
+        ]
+        cur.close()
+        conn.close()
+        return jsonify({'same_cluster': same_cluster, 'same_org': same_org})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/search_reports')
+def search_reports():
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify([])
+    try:
+        db_config = load_db_config()
+        conn = psycopg2.connect(
+            dbname=db_config["dbname"],
+            user=db_config["user"],
+            password=db_config["password"],
+            host=db_config["host"],
+            port=db_config["port"]
+        )
+        cur = conn.cursor()
+        # Search by id, support_bundle_name, cluster_name, organization, or case_id
+        cur.execute("""
+            SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.case_id, r.created_at
+            FROM public.reports r
+            LEFT JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
+            WHERE r.id::text ILIKE %s
+               OR r.support_bundle_name ILIKE %s
+               OR h.cluster_name ILIKE %s
+               OR h.organization ILIKE %s
+               OR h.case_id::text ILIKE %s
+            ORDER BY r.created_at DESC LIMIT 20
+        """, tuple(['%' + query + '%'] * 5))
+        reports = [
+            {
+                'id': str(row[0]),
+                'support_bundle_name': row[1],
+                'universe_name': row[2] or '',
+                'organization_name': row[3] or '',
+                'case_id': row[4],
+                'created_at': row[5].strftime('%Y-%m-%d %H:%M')
+            }
+            for row in cur.fetchall()
+        ]
+        cur.close()
+        conn.close()
+        return jsonify({
+            "reports": reports,
+            "page": 1,
+            "total_pages": 1
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

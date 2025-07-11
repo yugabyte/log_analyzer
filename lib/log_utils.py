@@ -182,13 +182,7 @@ def getFileMetadata(logFile, logger):
 
 def getLogFilesToBuildMetadata(args, logger, log_file=None):
     logFiles = []
-    if args.directory:
-        if not args.skip_tar:
-            extractAllTarFiles(args.directory, logger, log_file)
-        for root, dirs, files in os.walk(args.directory):
-            for file in files:
-                if ("INFO" in file or "postgres" in file) and file[0] != ".":
-                    logFiles.append(os.path.join(root, file))
+    # Removed directory support, only support_bundle is supported
     if args.support_bundle:
         extractedDir = None
         if args.support_bundle.endswith(".tar.gz") or args.support_bundle.endswith(".tgz"):
@@ -207,79 +201,6 @@ def getLogFilesToBuildMetadata(args, logger, log_file=None):
             logger.error("Invalid support bundle file format. Please provide a .tar.gz or .tgz file")
             exit(1)
     return logFiles
-
-def get_gflags_from_nodes(logFilesMetadata):
-    """
-    For all nodes, find tserver/master server.conf, parse, and return a dict with keys 'tserver' and/or 'master'.
-    If GFlags are the same for all nodes, just return the first found for each process.
-    """
-    import os
-    import re
-    def parse_server_conf(conf_path):
-        gflags = {}
-        try:
-            with open(conf_path, 'r') as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or not line.startswith('--'):
-                        continue
-                    keyval = line[2:].split('=', 1)
-                    if len(keyval) == 2:
-                        key, val = keyval
-                        if val.lower() == 'true':
-                            val = True
-                        elif val.lower() == 'false':
-                            val = False
-                        else:
-                            try:
-                                val = int(val)
-                            except ValueError:
-                                try:
-                                    val = float(val)
-                                except ValueError:
-                                    pass
-                        gflags[key] = val
-            return gflags
-        except Exception:
-            return None
-    gflags = {}
-    found = {'tserver': False, 'master': False}
-    for nodeName in logFilesMetadata:
-        found_log = None
-        for logType in logFilesMetadata[nodeName]:
-            for subType in logFilesMetadata[nodeName][logType]:
-                for logFile in logFilesMetadata[nodeName][logType][subType]:
-                    found_log = logFile
-                    break
-                if found_log:
-                    break
-            if found_log:
-                break
-        if not found_log:
-            continue
-        m = re.search(r"(.*/%s/)" % re.escape(nodeName), found_log)
-        if not m:
-            continue
-        node_dir = m.group(1)
-        # tserver
-        if not found['tserver']:
-            tserver_conf = os.path.join(node_dir, 'tserver', 'conf', 'server.conf')
-            if os.path.isfile(tserver_conf):
-                tserver_flags = parse_server_conf(tserver_conf)
-                if tserver_flags:
-                    gflags['tserver'] = tserver_flags
-                    found['tserver'] = True
-        # master
-        if not found['master']:
-            master_conf = os.path.join(node_dir, 'master', 'conf', 'server.conf')
-            if os.path.isfile(master_conf):
-                master_flags = parse_server_conf(master_conf)
-                if master_flags:
-                    gflags['master'] = master_flags
-                    found['master'] = True
-        if all(found.values()):
-            break
-    return gflags if gflags else None
 
 def extract_node_info_from_logs(logFilesMetadata, logger):
     """
@@ -369,3 +290,49 @@ def count_tablets_per_tserver(logFilesMetadata):
                     count += 1
         tablet_counts[node] = count
     return tablet_counts
+
+def check_tserver_log_utc(logFilesMetadata, logger=None):
+    """
+    Check if any tserver INFO log is not in UTC by reading the first two lines.
+    Returns a warning dict if not UTC, else None.
+    """
+    for node, logTypes in logFilesMetadata.items():
+        tserver_logs = logTypes.get('yb-tserver', {}).get('INFO', {})
+        for logFile in tserver_logs:
+            try:
+                opener = gzip.open if logFile.endswith('.gz') else open
+                with opener(logFile, 'rt', errors='ignore') as f:
+                    first = f.readline().strip()
+                    second = f.readline().strip()
+                    # Look for the expected lines
+                    if first.startswith('Log file created at:') and second.startswith('Current UTC time:'):
+                        # Extract times
+                        t1 = first.split('Log file created at:')[1].strip()
+                        t2 = second.split('Current UTC time:')[1].strip()
+                        if t1 != t2:
+                            return {
+                                'type': 'log_timezone',
+                                'level': 'warning',
+                                'message': 'TServer logs are not in UTC.',
+                                'node': node,
+                                'file': logFile,
+                                'additional_details': 'Log file created at: {} | Current UTC time: {}'.format(t1, t2)
+                            }
+                        else:
+                            return None  # Found a UTC log, no warning
+            except Exception as e:
+                if logger:
+                    logger.debug(f"Failed to check UTC for {logFile}: {e}")
+                continue
+    return None  # No tserver INFO log found or all are UTC
+
+def collect_report_warnings(logFilesMetadata, logger=None):
+    """
+    Collect all warnings for the report. Returns a list of warning dicts.
+    """
+    warnings = []
+    utc_warn = check_tserver_log_utc(logFilesMetadata, logger)
+    if utc_warn:
+        warnings.append(utc_warn)
+    # Add more warning checks here in the future
+    return warnings
