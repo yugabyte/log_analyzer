@@ -19,6 +19,8 @@ from patterns_lib import (
     universe_regex_patterns,
     pg_regex_patterns,
 )
+import psycopg2
+from psycopg2.extras import Json
 from collections import deque
 import logging
 import datetime
@@ -118,8 +120,15 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 if __name__ == "__main__":
+    # Extract support_bundle_name from args.support_bundle (remove .tar.gz or .tgz)
+    support_bundle_name = os.path.basename(args.support_bundle) if args.support_bundle else "unknown"
+    if support_bundle_name.endswith(".tar.gz"):
+        support_bundle_name = support_bundle_name[:-7]
+    elif support_bundle_name.endswith(".tgz"):
+        support_bundle_name = support_bundle_name[:-4]
     logFilesMetadata = {}
-    logFilesMetadataFile = 'log_files_metadata.json'
+    logFilesMetadataFile = support_bundle_name + '_log_files_metadata.json'
+    nodeLogSummaryFile = support_bundle_name + '_node_log_summary.json'
     if os.path.exists(logFilesMetadataFile):
         logger.info(f"Loading log files metadata from {logFilesMetadataFile}")
         with open(logFilesMetadataFile, 'r') as f:
@@ -211,14 +220,13 @@ if __name__ == "__main__":
     if warnings:
         output_json["warnings"] = warnings
 
-    with open("node_log_summary.json", "w") as f:
+    with open(nodeLogSummaryFile, "w") as f:
         json.dump(output_json, f, indent=2)
-    logger.info("Wrote node log summary to node_log_summary.json")
+
+    logger.info("Wrote node log summary to " + nodeLogSummaryFile)
     logger.info("Log analysis completed.")
 
     # --- Insert report into PostgreSQL ---
-    import psycopg2
-    from psycopg2.extras import Json
     try:
         # Read DB config from db_config.json (always from script directory)
         config_path = os.path.join(os.path.dirname(__file__), "db_config.json")
@@ -232,7 +240,7 @@ if __name__ == "__main__":
             port=db_config["port"]
         )
         cur = conn.cursor()
-        with open("node_log_summary.json") as f:
+        with open(nodeLogSummaryFile) as f:
             report_json = json.load(f)
         # Extract support_bundle_name from args.support_bundle (remove .tar.gz or .tgz)
         support_bundle_name = os.path.basename(args.support_bundle) if args.support_bundle else "unknown"
