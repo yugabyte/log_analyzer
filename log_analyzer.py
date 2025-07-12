@@ -25,6 +25,7 @@ from collections import deque
 import logging
 import datetime
 import argparse
+import uuid
 import re
 import os
 import tabulate
@@ -35,6 +36,7 @@ import sys
 import itertools
 import time
 import threading
+import socket
 from tqdm import tqdm
 
 class ColoredHelpFormatter(argparse.RawTextHelpFormatter):
@@ -229,9 +231,9 @@ if __name__ == "__main__":
     # --- Insert report into PostgreSQL ---
     try:
         # Read DB config from db_config.json (always from script directory)
-        config_path = os.path.join(os.path.dirname(__file__), "db_config.json")
-        with open(config_path) as config_file:
-            db_config = json.load(config_file)
+        db_config_path = os.path.join(os.path.dirname(__file__), "db_config.json")
+        with open(db_config_path) as db_config_file:
+            db_config = json.load(db_config_file)
         conn = psycopg2.connect(
             dbname=db_config["dbname"],
             user=db_config["user"],
@@ -248,16 +250,25 @@ if __name__ == "__main__":
             support_bundle_name = support_bundle_name[:-7]
         elif support_bundle_name.endswith(".tgz"):
             support_bundle_name = support_bundle_name[:-4]
+        random_id = os.urandom(16).hex()  # Generate a random ID
+        print(f"Inserting report with ID {random_id} into PostgreSQL")
         cur.execute(
             """
             INSERT INTO public.reports (id, support_bundle_name, json_report, created_at)
-            VALUES (gen_random_uuid(), %s, %s, NOW())
+            VALUES (%s, %s, %s, NOW())
             """,
-            (support_bundle_name, Json(report_json))
+            (random_id, support_bundle_name, Json(report_json))
         )
         conn.commit()
         cur.close()
         conn.close()
         logger.info("Report inserted into public.reports table.")
+        server_config_path = os.path.join(os.path.dirname(__file__), "server_config.json")
+        with open(server_config_path) as server_config_file:
+            server_config = json.load(server_config_file)
+        host = server_config.get("host", "127.0.0.1")
+        port = server_config.get("port", 5000)
+        # convert random_id to UUID format
+        logger.info(f"⌘+click to open your report at: http://{host}:{port}/reports/{str(uuid.UUID(random_id))}")
     except Exception as e:
         logger.error(f"Failed to insert report into PostgreSQL: {e}")
