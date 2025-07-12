@@ -490,52 +490,121 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function renderNodeInfo() {
     const nodeinfoDiv = document.getElementById("nodeinfo");
-    if (!jsonData || !jsonData.nodes) {
-      nodeinfoDiv.innerHTML = "<em>No node info available.</em>";
+    nodeinfoDiv.innerHTML = "<em>Loading node info...</em>";
+    if (!window.report_uuid) {
+      nodeinfoDiv.innerHTML = "<em>No report selected.</em>";
       return;
     }
-    // Collect all node_info keys, but only first occurrence of 'node_name'
-    let nodeInfoKeys = [];
-    let seen = new Set();
-    Object.values(jsonData.nodes).forEach((nodeData) => {
-      if (nodeData.node_info) {
-        Object.keys(nodeData.node_info).forEach((k) => {
-          if (k === "node_name" && seen.has("node_name")) return;
-          if (!seen.has(k)) {
-            nodeInfoKeys.push(k);
-            seen.add(k);
-          }
+    fetch(`/api/node_info/${window.report_uuid}`)
+      .then((resp) => resp.json())
+      .then((data) => {
+        if (!data || data.error) {
+          nodeinfoDiv.innerHTML = "<em>No node info available.</em>";
+          return;
+        }
+        // Column config and pretty names
+        const columns = [
+          { key: "node_name", label: "Node Name" },
+          { key: "tserver_uuid", label: "TServer UUID" },
+          { key: "master_uuid", label: "Master UUID" },
+          { key: "tablet_meta_count", label: "Tablet Count" },
+          { key: "num_cores", label: "Cores" },
+          { key: "memory_size_gb", label: "Memory (GB)" },
+          { key: "volume_size_gb", label: "Volume Size (GB)" },
+          { key: "yugabyte_version", label: "Version" },
+          { key: "placement", label: "Placement" }
+        ];
+        // TServer columns (exclude master_uuid)
+        const tserverCols = columns.filter(c => c.key !== "master_uuid" && c.key !== "support_bundle_name");
+        // Master columns (exclude tserver_uuid)
+        const masterCols = columns.filter(c => c.key !== "tserver_uuid" && c.key !== "support_bundle_name");
+        let html = "";
+        // TServer Section
+        html += `<div class='node-table-collapsible'>
+          <div class='node-header nodeinfo-header' data-node-idx='nodeinfo-tserver'>
+            <span class='arrow'>&#9654;</span>
+            <span>TServer Nodes</span>
+          </div>
+          <div class='node-content' style='display:none; overflow-x:auto;'>`;
+        if (data.tserver_nodes.length === 0) {
+          html += "<em>No TServer nodes found.</em>";
+        } else {
+          html += `<table style='min-width:900px;'><tr>`;
+          tserverCols.forEach(col => {
+            html += `<th>${col.label}</th>`;
+          });
+          html += "</tr>";
+          data.tserver_nodes.forEach((node) => {
+            html += "<tr>";
+            tserverCols.forEach(col => {
+              html += `<td>${node[col.key] !== null && node[col.key] !== undefined ? node[col.key] : ""}</td>`;
+            });
+            html += "</tr>";
+          });
+          html += "</table>";
+        }
+        html += "</div></div>";
+        // Master Section
+        html += `<div class='node-table-collapsible' style='margin-top:2em;'>
+          <div class='node-header nodeinfo-header' data-node-idx='nodeinfo-master'>
+            <span class='arrow'>&#9654;</span>
+            <span>Master Nodes</span>
+          </div>
+          <div class='node-content' style='display:none; overflow-x:auto;'>`;
+        if (data.master_nodes.length === 0) {
+          html += "<em>No Master nodes found.</em>";
+        } else {
+          html += `<table style='min-width:900px;'><tr>`;
+          masterCols.forEach(col => {
+            html += `<th>${col.label}</th>`;
+          });
+          html += "</tr>";
+          data.master_nodes.forEach((node) => {
+            html += "<tr>";
+            masterCols.forEach(col => {
+              html += `<td>${node[col.key] !== null && node[col.key] !== undefined ? node[col.key] : ""}</td>`;
+            });
+            html += "</tr>";
+          });
+          html += "</table>";
+        }
+        html += "</div></div>";
+        nodeinfoDiv.innerHTML = html;
+        // Accordion logic for both sections
+        const nodeinfoHeaders = nodeinfoDiv.querySelectorAll(".nodeinfo-header");
+        nodeinfoHeaders.forEach((header) => {
+          header.onclick = function () {
+            const content = header.nextElementSibling;
+            const arrow = header.querySelector(".arrow");
+            const isOpen = content.style.display === "block";
+            if (isOpen) {
+              content.style.display = "none";
+              arrow.innerHTML = "&#9654;";
+            } else {
+              // Collapse all
+              nodeinfoDiv.querySelectorAll(".node-content").forEach((c) => {
+                c.style.display = "none";
+              });
+              nodeinfoDiv.querySelectorAll(".nodeinfo-header .arrow").forEach((a) => {
+                a.innerHTML = "&#9654;";
+              });
+              // Expand this one
+              content.style.display = "block";
+              arrow.innerHTML = "&#9660;";
+            }
+          };
         });
-      }
-    });
-    // Add tablet_count to columns if present
-    if (!nodeInfoKeys.includes("tablet_count")) {
-      nodeInfoKeys.push("tablet_count");
-    }
-    let html =
-      "<table><tr><th>Node Name</th>" +
-      nodeInfoKeys
-        .filter((k, idx) => !(k === "node_name" && idx > 0))
-        .map((k) => `<th>${k}</th>`)
-        .join("") +
-      "</tr>";
-    Object.entries(jsonData.nodes).forEach(([node, nodeData]) => {
-      if (!nodeData.node_info) return;
-      html +=
-        `<tr><td>${node}</td>` +
-        nodeInfoKeys
-          .filter((k, idx) => !(k === "node_name" && idx > 0))
-          .map(
-            (k) =>
-              `<td>${
-                nodeData.node_info[k] !== undefined ? nodeData.node_info[k] : ""
-              }</td>`
-          )
-          .join("") +
-        "</tr>";
-    });
-    html += "</table>";
-    nodeinfoDiv.innerHTML = html;
+        // Optionally, expand the first section by default
+        const firstBody = nodeinfoDiv.querySelector(".node-content");
+        const firstArrow = nodeinfoDiv.querySelector(".nodeinfo-header .arrow");
+        if (firstBody && firstArrow) {
+          firstBody.style.display = "block";
+          firstArrow.innerHTML = "&#9660;";
+        }
+      })
+      .catch(() => {
+        nodeinfoDiv.innerHTML = "<em>Failed to load node info.</em>";
+      });
   }
 
   function renderLogSolutions() {
@@ -703,7 +772,7 @@ document.addEventListener("DOMContentLoaded", function () {
             html += `<tr>
               <td>${r.id}</td>
               <td>${r.support_bundle_name}</td>
-              <td>${r.cluster_name || ""}</td>
+              <td>${r.cluster_name || ""}</td
               <td>${r.organization || ""}</td>
               <td>${r.cluster_uuid || ""}</td>
               <td>${

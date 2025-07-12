@@ -195,27 +195,10 @@ if __name__ == "__main__":
         for msg, stats in result["logMessages"].items():
             nested_results[nodeName][logType]["logMessages"][msg] = stats
 
-
-    # --- Node info extraction ---
-    node_infos = extract_node_info_from_logs(logFilesMetadata, logger)
-    # --- End node info extraction ---
-
-    # --- Tablet count extraction ---
-    tablet_counts = count_tablets_per_tserver(logFilesMetadata)
-    # --- End tablet count extraction ---
-
     # Write nested results to a JSON file (remove GFlags from output)
     output_json = {
         "nodes": nested_results
     }
-    # Add node_info metadata and tablet count under each node
-    for node, info in node_infos.items():
-        if node in output_json["nodes"]:
-            output_json["nodes"][node]["node_info"] = info
-        else:
-            output_json["nodes"][node] = {"node_info": info}
-        # Add tablet count under node_info
-        output_json["nodes"][node]["node_info"]["tablet_count"] = tablet_counts.get(node, 0)
 
     # --- Add warnings to the root of the JSON ---
     warnings = collect_report_warnings(logFilesMetadata, logger)

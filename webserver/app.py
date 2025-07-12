@@ -409,5 +409,62 @@ def search_reports():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/node_info/<uuid>')
+def node_info_api(uuid):
+    """
+    Returns node info for the given report UUID, separated into tserver and master nodes.
+    """
+    try:
+        db_config = load_db_config()
+        conn = psycopg2.connect(
+            dbname=db_config["dbname"],
+            user=db_config["user"],
+            password=db_config["password"],
+            host=db_config["host"],
+            port=db_config["port"]
+        )
+        cur = conn.cursor()
+        # Get support_bundle_name for this report
+        cur.execute("SELECT support_bundle_name FROM public.reports WHERE id::text = %s", (str(uuid),))
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            conn.close()
+            return jsonify({'error': 'Report not found'}), 404
+        support_bundle_name = row[0]
+        # Query node info from the view
+        cur.execute("""
+            SELECT support_bundle_name, node_name, tserver_uuid, master_uuid, tablet_meta_count, placement, num_cores, memory_size_gb, volume_size_gb, yugabyte_version
+            FROM public.view_node_info_for_log_analyzer
+            WHERE support_bundle_name = %s
+        """, (support_bundle_name,))
+        tserver_nodes = []
+        master_nodes = []
+        for r in cur.fetchall():
+            node = {
+                'support_bundle_name': r[0],
+                'node_name': r[1],
+                'tserver_uuid': r[2],
+                'master_uuid': r[3],
+                'tablet_meta_count': r[4],
+                'placement': r[5],
+                'num_cores': r[6],
+                'memory_size_gb': float(r[7]) if r[7] is not None else None,
+                'volume_size_gb': float(r[8]) if r[8] is not None else None,
+                'yugabyte_version': r[9]
+            }
+            if node['tserver_uuid']:
+                tserver_nodes.append(node)
+            if node['master_uuid']:
+                master_nodes.append(node)
+        cur.close()
+        conn.close()
+        return jsonify({
+            'tserver_nodes': tserver_nodes,
+            'master_nodes': master_nodes
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True)
