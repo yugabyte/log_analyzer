@@ -512,32 +512,40 @@ document.addEventListener("DOMContentLoaded", function () {
           { key: "memory_size_gb", label: "Memory (GB)" },
           { key: "volume_size_gb", label: "Volume Size (GB)" },
           { key: "yugabyte_version", label: "Version" },
-          { key: "placement", label: "Placement" }
+          { key: "placement", label: "Placement" },
         ];
         // TServer columns (exclude master_uuid)
-        const tserverCols = columns.filter(c => c.key !== "master_uuid" && c.key !== "support_bundle_name");
+        const tserverCols = columns.filter(
+          (c) => c.key !== "master_uuid" && c.key !== "support_bundle_name"
+        );
         // Master columns (exclude tserver_uuid)
-        const masterCols = columns.filter(c => c.key !== "tserver_uuid" && c.key !== "support_bundle_name");
+        const masterCols = columns.filter(
+          (c) => c.key !== "tserver_uuid" && c.key !== "support_bundle_name"
+        );
         let html = "";
         // TServer Section
         html += `<div class='node-table-collapsible'>
           <div class='node-header nodeinfo-header' data-node-idx='nodeinfo-tserver'>
             <span class='arrow'>&#9654;</span>
-            <span>TServer Nodes</span>
+            <span>TServer Nodes (${data.tserver_nodes.length})</span>
           </div>
           <div class='node-content' style='display:none; overflow-x:auto;'>`;
         if (data.tserver_nodes.length === 0) {
           html += "<em>No TServer nodes found.</em>";
         } else {
           html += `<table style='min-width:900px;'><tr>`;
-          tserverCols.forEach(col => {
+          tserverCols.forEach((col) => {
             html += `<th>${col.label}</th>`;
           });
           html += "</tr>";
           data.tserver_nodes.forEach((node) => {
             html += "<tr>";
-            tserverCols.forEach(col => {
-              html += `<td>${node[col.key] !== null && node[col.key] !== undefined ? node[col.key] : ""}</td>`;
+            tserverCols.forEach((col) => {
+              html += `<td>${
+                node[col.key] !== null && node[col.key] !== undefined
+                  ? node[col.key]
+                  : ""
+              }</td>`;
             });
             html += "</tr>";
           });
@@ -548,21 +556,25 @@ document.addEventListener("DOMContentLoaded", function () {
         html += `<div class='node-table-collapsible' style='margin-top:2em;'>
           <div class='node-header nodeinfo-header' data-node-idx='nodeinfo-master'>
             <span class='arrow'>&#9654;</span>
-            <span>Master Nodes</span>
+            <span>Master Nodes (${data.master_nodes.length})</span>
           </div>
           <div class='node-content' style='display:none; overflow-x:auto;'>`;
         if (data.master_nodes.length === 0) {
           html += "<em>No Master nodes found.</em>";
         } else {
           html += `<table style='min-width:900px;'><tr>`;
-          masterCols.forEach(col => {
+          masterCols.forEach((col) => {
             html += `<th>${col.label}</th>`;
           });
           html += "</tr>";
           data.master_nodes.forEach((node) => {
             html += "<tr>";
-            masterCols.forEach(col => {
-              html += `<td>${node[col.key] !== null && node[col.key] !== undefined ? node[col.key] : ""}</td>`;
+            masterCols.forEach((col) => {
+              html += `<td>${
+                node[col.key] !== null && node[col.key] !== undefined
+                  ? node[col.key]
+                  : ""
+              }</td>`;
             });
             html += "</tr>";
           });
@@ -571,7 +583,8 @@ document.addEventListener("DOMContentLoaded", function () {
         html += "</div></div>";
         nodeinfoDiv.innerHTML = html;
         // Accordion logic for both sections
-        const nodeinfoHeaders = nodeinfoDiv.querySelectorAll(".nodeinfo-header");
+        const nodeinfoHeaders =
+          nodeinfoDiv.querySelectorAll(".nodeinfo-header");
         nodeinfoHeaders.forEach((header) => {
           header.onclick = function () {
             const content = header.nextElementSibling;
@@ -585,9 +598,11 @@ document.addEventListener("DOMContentLoaded", function () {
               nodeinfoDiv.querySelectorAll(".node-content").forEach((c) => {
                 c.style.display = "none";
               });
-              nodeinfoDiv.querySelectorAll(".nodeinfo-header .arrow").forEach((a) => {
-                a.innerHTML = "&#9654;";
-              });
+              nodeinfoDiv
+                .querySelectorAll(".nodeinfo-header .arrow")
+                .forEach((a) => {
+                  a.innerHTML = "&#9654;";
+                });
               // Expand this one
               content.style.display = "block";
               arrow.innerHTML = "&#9660;";
