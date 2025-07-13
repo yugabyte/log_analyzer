@@ -66,6 +66,11 @@ document.addEventListener("DOMContentLoaded", function () {
   function fetchAndRenderHistogram() {
     updateUrlWithFilters();
     if (!currentReportId) return;
+    // Show loading animation in histogram tab
+    if (histogramDiv) {
+      histogramDiv.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:center;height:400px;"><span class="loader" style="width:48px;height:48px;border:6px solid #e2e8f0;border-top:6px solid #36a2eb;border-radius:50%;animation:spin 1s linear infinite;margin-right:16px;"></span> <span style="font-size:1.2em;color:#888;">Loading histogram...</span></div>';
+    }
     const interval = intervalSelect ? parseInt(intervalSelect.value) : 1;
     const start = toApiIso(startTimePicker ? startTimePicker.value : null);
     const end = toApiIso(endTimePicker ? endTimePicker.value : null);
@@ -847,4 +852,9 @@ document.addEventListener("DOMContentLoaded", function () {
         relatedDiv.innerHTML = "<em>Failed to load related reports.</em>";
       });
   }
+
+  // Add CSS for spinner animation
+  const style = document.createElement("style");
+  style.innerHTML = `@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
+  document.head.appendChild(style);
 });
