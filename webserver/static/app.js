@@ -212,13 +212,9 @@ document.addEventListener("DOMContentLoaded", function () {
         );
       });
     });
-    // Find all buckets (time intervals)
-    let allBuckets = new Set();
-    Object.values(messageBuckets).forEach((bucketsObj) => {
-      Object.keys(bucketsObj).forEach((b) => allBuckets.add(b));
-    });
-    allBuckets = Array.from(allBuckets).sort();
-    // Use a diverse color palette for better distinction
+    // Clear loading spinner before rendering chart
+    histogramDiv.innerHTML = "";
+    // Prepare color mapping for each message
     const diverseColors = [
       "#172447",
       "#ff9400",
@@ -241,29 +237,60 @@ document.addEventListener("DOMContentLoaded", function () {
       "#b71540",
       "#60a3bc",
     ];
-    // Prepare traces: one per log message
-    let traces = Object.entries(messageBuckets).map(([msg, bucketsObj], i) => ({
-      x: allBuckets,
-      y: allBuckets.map((b) => bucketsObj[b] || 0),
-      name: msg,
-      type: "bar",
-      marker: {
-        color: diverseColors[i % diverseColors.length],
-        line: { width: 0 },
-        opacity: 0.92,
-      },
-      hovertemplate:
-        "<b>%{y} Occurrences</b><br>Time: %{x}<br>Log: " +
-        msg +
-        "<extra></extra>",
-    }));
+    const msgColorMap = {};
+    Object.keys(messageBuckets).forEach((msg, i) => {
+      msgColorMap[msg] = diverseColors[i % diverseColors.length];
+    });
+    // Find all buckets (time intervals)
+    let allBuckets = new Set();
+    Object.values(messageBuckets).forEach((bucketsObj) => {
+      Object.keys(bucketsObj).forEach((b) => allBuckets.add(b));
+    });
+    allBuckets = Array.from(allBuckets).sort();
+    // For each bucket, collect all message counts for hover
+    let customdata = allBuckets.map((bucket) => {
+      let msgList = [];
+      Object.entries(messageBuckets).forEach(([msg, bucketsObj]) => {
+        const count = bucketsObj[bucket] || 0;
+        if (count > 0) {
+          msgList.push({ msg, count, color: msgColorMap[msg] });
+        }
+      });
+      if (msgList.length === 0)
+        return "<span style='color:#888;'>No messages</span>";
+      return msgList
+        .map(
+          (m) =>
+            `<span style='color:${m.color};font-size:1.2em;'>&#9679;</span> ${m.count} - ${m.msg}`
+        )
+        .join("<br>");
+    });
+    // Prepare traces: one per message
+    let traces = Object.entries(messageBuckets).map(([msg, bucketsObj], i) => {
+      const color = msgColorMap[msg];
+      return {
+        x: allBuckets,
+        y: allBuckets.map((b) => bucketsObj[b] || 0),
+        name: msg,
+        type: "bar",
+        marker: {
+          color: color,
+          line: { width: 0 },
+          opacity: 0.92,
+        },
+        // Only first trace gets the custom hover block
+        hovertemplate: i === 0 ? "%{x}<br>%{customdata}<extra></extra>" : null,
+        customdata: i === 0 ? customdata : undefined,
+        hoverinfo: i === 0 ? undefined : "skip",
+        showlegend: true,
+      };
+    });
     Plotly.newPlot(
       histogramDiv,
       traces,
       {
         barmode: "group",
         title: {
-          text: "Histogram of Log Messages",
           font: {
             family: "Inter, Arial, sans-serif",
             size: 22,
@@ -271,18 +298,18 @@ document.addEventListener("DOMContentLoaded", function () {
           },
           x: 0.02,
         },
-        plot_bgcolor: "#f5f6fa",
-        paper_bgcolor: "#f5f6fa",
+        plot_bgcolor: "#F5F6FA",
+        paper_bgcolor: "#F5F6FA",
         font: { family: "Inter, Arial, sans-serif", color: "#172447" },
         xaxis: {
-          title: { text: "Time", font: { size: 16, color: "#4a5568" } },
+          title: { font: { size: 16, color: "#4a5568" } }, // hide x-axis title
           tickangle: -45,
           gridcolor: "#e2e8f0",
           linecolor: "#e2e8f0",
           tickfont: { size: 13 },
         },
         yaxis: {
-          title: { text: "Occurrences", font: { size: 16, color: "#4a5568" } },
+          title: { font: { size: 16, color: "#4a5568" } },
           gridcolor: "#e2e8f0",
           zeroline: false,
           tickfont: { size: 13 },
@@ -298,6 +325,11 @@ document.addEventListener("DOMContentLoaded", function () {
         height: 600,
         bargap: 0.18,
         bargroupgap: 0.08,
+        hoverlabel: {
+          bgcolor: "#F5F6FA",
+          bordercolor: "black", // visible border color
+          font: { color: "#172447", size: 15 },
+        },
       },
       { responsive: true, displayModeBar: false }
     );
