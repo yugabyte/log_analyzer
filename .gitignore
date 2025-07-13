@@ -4,3 +4,4 @@ log_files_metadata.json
 node_log_summary.json
 lib/__pycache__/*.pyc
 webserver/__pycache__/*.pyc
+PROJECT_FILE_GUIDE.md
