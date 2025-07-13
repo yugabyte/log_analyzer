@@ -8,8 +8,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const startTimePicker = document.getElementById("startTimePicker");
   const endTimePicker = document.getElementById("endTimePicker");
   const applyHistogramFilter = document.getElementById("applyHistogramFilter");
+  const toggleScaleBtn = document.getElementById("toggleScaleBtn");
   let jsonData = null;
   let currentReportId = null;
+  let histogramScale = "normal"; // 'normal' or 'log'
 
   // Auto-load report if report_uuid is present in the template context
   const reportUuidFromTemplate = window.report_uuid || null;
@@ -189,6 +191,16 @@ document.addEventListener("DOMContentLoaded", function () {
     renderWarningsTab();
   }
 
+  if (toggleScaleBtn) {
+    toggleScaleBtn.onclick = function () {
+      histogramScale = histogramScale === "normal" ? "log" : "normal";
+      toggleScaleBtn.classList.toggle("active", histogramScale === "log");
+      toggleScaleBtn.textContent =
+        histogramScale === "log" ? "Normal Scale" : "Log Scale";
+      renderHistogram();
+    };
+  }
+
   function renderHistogram() {
     if (!jsonData) return;
     let selectedNode = nodeSelect.value;
@@ -313,6 +325,7 @@ document.addEventListener("DOMContentLoaded", function () {
           gridcolor: "#e2e8f0",
           zeroline: false,
           tickfont: { size: 13 },
+          type: histogramScale === "log" ? "log" : "linear",
         },
         margin: { b: 120, t: 60, l: 60, r: 30 },
         legend: {
