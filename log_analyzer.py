@@ -233,7 +233,7 @@ if __name__ == "__main__":
         random_id = os.urandom(16).hex()  # Generate a random ID
         cur.execute(
             """
-            INSERT INTO public.reports (id, support_bundle_name, json_report, created_at)
+            INSERT INTO public.log_analyzer_reports (id, support_bundle_name, json_report, created_at)
             VALUES (%s, %s, %s, NOW())
             """,
             (random_id, support_bundle_name, Json(report_json))
@@ -243,7 +243,7 @@ if __name__ == "__main__":
         conn.close()
         print("") # A poor workaround to
         print("") # to avoid mixing of messages and progress bar
-        logger.info("👉 Report inserted into public.reports table.")
+        logger.info("👉 Report inserted into public.log_analyzer_reports table.")
         server_config_path = os.path.join(os.path.dirname(__file__), "server_config.json")
         with open(server_config_path) as server_config_file:
             server_config = json.load(server_config_file)
