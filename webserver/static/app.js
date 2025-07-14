@@ -343,6 +343,7 @@ document.addEventListener("DOMContentLoaded", function () {
           bordercolor: "black", // visible border color
           font: { color: "#172447", size: 15 },
         },
+        hovermode: "x", // Enable hover on closed bar (entire x-axis)
       },
       { responsive: true, displayModeBar: false }
     );
