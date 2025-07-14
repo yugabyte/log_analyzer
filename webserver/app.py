@@ -40,13 +40,13 @@ def index():
         )
         cur = conn.cursor()
         cur.execute("""
-            SELECT COUNT(*) FROM public.reports
+            SELECT COUNT(*) FROM public.log_analyzer_reports
         """)
         total_reports = cur.fetchone()[0]
         total_pages = (total_reports + per_page - 1) // per_page
         cur.execute("""
             SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.case_id, r.created_at
-            FROM public.reports r
+            FROM public.log_analyzer_reports r
             LEFT JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
             ORDER BY r.created_at DESC LIMIT %s OFFSET %s
         """, (per_page, offset))
@@ -154,7 +154,7 @@ def get_report_api(uuid):
         )
         cur = conn.cursor()
         cur.execute("""
-            SELECT json_report FROM public.reports WHERE id::text = %s
+            SELECT json_report FROM public.log_analyzer_reports WHERE id::text = %s
         """, (str(uuid),))
         row = cur.fetchone()
         cur.close()
@@ -190,11 +190,11 @@ def histogram_api(report_id):
         # Try both int and str for report_id
         try:
             cur.execute("""
-                SELECT json_report FROM public.reports WHERE id::text = %s
+                SELECT json_report FROM public.log_analyzer_reports WHERE id::text = %s
             """, (str(report_id),))
         except Exception:
             cur.execute("""
-                SELECT json_report FROM public.reports WHERE id = %s
+                SELECT json_report FROM public.log_analyzer_reports WHERE id = %s
             """, (report_id,))
         row = cur.fetchone()
         cur.close()
@@ -256,7 +256,7 @@ def gflags_api(uuid):
         )
         cur = conn.cursor()
         # Get support_bundle_name for this report
-        cur.execute("SELECT support_bundle_name FROM public.reports WHERE id::text = %s", (str(uuid),))
+        cur.execute("SELECT support_bundle_name FROM public.log_analyzer_reports WHERE id::text = %s", (str(uuid),))
         row = cur.fetchone()
         if not row:
             cur.close()
@@ -293,7 +293,7 @@ def related_reports_api(uuid):
         )
         cur = conn.cursor()
         # Get support_bundle_name for this report
-        cur.execute("SELECT support_bundle_name FROM public.reports WHERE id::text = %s", (str(uuid),))
+        cur.execute("SELECT support_bundle_name FROM public.log_analyzer_reports WHERE id::text = %s", (str(uuid),))
         row = cur.fetchone()
         if not row:
             cur.close()
@@ -315,7 +315,7 @@ def related_reports_api(uuid):
         # Find all reports for the same cluster (excluding current)
         cur.execute("""
             SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.cluster_uuid, h.case_id, r.created_at
-            FROM public.reports r
+            FROM public.log_analyzer_reports r
             JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
             WHERE h.cluster_uuid = %s
               AND r.id::text != %s
@@ -336,7 +336,7 @@ def related_reports_api(uuid):
         # Find all reports for the same organization, but NOT in the same cluster (excluding current)
         cur.execute("""
             SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.cluster_uuid, h.case_id, r.created_at
-            FROM public.reports r
+            FROM public.log_analyzer_reports r
             JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
             WHERE h.organization = %s
               AND h.cluster_uuid != %s
@@ -379,7 +379,7 @@ def search_reports():
         # Search by id, support_bundle_name, cluster_name, organization, or case_id
         cur.execute("""
             SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.case_id, r.created_at
-            FROM public.reports r
+            FROM public.log_analyzer_reports r
             LEFT JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
             WHERE r.id::text ILIKE %s
                OR r.support_bundle_name ILIKE %s
@@ -425,7 +425,7 @@ def node_info_api(uuid):
         )
         cur = conn.cursor()
         # Get support_bundle_name for this report
-        cur.execute("SELECT support_bundle_name FROM public.reports WHERE id::text = %s", (str(uuid),))
+        cur.execute("SELECT support_bundle_name FROM public.log_analyzer_reports WHERE id::text = %s", (str(uuid),))
         row = cur.fetchone()
         if not row:
             cur.close()
