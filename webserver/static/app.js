@@ -553,74 +553,34 @@ document.addEventListener("DOMContentLoaded", function () {
           nodeinfoDiv.innerHTML = "<em>No node info available.</em>";
           return;
         }
-        // Column config and pretty names
+        // New columns and pretty names
         const columns = [
           { key: "node_name", label: "Node Name" },
-          { key: "tserver_uuid", label: "TServer UUID" },
-          { key: "master_uuid", label: "Master UUID" },
-          { key: "tablet_meta_count", label: "Tablet Count" },
-          { key: "num_cores", label: "Cores" },
-          { key: "memory_size_gb", label: "Memory (GB)" },
-          { key: "volume_size_gb", label: "Volume Size (GB)" },
-          { key: "yugabyte_version", label: "Version" },
+          { key: "state", label: "State" },
+          { key: "is_master", label: "Is Master" },
+          { key: "is_tserver", label: "Is TServer" },
           { key: "placement", label: "Placement" },
+          { key: "num_cores", label: "Cores" },
+          { key: "mem_size_gb", label: "Memory (GB)" },
+          { key: "volume_size_gb", label: "Volume Size (GB)" }
         ];
-        // TServer columns (exclude master_uuid)
-        const tserverCols = columns.filter(
-          (c) => c.key !== "master_uuid" && c.key !== "support_bundle_name"
-        );
-        // Master columns (exclude tserver_uuid)
-        const masterCols = columns.filter(
-          (c) => c.key !== "tserver_uuid" && c.key !== "support_bundle_name"
-        );
-        let html = "";
-        // TServer Section
-        html += `<div class='node-table-collapsible'>
-          <div class='node-header nodeinfo-header' data-node-idx='nodeinfo-tserver'>
+        let html = `<div class='node-table-collapsible'>
+          <div class='node-header nodeinfo-header' data-node-idx='nodeinfo-all'>
             <span class='arrow'>&#9654;</span>
-            <span>TServer Nodes (${data.tserver_nodes.length})</span>
+            <span>All Nodes (${data.nodes.length})</span>
           </div>
           <div class='node-content' style='display:none; overflow-x:auto;'>`;
-        if (data.tserver_nodes.length === 0) {
-          html += "<em>No TServer nodes found.</em>";
+        if (data.nodes.length === 0) {
+          html += "<em>No nodes found.</em>";
         } else {
           html += `<table style='min-width:900px;'><tr>`;
-          tserverCols.forEach((col) => {
+          columns.forEach((col) => {
             html += `<th>${col.label}</th>`;
           });
           html += "</tr>";
-          data.tserver_nodes.forEach((node) => {
+          data.nodes.forEach((node) => {
             html += "<tr>";
-            tserverCols.forEach((col) => {
-              html += `<td>${
-                node[col.key] !== null && node[col.key] !== undefined
-                  ? node[col.key]
-                  : ""
-              }</td>`;
-            });
-            html += "</tr>";
-          });
-          html += "</table>";
-        }
-        html += "</div></div>";
-        // Master Section
-        html += `<div class='node-table-collapsible' style='margin-top:2em;'>
-          <div class='node-header nodeinfo-header' data-node-idx='nodeinfo-master'>
-            <span class='arrow'>&#9654;</span>
-            <span>Master Nodes (${data.master_nodes.length})</span>
-          </div>
-          <div class='node-content' style='display:none; overflow-x:auto;'>`;
-        if (data.master_nodes.length === 0) {
-          html += "<em>No Master nodes found.</em>";
-        } else {
-          html += `<table style='min-width:900px;'><tr>`;
-          masterCols.forEach((col) => {
-            html += `<th>${col.label}</th>`;
-          });
-          html += "</tr>";
-          data.master_nodes.forEach((node) => {
-            html += "<tr>";
-            masterCols.forEach((col) => {
+            columns.forEach((col) => {
               html += `<td>${
                 node[col.key] !== null && node[col.key] !== undefined
                   ? node[col.key]
@@ -633,34 +593,21 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         html += "</div></div>";
         nodeinfoDiv.innerHTML = html;
-        // Accordion logic for both sections
-        const nodeinfoHeaders =
-          nodeinfoDiv.querySelectorAll(".nodeinfo-header");
-        nodeinfoHeaders.forEach((header) => {
-          header.onclick = function () {
-            const content = header.nextElementSibling;
-            const arrow = header.querySelector(".arrow");
-            const isOpen = content.style.display === "block";
-            if (isOpen) {
-              content.style.display = "none";
-              arrow.innerHTML = "&#9654;";
-            } else {
-              // Collapse all
-              nodeinfoDiv.querySelectorAll(".node-content").forEach((c) => {
-                c.style.display = "none";
-              });
-              nodeinfoDiv
-                .querySelectorAll(".nodeinfo-header .arrow")
-                .forEach((a) => {
-                  a.innerHTML = "&#9654;";
-                });
-              // Expand this one
-              content.style.display = "block";
-              arrow.innerHTML = "&#9660;";
-            }
-          };
-        });
-        // Optionally, expand the first section by default
+        // Accordion logic for the section
+        const nodeinfoHeader = nodeinfoDiv.querySelector(".nodeinfo-header");
+        nodeinfoHeader.onclick = function () {
+          const content = nodeinfoHeader.nextElementSibling;
+          const arrow = nodeinfoHeader.querySelector(".arrow");
+          const isOpen = content.style.display === "block";
+          if (isOpen) {
+            content.style.display = "none";
+            arrow.innerHTML = "&#9654;";
+          } else {
+            content.style.display = "block";
+            arrow.innerHTML = "&#9660;";
+          }
+        };
+        // Optionally, expand by default
         const firstBody = nodeinfoDiv.querySelector(".node-content");
         const firstArrow = nodeinfoDiv.querySelector(".nodeinfo-header .arrow");
         if (firstBody && firstArrow) {

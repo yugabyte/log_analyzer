@@ -412,7 +412,7 @@ def search_reports():
 @app.route('/api/node_info/<uuid>')
 def node_info_api(uuid):
     """
-    Returns node info for the given report UUID, separated into tserver and master nodes.
+    Returns node info for the given report UUID, as a flat list of nodes.
     """
     try:
         db_config = load_db_config()
@@ -432,37 +432,27 @@ def node_info_api(uuid):
             conn.close()
             return jsonify({'error': 'Report not found'}), 404
         support_bundle_name = row[0]
-        # Query node info from the view
+        # Query node info from the new view
         cur.execute("""
-            SELECT support_bundle_name, node_name, tserver_uuid, master_uuid, tablet_meta_count, placement, num_cores, memory_size_gb, volume_size_gb, yugabyte_version
-            FROM public.view_node_info_for_log_analyzer
-            WHERE support_bundle_name = %s
+            SELECT node_name, state, is_master, is_tserver, cloud || '.' || region || '.' || az as placement, num_cores, mem_size_gb, volume_size_gb
+            FROM public.view_support_bundle_yba_metadata_cluster_summary
+            WHERE support_bundle = %s
         """, (support_bundle_name,))
-        tserver_nodes = []
-        master_nodes = []
+        nodes = []
         for r in cur.fetchall():
-            node = {
-                'support_bundle_name': r[0],
-                'node_name': r[1],
-                'tserver_uuid': r[2],
-                'master_uuid': r[3],
-                'tablet_meta_count': r[4],
-                'placement': r[5],
-                'num_cores': r[6],
-                'memory_size_gb': float(r[7]) if r[7] is not None else None,
-                'volume_size_gb': float(r[8]) if r[8] is not None else None,
-                'yugabyte_version': r[9]
-            }
-            if node['tserver_uuid']:
-                tserver_nodes.append(node)
-            if node['master_uuid']:
-                master_nodes.append(node)
+            nodes.append({
+                'node_name': r[0],
+                'state': r[1],
+                'is_master': r[2],
+                'is_tserver': r[3],
+                'placement': r[4],
+                'num_cores': r[5],
+                'mem_size_gb': float(r[6]) if r[6] is not None else None,
+                'volume_size_gb': float(r[7]) if r[7] is not None else None
+            })
         cur.close()
         conn.close()
-        return jsonify({
-            'tserver_nodes': tserver_nodes,
-            'master_nodes': master_nodes
-        })
+        return jsonify({'nodes': nodes})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
