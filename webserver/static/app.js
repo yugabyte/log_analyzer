@@ -8,8 +8,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const startTimePicker = document.getElementById("startTimePicker");
   const endTimePicker = document.getElementById("endTimePicker");
   const applyHistogramFilter = document.getElementById("applyHistogramFilter");
+  const toggleScaleBtn = document.getElementById("toggleScaleBtn");
   let jsonData = null;
   let currentReportId = null;
+  let histogramScale = "normal"; // 'normal' or 'log'
 
   // Auto-load report if report_uuid is present in the template context
   const reportUuidFromTemplate = window.report_uuid || null;
@@ -66,6 +68,11 @@ document.addEventListener("DOMContentLoaded", function () {
   function fetchAndRenderHistogram() {
     updateUrlWithFilters();
     if (!currentReportId) return;
+    // Show loading animation in histogram tab
+    if (histogramDiv) {
+      histogramDiv.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:center;height:400px;"><span class="loader" style="width:48px;height:48px;border:6px solid #e2e8f0;border-top:6px solid #36a2eb;border-radius:50%;animation:spin 1s linear infinite;margin-right:16px;"></span> <span style="font-size:1.2em;color:#888;">Loading histogram...</span></div>';
+    }
     const interval = intervalSelect ? parseInt(intervalSelect.value) : 1;
     const start = toApiIso(startTimePicker ? startTimePicker.value : null);
     const end = toApiIso(endTimePicker ? endTimePicker.value : null);
@@ -184,6 +191,16 @@ document.addEventListener("DOMContentLoaded", function () {
     renderWarningsTab();
   }
 
+  if (toggleScaleBtn) {
+    toggleScaleBtn.onclick = function () {
+      histogramScale = histogramScale === "normal" ? "log" : "normal";
+      toggleScaleBtn.classList.toggle("active", histogramScale === "log");
+      toggleScaleBtn.textContent =
+        histogramScale === "log" ? "Normal Scale" : "Log Scale";
+      renderHistogram();
+    };
+  }
+
   function renderHistogram() {
     if (!jsonData) return;
     let selectedNode = nodeSelect.value;
@@ -207,13 +224,9 @@ document.addEventListener("DOMContentLoaded", function () {
         );
       });
     });
-    // Find all buckets (time intervals)
-    let allBuckets = new Set();
-    Object.values(messageBuckets).forEach((bucketsObj) => {
-      Object.keys(bucketsObj).forEach((b) => allBuckets.add(b));
-    });
-    allBuckets = Array.from(allBuckets).sort();
-    // Use a diverse color palette for better distinction
+    // Clear loading spinner before rendering chart
+    histogramDiv.innerHTML = "";
+    // Prepare color mapping for each message
     const diverseColors = [
       "#172447",
       "#ff9400",
@@ -236,29 +249,60 @@ document.addEventListener("DOMContentLoaded", function () {
       "#b71540",
       "#60a3bc",
     ];
-    // Prepare traces: one per log message
-    let traces = Object.entries(messageBuckets).map(([msg, bucketsObj], i) => ({
-      x: allBuckets,
-      y: allBuckets.map((b) => bucketsObj[b] || 0),
-      name: msg,
-      type: "bar",
-      marker: {
-        color: diverseColors[i % diverseColors.length],
-        line: { width: 0 },
-        opacity: 0.92,
-      },
-      hovertemplate:
-        "<b>%{y} Occurrences</b><br>Time: %{x}<br>Log: " +
-        msg +
-        "<extra></extra>",
-    }));
+    const msgColorMap = {};
+    Object.keys(messageBuckets).forEach((msg, i) => {
+      msgColorMap[msg] = diverseColors[i % diverseColors.length];
+    });
+    // Find all buckets (time intervals)
+    let allBuckets = new Set();
+    Object.values(messageBuckets).forEach((bucketsObj) => {
+      Object.keys(bucketsObj).forEach((b) => allBuckets.add(b));
+    });
+    allBuckets = Array.from(allBuckets).sort();
+    // For each bucket, collect all message counts for hover
+    let customdata = allBuckets.map((bucket) => {
+      let msgList = [];
+      Object.entries(messageBuckets).forEach(([msg, bucketsObj]) => {
+        const count = bucketsObj[bucket] || 0;
+        if (count > 0) {
+          msgList.push({ msg, count, color: msgColorMap[msg] });
+        }
+      });
+      if (msgList.length === 0)
+        return "<span style='color:#888;'>No messages</span>";
+      return msgList
+        .map(
+          (m) =>
+            `<span style='color:${m.color};font-size:1.2em;'>&#9679;</span> ${m.count} - ${m.msg}`
+        )
+        .join("<br>");
+    });
+    // Prepare traces: one per message
+    let traces = Object.entries(messageBuckets).map(([msg, bucketsObj], i) => {
+      const color = msgColorMap[msg];
+      return {
+        x: allBuckets,
+        y: allBuckets.map((b) => bucketsObj[b] || 0),
+        name: msg,
+        type: "bar",
+        marker: {
+          color: color,
+          line: { width: 0 },
+          opacity: 0.92,
+        },
+        // Only first trace gets the custom hover block
+        hovertemplate: i === 0 ? "%{x}<br>%{customdata}<extra></extra>" : null,
+        customdata: i === 0 ? customdata : undefined,
+        hoverinfo: i === 0 ? undefined : "skip",
+        showlegend: true,
+      };
+    });
     Plotly.newPlot(
       histogramDiv,
       traces,
       {
         barmode: "group",
         title: {
-          text: "Histogram of Log Messages",
           font: {
             family: "Inter, Arial, sans-serif",
             size: 22,
@@ -266,21 +310,22 @@ document.addEventListener("DOMContentLoaded", function () {
           },
           x: 0.02,
         },
-        plot_bgcolor: "#f5f6fa",
-        paper_bgcolor: "#f5f6fa",
+        plot_bgcolor: "#F5F6FA",
+        paper_bgcolor: "#F5F6FA",
         font: { family: "Inter, Arial, sans-serif", color: "#172447" },
         xaxis: {
-          title: { text: "Time", font: { size: 16, color: "#4a5568" } },
+          title: { font: { size: 16, color: "#4a5568" } }, // hide x-axis title
           tickangle: -45,
           gridcolor: "#e2e8f0",
           linecolor: "#e2e8f0",
           tickfont: { size: 13 },
         },
         yaxis: {
-          title: { text: "Occurrences", font: { size: 16, color: "#4a5568" } },
+          title: { font: { size: 16, color: "#4a5568" } },
           gridcolor: "#e2e8f0",
           zeroline: false,
           tickfont: { size: 13 },
+          type: histogramScale === "log" ? "log" : "linear",
         },
         margin: { b: 120, t: 60, l: 60, r: 30 },
         legend: {
@@ -293,6 +338,12 @@ document.addEventListener("DOMContentLoaded", function () {
         height: 600,
         bargap: 0.18,
         bargroupgap: 0.08,
+        hoverlabel: {
+          bgcolor: "#F5F6FA",
+          bordercolor: "black", // visible border color
+          font: { color: "#172447", size: 15 },
+        },
+        hovermode: "x", // Enable hover on closed bar (entire x-axis)
       },
       { responsive: true, displayModeBar: false }
     );
@@ -490,52 +541,136 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function renderNodeInfo() {
     const nodeinfoDiv = document.getElementById("nodeinfo");
-    if (!jsonData || !jsonData.nodes) {
-      nodeinfoDiv.innerHTML = "<em>No node info available.</em>";
+    nodeinfoDiv.innerHTML = "<em>Loading node info...</em>";
+    if (!window.report_uuid) {
+      nodeinfoDiv.innerHTML = "<em>No report selected.</em>";
       return;
     }
-    // Collect all node_info keys, but only first occurrence of 'node_name'
-    let nodeInfoKeys = [];
-    let seen = new Set();
-    Object.values(jsonData.nodes).forEach((nodeData) => {
-      if (nodeData.node_info) {
-        Object.keys(nodeData.node_info).forEach((k) => {
-          if (k === "node_name" && seen.has("node_name")) return;
-          if (!seen.has(k)) {
-            nodeInfoKeys.push(k);
-            seen.add(k);
-          }
+    fetch(`/api/node_info/${window.report_uuid}`)
+      .then((resp) => resp.json())
+      .then((data) => {
+        if (!data || data.error) {
+          nodeinfoDiv.innerHTML = "<em>No node info available.</em>";
+          return;
+        }
+        // Column config and pretty names
+        const columns = [
+          { key: "node_name", label: "Node Name" },
+          { key: "tserver_uuid", label: "TServer UUID" },
+          { key: "master_uuid", label: "Master UUID" },
+          { key: "tablet_meta_count", label: "Tablet Count" },
+          { key: "num_cores", label: "Cores" },
+          { key: "memory_size_gb", label: "Memory (GB)" },
+          { key: "volume_size_gb", label: "Volume Size (GB)" },
+          { key: "yugabyte_version", label: "Version" },
+          { key: "placement", label: "Placement" },
+        ];
+        // TServer columns (exclude master_uuid)
+        const tserverCols = columns.filter(
+          (c) => c.key !== "master_uuid" && c.key !== "support_bundle_name"
+        );
+        // Master columns (exclude tserver_uuid)
+        const masterCols = columns.filter(
+          (c) => c.key !== "tserver_uuid" && c.key !== "support_bundle_name"
+        );
+        let html = "";
+        // TServer Section
+        html += `<div class='node-table-collapsible'>
+          <div class='node-header nodeinfo-header' data-node-idx='nodeinfo-tserver'>
+            <span class='arrow'>&#9654;</span>
+            <span>TServer Nodes (${data.tserver_nodes.length})</span>
+          </div>
+          <div class='node-content' style='display:none; overflow-x:auto;'>`;
+        if (data.tserver_nodes.length === 0) {
+          html += "<em>No TServer nodes found.</em>";
+        } else {
+          html += `<table style='min-width:900px;'><tr>`;
+          tserverCols.forEach((col) => {
+            html += `<th>${col.label}</th>`;
+          });
+          html += "</tr>";
+          data.tserver_nodes.forEach((node) => {
+            html += "<tr>";
+            tserverCols.forEach((col) => {
+              html += `<td>${
+                node[col.key] !== null && node[col.key] !== undefined
+                  ? node[col.key]
+                  : ""
+              }</td>`;
+            });
+            html += "</tr>";
+          });
+          html += "</table>";
+        }
+        html += "</div></div>";
+        // Master Section
+        html += `<div class='node-table-collapsible' style='margin-top:2em;'>
+          <div class='node-header nodeinfo-header' data-node-idx='nodeinfo-master'>
+            <span class='arrow'>&#9654;</span>
+            <span>Master Nodes (${data.master_nodes.length})</span>
+          </div>
+          <div class='node-content' style='display:none; overflow-x:auto;'>`;
+        if (data.master_nodes.length === 0) {
+          html += "<em>No Master nodes found.</em>";
+        } else {
+          html += `<table style='min-width:900px;'><tr>`;
+          masterCols.forEach((col) => {
+            html += `<th>${col.label}</th>`;
+          });
+          html += "</tr>";
+          data.master_nodes.forEach((node) => {
+            html += "<tr>";
+            masterCols.forEach((col) => {
+              html += `<td>${
+                node[col.key] !== null && node[col.key] !== undefined
+                  ? node[col.key]
+                  : ""
+              }</td>`;
+            });
+            html += "</tr>";
+          });
+          html += "</table>";
+        }
+        html += "</div></div>";
+        nodeinfoDiv.innerHTML = html;
+        // Accordion logic for both sections
+        const nodeinfoHeaders =
+          nodeinfoDiv.querySelectorAll(".nodeinfo-header");
+        nodeinfoHeaders.forEach((header) => {
+          header.onclick = function () {
+            const content = header.nextElementSibling;
+            const arrow = header.querySelector(".arrow");
+            const isOpen = content.style.display === "block";
+            if (isOpen) {
+              content.style.display = "none";
+              arrow.innerHTML = "&#9654;";
+            } else {
+              // Collapse all
+              nodeinfoDiv.querySelectorAll(".node-content").forEach((c) => {
+                c.style.display = "none";
+              });
+              nodeinfoDiv
+                .querySelectorAll(".nodeinfo-header .arrow")
+                .forEach((a) => {
+                  a.innerHTML = "&#9654;";
+                });
+              // Expand this one
+              content.style.display = "block";
+              arrow.innerHTML = "&#9660;";
+            }
+          };
         });
-      }
-    });
-    // Add tablet_count to columns if present
-    if (!nodeInfoKeys.includes("tablet_count")) {
-      nodeInfoKeys.push("tablet_count");
-    }
-    let html =
-      "<table><tr><th>Node Name</th>" +
-      nodeInfoKeys
-        .filter((k, idx) => !(k === "node_name" && idx > 0))
-        .map((k) => `<th>${k}</th>`)
-        .join("") +
-      "</tr>";
-    Object.entries(jsonData.nodes).forEach(([node, nodeData]) => {
-      if (!nodeData.node_info) return;
-      html +=
-        `<tr><td>${node}</td>` +
-        nodeInfoKeys
-          .filter((k, idx) => !(k === "node_name" && idx > 0))
-          .map(
-            (k) =>
-              `<td>${
-                nodeData.node_info[k] !== undefined ? nodeData.node_info[k] : ""
-              }</td>`
-          )
-          .join("") +
-        "</tr>";
-    });
-    html += "</table>";
-    nodeinfoDiv.innerHTML = html;
+        // Optionally, expand the first section by default
+        const firstBody = nodeinfoDiv.querySelector(".node-content");
+        const firstArrow = nodeinfoDiv.querySelector(".nodeinfo-header .arrow");
+        if (firstBody && firstArrow) {
+          firstBody.style.display = "block";
+          firstArrow.innerHTML = "&#9660;";
+        }
+      })
+      .catch(() => {
+        nodeinfoDiv.innerHTML = "<em>Failed to load node info.</em>";
+      });
   }
 
   function renderLogSolutions() {
@@ -703,7 +838,7 @@ document.addEventListener("DOMContentLoaded", function () {
             html += `<tr>
               <td>${r.id}</td>
               <td>${r.support_bundle_name}</td>
-              <td>${r.cluster_name || ""}</td>
+              <td>${r.cluster_name || ""}</td
               <td>${r.organization || ""}</td>
               <td>${r.cluster_uuid || ""}</td>
               <td>${
@@ -763,4 +898,9 @@ document.addEventListener("DOMContentLoaded", function () {
         relatedDiv.innerHTML = "<em>Failed to load related reports.</em>";
       });
   }
+
+  // Add CSS for spinner animation
+  const style = document.createElement("style");
+  style.innerHTML = `@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
+  document.head.appendChild(style);
 });

@@ -25,6 +25,7 @@ from collections import deque
 import logging
 import datetime
 import argparse
+import uuid
 import re
 import os
 import tabulate
@@ -35,6 +36,7 @@ import sys
 import itertools
 import time
 import threading
+import socket
 from tqdm import tqdm
 
 class ColoredHelpFormatter(argparse.RawTextHelpFormatter):
@@ -193,27 +195,10 @@ if __name__ == "__main__":
         for msg, stats in result["logMessages"].items():
             nested_results[nodeName][logType]["logMessages"][msg] = stats
 
-
-    # --- Node info extraction ---
-    node_infos = extract_node_info_from_logs(logFilesMetadata, logger)
-    # --- End node info extraction ---
-
-    # --- Tablet count extraction ---
-    tablet_counts = count_tablets_per_tserver(logFilesMetadata)
-    # --- End tablet count extraction ---
-
     # Write nested results to a JSON file (remove GFlags from output)
     output_json = {
         "nodes": nested_results
     }
-    # Add node_info metadata and tablet count under each node
-    for node, info in node_infos.items():
-        if node in output_json["nodes"]:
-            output_json["nodes"][node]["node_info"] = info
-        else:
-            output_json["nodes"][node] = {"node_info": info}
-        # Add tablet count under node_info
-        output_json["nodes"][node]["node_info"]["tablet_count"] = tablet_counts.get(node, 0)
 
     # --- Add warnings to the root of the JSON ---
     warnings = collect_report_warnings(logFilesMetadata, logger)
@@ -223,15 +208,12 @@ if __name__ == "__main__":
     with open(nodeLogSummaryFile, "w") as f:
         json.dump(output_json, f, indent=2)
 
-    logger.info("Wrote node log summary to " + nodeLogSummaryFile)
-    logger.info("Log analysis completed.")
-
     # --- Insert report into PostgreSQL ---
     try:
         # Read DB config from db_config.json (always from script directory)
-        config_path = os.path.join(os.path.dirname(__file__), "db_config.json")
-        with open(config_path) as config_file:
-            db_config = json.load(config_file)
+        db_config_path = os.path.join(os.path.dirname(__file__), "db_config.json")
+        with open(db_config_path) as db_config_file:
+            db_config = json.load(db_config_file)
         conn = psycopg2.connect(
             dbname=db_config["dbname"],
             user=db_config["user"],
@@ -248,16 +230,26 @@ if __name__ == "__main__":
             support_bundle_name = support_bundle_name[:-7]
         elif support_bundle_name.endswith(".tgz"):
             support_bundle_name = support_bundle_name[:-4]
+        random_id = os.urandom(16).hex()  # Generate a random ID
         cur.execute(
             """
             INSERT INTO public.reports (id, support_bundle_name, json_report, created_at)
-            VALUES (gen_random_uuid(), %s, %s, NOW())
+            VALUES (%s, %s, %s, NOW())
             """,
-            (support_bundle_name, Json(report_json))
+            (random_id, support_bundle_name, Json(report_json))
         )
         conn.commit()
         cur.close()
         conn.close()
-        logger.info("Report inserted into public.reports table.")
+        print("") # A poor workaround to
+        print("") # to avoid mixing of messages and progress bar
+        logger.info("👉 Report inserted into public.reports table.")
+        server_config_path = os.path.join(os.path.dirname(__file__), "server_config.json")
+        with open(server_config_path) as server_config_file:
+            server_config = json.load(server_config_file)
+        host = server_config.get("host", "127.0.0.1")
+        port = server_config.get("port", 5000)
+        # convert random_id to UUID format
+        logger.info(f"👉 ⌘ + click to open your report at: http://{host}:{port}/reports/{str(uuid.UUID(random_id))}")
     except Exception as e:
-        logger.error(f"Failed to insert report into PostgreSQL: {e}")
+        logger.error(f"👉 Failed to insert report into PostgreSQL: {e}")

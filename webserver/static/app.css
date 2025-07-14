@@ -253,6 +253,28 @@ tr:nth-child(even) td {
 #warnings {
   margin-top: 2em;
 }
+.modern-toggle-btn {
+  background: #fff;
+  color: var(--yuga-navy);
+  border: 1.5px solid var(--yuga-border);
+  border-radius: 8px;
+  font-size: 1.08em;
+  font-weight: 600;
+  padding: 0.6em 1.5em;
+  cursor: pointer;
+  box-shadow: 0 1px 6px rgba(23, 36, 71, 0.07);
+  transition: background 0.18s, color 0.18s, border 0.18s;
+}
+.modern-toggle-btn.active {
+  background: var(--yuga-navy);
+  color: #fff;
+  border-color: var(--yuga-navy);
+}
+.modern-toggle-btn:hover {
+  background: #f5f6fa;
+  color: var(--yuga-orange);
+  border-color: var(--yuga-orange);
+}
 @media (max-width: 900px) {
   .yuga-container {
     padding: 1em;

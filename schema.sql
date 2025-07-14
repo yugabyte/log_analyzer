@@ -38,3 +38,8 @@ JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
 WHERE (h.organization = 'Mindgate' OR h.cluster_uuid = '023eb068-59ec-4aa3-8941-b66e90b87203')
   AND r.id::text != '023eb068-59ec-4aa3-8941-b66e90b87203'
 ORDER BY r.created_at DESC LIMIT 20;
+
+-- Get node information for log analyzer
+
+SELECT * FROM public.view_node_info_for_log_analyzer
+WHERE support_bundle_name = 'yb-support-bundle-MULTI-DC-NODE-20250526181519.059-logs';
