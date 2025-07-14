@@ -208,9 +208,6 @@ if __name__ == "__main__":
     with open(nodeLogSummaryFile, "w") as f:
         json.dump(output_json, f, indent=2)
 
-    logger.info("Wrote node log summary to " + nodeLogSummaryFile)
-    logger.info("Log analysis completed.")
-
     # --- Insert report into PostgreSQL ---
     try:
         # Read DB config from db_config.json (always from script directory)
@@ -234,7 +231,6 @@ if __name__ == "__main__":
         elif support_bundle_name.endswith(".tgz"):
             support_bundle_name = support_bundle_name[:-4]
         random_id = os.urandom(16).hex()  # Generate a random ID
-        print(f"Inserting report with ID {random_id} into PostgreSQL")
         cur.execute(
             """
             INSERT INTO public.reports (id, support_bundle_name, json_report, created_at)
@@ -245,13 +241,15 @@ if __name__ == "__main__":
         conn.commit()
         cur.close()
         conn.close()
-        logger.info("Report inserted into public.reports table.")
+        print("") # A poor workaround to
+        print("") # to avoid mixing of messages and progress bar
+        logger.info("👉 Report inserted into public.reports table.")
         server_config_path = os.path.join(os.path.dirname(__file__), "server_config.json")
         with open(server_config_path) as server_config_file:
             server_config = json.load(server_config_file)
         host = server_config.get("host", "127.0.0.1")
         port = server_config.get("port", 5000)
         # convert random_id to UUID format
-        logger.info(f"⌘+click to open your report at: http://{host}:{port}/reports/{str(uuid.UUID(random_id))}")
+        logger.info(f"👉 ⌘ + click to open your report at: http://{host}:{port}/reports/{str(uuid.UUID(random_id))}")
     except Exception as e:
-        logger.error(f"Failed to insert report into PostgreSQL: {e}")
+        logger.error(f"👉 Failed to insert report into PostgreSQL: {e}")
