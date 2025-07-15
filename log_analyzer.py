@@ -118,9 +118,6 @@ support_bundle_dir = os.path.dirname(args.support_bundle)
 # Set up logging
 
 logFile = os.path.join(support_bundle_dir, support_bundle_name + '_analyzer.log')
-if os.path.exists(logFile):
-    print(f"ERROR: Looks like the log analyzer was already run on this support bundle. \nHINT: Please remove {logFile} and try again.")
-    exit(1)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s:%(levelname)s:- %(message)s')
@@ -133,6 +130,19 @@ file_handler = logging.FileHandler(logFile)
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
+
+# --- Prevent duplicate analysis ---
+success_marker_file = os.path.join(support_bundle_dir, f"{support_bundle_name}.analyzed")
+if os.path.exists(success_marker_file):
+    logger.warning(f"Analysis already completed for support bundle '{support_bundle_name}'. Skipping.")
+    logger.warning(f"Use the link below to view the report:")
+    with open(success_marker_file, "r") as f:
+        report_link = f.read().strip()
+        logger.warning(report_link)
+    logger.warning("If you want to re-analyze the logs, please remove the marker file:")
+    logger.warning(f"{success_marker_file}")
+    exit(0)
+
 
 if __name__ == "__main__":
 
@@ -261,3 +271,10 @@ if __name__ == "__main__":
         logger.info(f"👉 ⌘ + click to open your report at: http://{host}:{port}/reports/{str(uuid.UUID(random_id))}")
     except Exception as e:
         logger.error(f"👉 Failed to insert report into PostgreSQL: {e}")
+    # --- Mark analysis as done ---
+    try:
+        with open(success_marker_file, "w") as f:
+            f.write(f"http://{host}:{port}/reports/{str(uuid.UUID(random_id))}\n")
+            logger.info("Success marker file created.")
+    except Exception as e:
+        logger.warning(f"Failed to create marker file: {e}")
