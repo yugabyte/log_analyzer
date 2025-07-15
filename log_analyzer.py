@@ -107,6 +107,14 @@ end_time = datetime.datetime.strptime(args.end_time, "%m%d %H:%M") if args.end_t
 
 reportJSON = {}
 
+# Extract support_bundle_name from args.support_bundle (remove .tar.gz or .tgz)
+support_bundle_name = os.path.basename(args.support_bundle) if args.support_bundle else "unknown"
+if support_bundle_name.endswith(".tar.gz"):
+    support_bundle_name = support_bundle_name[:-7]
+elif support_bundle_name.endswith(".tgz"):
+    support_bundle_name = support_bundle_name[:-4]
+support_bundle_dir = os.path.dirname(args.support_bundle)
+
 # Set up logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -115,22 +123,19 @@ console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
-logFile = "analyzer.log"
+logFile = os.path.join(support_bundle_dir, support_bundle_name + '_analyzer.log')
 file_handler = logging.FileHandler(logFile)
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 if __name__ == "__main__":
-    # Extract support_bundle_name from args.support_bundle (remove .tar.gz or .tgz)
-    support_bundle_name = os.path.basename(args.support_bundle) if args.support_bundle else "unknown"
-    if support_bundle_name.endswith(".tar.gz"):
-        support_bundle_name = support_bundle_name[:-7]
-    elif support_bundle_name.endswith(".tgz"):
-        support_bundle_name = support_bundle_name[:-4]
+    if os.path.exists(logFile):
+        logger.error(f"Looks like the log analyzer was already run on this support bundle. \nHINT: Please remove {logFile} and try again.")
+        exit(1)
     logFilesMetadata = {}
-    logFilesMetadataFile = support_bundle_name + '_log_files_metadata.json'
-    nodeLogSummaryFile = support_bundle_name + '_node_log_summary.json'
+    logFilesMetadataFile = os.path.join(support_bundle_dir, support_bundle_name + '_log_files_metadata.json')
+    nodeLogSummaryFile = os.path.join(support_bundle_dir, support_bundle_name + '_node_log_summary.json')
     if os.path.exists(logFilesMetadataFile):
         logger.info(f"Loading log files metadata from {logFilesMetadataFile}")
         with open(logFilesMetadataFile, 'r') as f:
