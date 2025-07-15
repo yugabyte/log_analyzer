@@ -116,6 +116,11 @@ elif support_bundle_name.endswith(".tgz"):
 support_bundle_dir = os.path.dirname(args.support_bundle)
 
 # Set up logging
+
+logFile = os.path.join(support_bundle_dir, support_bundle_name + '_analyzer.log')
+if os.path.exists(logFile):
+    print(f"ERROR: Looks like the log analyzer was already run on this support bundle. \nHINT: Please remove {logFile} and try again.")
+    exit(1)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s:%(levelname)s:- %(message)s')
@@ -123,16 +128,14 @@ console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
-logFile = os.path.join(support_bundle_dir, support_bundle_name + '_analyzer.log')
+
 file_handler = logging.FileHandler(logFile)
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 if __name__ == "__main__":
-    if os.path.exists(logFile):
-        logger.error(f"Looks like the log analyzer was already run on this support bundle. \nHINT: Please remove {logFile} and try again.")
-        exit(1)
+
     logFilesMetadata = {}
     logFilesMetadataFile = os.path.join(support_bundle_dir, support_bundle_name + '_log_files_metadata.json')
     nodeLogSummaryFile = os.path.join(support_bundle_dir, support_bundle_name + '_node_log_summary.json')
