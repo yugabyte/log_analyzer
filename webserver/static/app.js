@@ -224,6 +224,35 @@ document.addEventListener("DOMContentLoaded", function () {
         );
       });
     });
+    // Find min and max bucket times
+    let allBucketTimes = [];
+    Object.values(messageBuckets).forEach((bucketsObj) => {
+      Object.keys(bucketsObj).forEach((b) => allBucketTimes.push(b));
+    });
+    if (allBucketTimes.length === 0) {
+      histogramDiv.innerHTML = '<em>No histogram data available.</em>';
+      return;
+    }
+    // Parse ISO strings to Date objects
+    let allDates = allBucketTimes.map((b) => new Date(b));
+    let minDate = new Date(Math.min(...allDates.map((d) => d.getTime())));
+    let maxDate = new Date(Math.max(...allDates.map((d) => d.getTime())));
+    // Get interval in minutes from intervalSelect
+    const intervalMinutes = intervalSelect ? parseInt(intervalSelect.value) : 1;
+    // Generate all buckets between minDate and maxDate at intervalMinutes
+    let allBuckets = [];
+    let curDate = new Date(minDate);
+    while (curDate <= maxDate) {
+      allBuckets.push(curDate.toISOString().slice(0, 19) + "Z");
+      curDate = new Date(curDate.getTime() + intervalMinutes * 60000);
+    }
+    // For each message, fill missing buckets with zero
+    Object.keys(messageBuckets).forEach((msg) => {
+      let bucketsObj = messageBuckets[msg];
+      allBuckets.forEach((b) => {
+        if (!(b in bucketsObj)) bucketsObj[b] = 0;
+      });
+    });
     // Clear loading spinner before rendering chart
     histogramDiv.innerHTML = "";
     // Create canvas for Chart.js
@@ -264,22 +293,18 @@ document.addEventListener("DOMContentLoaded", function () {
     Object.keys(messageBuckets).forEach((msg, i) => {
       msgColorMap[msg] = diverseColors[i % diverseColors.length];
     });
-    // Find all buckets (time intervals)
-    let allBuckets = new Set();
-    Object.values(messageBuckets).forEach((bucketsObj) => {
-      Object.keys(bucketsObj).forEach((b) => allBuckets.add(b));
-    });
-    allBuckets = Array.from(allBuckets).sort();
     // Prepare datasets for Chart.js
-    const datasets = Object.entries(messageBuckets).map(([msg, bucketsObj], i) => ({
-      label: msg,
-      data: allBuckets.map((b) => bucketsObj[b] || 0),
-      backgroundColor: msgColorMap[msg],
-      borderWidth: 1,
-      borderColor: msgColorMap[msg],
-      barPercentage: 0.9,
-      categoryPercentage: 0.8,
-    }));
+    const datasets = Object.entries(messageBuckets).map(
+      ([msg, bucketsObj], i) => ({
+        label: msg,
+        data: allBuckets.map((b) => bucketsObj[b] || 0),
+        backgroundColor: msgColorMap[msg],
+        borderWidth: 1,
+        borderColor: msgColorMap[msg],
+        barPercentage: 0.9,
+        categoryPercentage: 0.8,
+      })
+    );
     // Chart.js config
     const chartConfig = {
       type: "bar",
@@ -311,7 +336,7 @@ document.addEventListener("DOMContentLoaded", function () {
           zoom: {
             pan: {
               enabled: true,
-              mode: 'x',
+              mode: "x",
             },
             zoom: {
               wheel: {
@@ -324,7 +349,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 enabled: true,
                 modifierKey: null,
               },
-              mode: 'x',
+              mode: "x",
             },
             limits: {
               x: { min: 0, max: allBuckets.length - 1 },
@@ -345,16 +370,16 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (idx === 0 || idx === ticks.length - 1 || idx % N === 0) {
                   // If bucket is ISO datetime, show only time or short date
                   const label = this.getLabelForValue(val);
-                  if (label.length > 16 && label.includes('T')) {
+                  if (label.length > 16 && label.includes("T")) {
                     // Format as 'HH:MM' or 'MM-DD HH:MM'
-                    const dt = label.split('T');
+                    const dt = label.split("T");
                     const date = dt[0].slice(5); // MM-DD
-                    const time = dt[1].slice(0,5); // HH:MM
+                    const time = dt[1].slice(0, 5); // HH:MM
                     return `${date} ${time}`;
                   }
                   return label;
                 }
-                return '';
+                return "";
               },
               maxRotation: 0,
               minRotation: 0,
