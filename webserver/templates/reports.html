@@ -43,19 +43,17 @@
       </div>
       <div id="tab-panels">
         <div id="histogram-tab" class="tab-panel" style="display: block">
-          <div id="controls" style="display: none">
-            <label
-              >Node:
-              <select id="nodeSelect"></select
-            ></label>
-            <label
-              >Process:
-              <select id="logTypeSelect"></select
-            ></label>
-          </div>
-          <div id="histogram-controls" style="margin-bottom: 18px">
-            <label
-              >Time Interval:
+          <div id="histogram-controls">
+            <label>
+              Node
+              <select id="nodeSelect"></select>
+            </label>
+            <label>
+              Process
+              <select id="logTypeSelect"></select>
+            </label>
+            <label>
+              Time Interval
               <select id="intervalSelect">
                 <option value="1">1 minute</option>
                 <option value="5">5 minutes</option>
@@ -64,21 +62,38 @@
                 <option value="60" selected>1 hour</option>
               </select>
             </label>
-            <label style="margin-left: 16px"
-              >Time Range:
-              <input type="datetime-local" id="startTimePicker" />
-              to
-              <input type="datetime-local" id="endTimePicker" />
+            <label>
+              Time Range
+              <div style="display: flex; align-items: center; gap: 0.5em">
+                <input type="datetime-local" id="startTimePicker" />
+                <span style="font-size: 0.95em; color: #888">to</span>
+                <input type="datetime-local" id="endTimePicker" />
+                <button
+                  id="applyHistogramFilter"
+                  class="modern-toggle-btn"
+                  style="margin-left: 0; min-width: 60px"
+                >
+                  Apply
+                </button>
+              </div>
             </label>
-            <button id="applyHistogramFilter" style="margin-left: 12px">
-              Apply
-            </button>
-            <button id="toggleScaleBtn" class="modern-toggle-btn">
-              <span class="toggle-label">Log Scale</span>
-              <span class="toggle-circle"></span>
-            </button>
           </div>
-          <div id="histogram"></div>
+          <div id="histogram-chart-container" style="position: relative">
+            <div
+              id="chart-toggle-btn"
+              style="position: absolute; top: 18px; right: 18px; z-index: 2"
+            >
+              <button
+                id="toggleScaleBtnChart"
+                class="modern-toggle-btn"
+                style="min-width: 160px"
+              >
+                <span class="toggle-label">Log Scale</span>
+                <span class="toggle-circle"></span>
+              </button>
+            </div>
+            <div id="histogram"></div>
+          </div>
         </div>
         <div id="table-tab" class="tab-panel" style="display: none">
           <div id="tables"></div>

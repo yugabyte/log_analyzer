@@ -301,57 +301,81 @@ tr:nth-child(even) td {
   left: calc(100% - 28px);
   background: #fff;
 }
+#histogram-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1em;
+  margin-bottom: 18px;
+}
+#histogram-controls label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9em;
+  font-weight: 500;
+  margin-bottom: 0;
+  color: var(--yuga-dark-gray);
+  min-width: 120px;
+  margin-right: 0.2em;
+}
+#histogram-controls input[type="datetime-local"],
+#histogram-controls select {
+  font-size: 0.88em;
+  padding: 0.28em 0.7em;
+  border-radius: 5px;
+  border: 1px solid var(--yuga-border);
+  background: #fff;
+  margin-top: 2px;
+  min-width: 110px;
+}
 #histogram-controls input[type="datetime-local"] {
-  padding: 0.5em 1.2em;
-  font-size: 1em;
-  background: #f5f6fa;
-  color: #172447;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  outline: none;
-  transition: border-color 0.2s;
+  font-size: 0.95em;
+  padding: 0.32em 0.8em;
+  border-radius: 8px;
+  border: 1.5px solid var(--yuga-border);
+  background: #f7f8fa;
+  color: var(--yuga-navy);
+  font-family: "Inter", Arial, sans-serif;
+  box-shadow: 0 1px 4px rgba(23, 36, 71, 0.04);
+  transition: border-color 0.18s, box-shadow 0.18s;
 }
 #histogram-controls input[type="datetime-local"]:focus {
   border-color: #36a2eb;
+  box-shadow: 0 0 0 2px #36a2eb33;
+  outline: none;
 }
-#histogram-controls input[type="datetime-local"],
-#histogram-controls select,
-#histogram-controls button,
-#controls select,
-#controls label {
-  font-size: 0.92em;
-  padding: 0.38em 0.9em;
+#histogram-controls
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.5) sepia(1) saturate(5) hue-rotate(180deg);
+  opacity: 0.7;
+  cursor: pointer;
+}
+#histogram-controls .histogram-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin-left: auto;
 }
 #histogram-controls button,
 .modern-toggle-btn,
 #applyHistogramFilter {
-  font-size: 0.92em;
-  padding: 0.45em 1.1em;
+  font-size: 0.9em;
+  padding: 0.38em 0.9em;
+  min-width: 90px;
 }
-.tab-btn {
-  font-size: 0.98em;
-  padding: 0.55em 1.3em;
-}
-#histogram-controls label,
-#controls label {
-  font-size: 0.92em;
-}
-#applyHistogramFilter {
-  background: #fff;
-  color: #172447;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 0.92em;
-  font-weight: 600;
-  padding: 0.45em 1.1em;
-  cursor: pointer;
-  box-shadow: 0 1px 6px rgba(23, 36, 71, 0.07);
-  transition: background 0.18s, color 0.18s, border 0.18s;
-}
-#applyHistogramFilter:hover {
-  background: #f5f6fa;
-  color: #ff9400;
-  border-color: #ff9400;
+@media (max-width: 700px) {
+  #histogram-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.7em;
+  }
+  #histogram-controls label {
+    min-width: unset;
+  }
+  #histogram-controls .histogram-actions {
+    margin-left: 0;
+    justify-content: flex-start;
+  }
 }
 @media (max-width: 900px) {
   .yuga-container {
