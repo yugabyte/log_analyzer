@@ -377,16 +377,19 @@ document.addEventListener("DOMContentLoaded", function () {
               font: { size: 13 },
               // Show only a few ticks for readability
               callback: function (val, idx, ticks) {
-                const N = Math.ceil(ticks.length / 8);
+                // Show first, last, and every Nth tick
+                const N = Math.ceil(ticks.length / 8); // Show ~8 ticks max
                 if (idx === 0 || idx === ticks.length - 1 || idx % N === 0) {
-                  const valStr = String(val);
-                  if (valStr.includes("T")) {
-                    const dt = valStr.split("T");
-                    const date = dt[0].slice(5);
-                    const time = dt[1].slice(0, 5);
+                  // If bucket is ISO datetime, show only time or short date
+                  const label = this.getLabelForValue(val);
+                  if (label.length > 16 && label.includes("T")) {
+                    // Format as 'HH:MM' or 'MM-DD HH:MM'
+                    const dt = label.split("T");
+                    const date = dt[0].slice(5); // MM-DD
+                    const time = dt[1].slice(0, 5); // HH:MM
                     return `${date} ${time}`;
                   }
-                  return valStr;
+                  return label;
                 }
                 return "";
               },
