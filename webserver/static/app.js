@@ -1,14 +1,13 @@
 document.addEventListener("DOMContentLoaded", function () {
   const nodeSelect = document.getElementById("nodeSelect");
   const logTypeSelect = document.getElementById("logTypeSelect");
-  const controls = document.getElementById("controls");
   const histogramDiv = document.getElementById("histogram");
   const tablesDiv = document.getElementById("tables");
   const intervalSelect = document.getElementById("intervalSelect");
   const startTimePicker = document.getElementById("startTimePicker");
   const endTimePicker = document.getElementById("endTimePicker");
   const applyHistogramFilter = document.getElementById("applyHistogramFilter");
-  const toggleScaleBtn = document.getElementById("toggleScaleBtn");
+  const toggleScaleBtnChart = document.getElementById("toggleScaleBtnChart");
   let jsonData = null;
   let currentReportId = null;
   let histogramScale = "normal"; // 'normal' or 'log'
@@ -184,18 +183,17 @@ document.addEventListener("DOMContentLoaded", function () {
       Array.from(logTypes)
         .map((t) => `<option value="${t}">${t}</option>`)
         .join("");
-    controls.style.display = "";
     nodeSelect.onchange = logTypeSelect.onchange = renderHistogram;
     renderHistogram();
     renderTables();
     renderWarningsTab();
   }
 
-  if (toggleScaleBtn) {
-    toggleScaleBtn.onclick = function () {
+  if (toggleScaleBtnChart) {
+    toggleScaleBtnChart.onclick = function () {
       histogramScale = histogramScale === "normal" ? "log" : "normal";
-      toggleScaleBtn.classList.toggle("active", histogramScale === "log");
-      const label = toggleScaleBtn.querySelector(".toggle-label");
+      toggleScaleBtnChart.classList.toggle("active", histogramScale === "log");
+      const label = toggleScaleBtnChart.querySelector(".toggle-label");
       if (label) {
         label.textContent =
           histogramScale === "log" ? "Normal Scale" : "Log Scale";
@@ -340,8 +338,10 @@ document.addEventListener("DOMContentLoaded", function () {
             callbacks: {
               label: function (context) {
                 // Only show labels with non-zero values
-                if (context.parsed.y === 0) return "";
-                return `${context.dataset.label}: ${context.parsed.y}`;
+                if (context.parsed && context.parsed.y === 0) return "";
+                return `${context.dataset.label}: ${
+                  context.parsed ? context.parsed.y : ""
+                }`;
               },
             },
           },
@@ -377,19 +377,16 @@ document.addEventListener("DOMContentLoaded", function () {
               font: { size: 13 },
               // Show only a few ticks for readability
               callback: function (val, idx, ticks) {
-                // Show first, last, and every Nth tick
-                const N = Math.ceil(ticks.length / 8); // Show ~8 ticks max
+                const N = Math.ceil(ticks.length / 8);
                 if (idx === 0 || idx === ticks.length - 1 || idx % N === 0) {
-                  // If bucket is ISO datetime, show only time or short date
-                  const label = this.getLabelForValue(val);
-                  if (label.length > 16 && label.includes("T")) {
-                    // Format as 'HH:MM' or 'MM-DD HH:MM'
-                    const dt = label.split("T");
-                    const date = dt[0].slice(5); // MM-DD
-                    const time = dt[1].slice(0, 5); // HH:MM
+                  const valStr = String(val);
+                  if (valStr.includes("T")) {
+                    const dt = valStr.split("T");
+                    const date = dt[0].slice(5);
+                    const time = dt[1].slice(0, 5);
                     return `${date} ${time}`;
                   }
-                  return label;
+                  return valStr;
                 }
                 return "";
               },
