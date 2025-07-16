@@ -73,7 +73,7 @@ document.addEventListener("DOMContentLoaded", function () {
       histogramDiv.innerHTML =
         '<div style="display:flex;align-items:center;justify-content:center;height:400px;"><span class="loader" style="width:48px;height:48px;border:6px solid #e2e8f0;border-top:6px solid #36a2eb;border-radius:50%;animation:spin 1s linear infinite;margin-right:16px;"></span> <span style="font-size:1.2em;color:#888;">Loading histogram...</span></div>';
     }
-    const interval = intervalSelect ? parseInt(intervalSelect.value) : 1;
+    const interval = intervalSelect ? parseInt(intervalSelect.value) : 60;
     const start = toApiIso(startTimePicker ? startTimePicker.value : null);
     const end = toApiIso(endTimePicker ? endTimePicker.value : null);
     let url = `/api/histogram/${currentReportId}?interval=${interval}`;
@@ -195,8 +195,10 @@ document.addEventListener("DOMContentLoaded", function () {
     toggleScaleBtn.onclick = function () {
       histogramScale = histogramScale === "normal" ? "log" : "normal";
       toggleScaleBtn.classList.toggle("active", histogramScale === "log");
-      toggleScaleBtn.textContent =
-        histogramScale === "log" ? "Normal Scale" : "Log Scale";
+      const label = toggleScaleBtn.querySelector('.toggle-label');
+      if (label) {
+        label.textContent = histogramScale === "log" ? "Normal Scale" : "Log Scale";
+      }
       renderHistogram();
     };
   }
@@ -222,6 +224,35 @@ document.addEventListener("DOMContentLoaded", function () {
             );
           }
         );
+      });
+    });
+    // Find min and max bucket times
+    let allBucketTimes = [];
+    Object.values(messageBuckets).forEach((bucketsObj) => {
+      Object.keys(bucketsObj).forEach((b) => allBucketTimes.push(b));
+    });
+    if (allBucketTimes.length === 0) {
+      histogramDiv.innerHTML = "<em>No histogram data available.</em>";
+      return;
+    }
+    // Parse ISO strings to Date objects
+    let allDates = allBucketTimes.map((b) => new Date(b));
+    let minDate = new Date(Math.min(...allDates.map((d) => d.getTime())));
+    let maxDate = new Date(Math.max(...allDates.map((d) => d.getTime())));
+    // Get interval in minutes from intervalSelect
+    const intervalMinutes = intervalSelect ? parseInt(intervalSelect.value) : 1;
+    // Generate all buckets between minDate and maxDate at intervalMinutes
+    let allBuckets = [];
+    let curDate = new Date(minDate);
+    while (curDate <= maxDate) {
+      allBuckets.push(curDate.toISOString().slice(0, 19) + "Z");
+      curDate = new Date(curDate.getTime() + intervalMinutes * 60000);
+    }
+    // For each message, fill missing buckets with zero
+    Object.keys(messageBuckets).forEach((msg) => {
+      let bucketsObj = messageBuckets[msg];
+      allBuckets.forEach((b) => {
+        if (!(b in bucketsObj)) bucketsObj[b] = 0;
       });
     });
     // Clear loading spinner before rendering chart
@@ -264,22 +295,18 @@ document.addEventListener("DOMContentLoaded", function () {
     Object.keys(messageBuckets).forEach((msg, i) => {
       msgColorMap[msg] = diverseColors[i % diverseColors.length];
     });
-    // Find all buckets (time intervals)
-    let allBuckets = new Set();
-    Object.values(messageBuckets).forEach((bucketsObj) => {
-      Object.keys(bucketsObj).forEach((b) => allBuckets.add(b));
-    });
-    allBuckets = Array.from(allBuckets).sort();
     // Prepare datasets for Chart.js
-    const datasets = Object.entries(messageBuckets).map(([msg, bucketsObj], i) => ({
-      label: msg,
-      data: allBuckets.map((b) => bucketsObj[b] || 0),
-      backgroundColor: msgColorMap[msg],
-      borderWidth: 1,
-      borderColor: msgColorMap[msg],
-      barPercentage: 0.9,
-      categoryPercentage: 0.8,
-    }));
+    const datasets = Object.entries(messageBuckets).map(
+      ([msg, bucketsObj], i) => ({
+        label: msg,
+        data: allBuckets.map((b) => bucketsObj[b] || 0),
+        backgroundColor: msgColorMap[msg],
+        borderWidth: 1,
+        borderColor: msgColorMap[msg],
+        barPercentage: 0.9,
+        categoryPercentage: 0.8,
+      })
+    );
     // Chart.js config
     const chartConfig = {
       type: "bar",
@@ -296,12 +323,14 @@ document.addEventListener("DOMContentLoaded", function () {
             labels: { font: { size: 15, family: "Inter, Arial, sans-serif" } },
           },
           title: {
-            display: true,
+            display: false,
             text: "Log Message Histogram",
             font: { size: 22, family: "Inter, Arial, sans-serif" },
             color: "#172447",
           },
           tooltip: {
+            mode: "index", // Show all bars for the hovered time bucket
+            intersect: false, // Show tooltip when hovering anywhere on the index
             callbacks: {
               label: function (context) {
                 return `${context.dataset.label}: ${context.parsed.y}`;
@@ -311,7 +340,7 @@ document.addEventListener("DOMContentLoaded", function () {
           zoom: {
             pan: {
               enabled: true,
-              mode: 'x',
+              mode: "x",
             },
             zoom: {
               wheel: {
@@ -324,7 +353,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 enabled: true,
                 modifierKey: null,
               },
-              mode: 'x',
+              mode: "x",
             },
             limits: {
               x: { min: 0, max: allBuckets.length - 1 },
@@ -345,16 +374,16 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (idx === 0 || idx === ticks.length - 1 || idx % N === 0) {
                   // If bucket is ISO datetime, show only time or short date
                   const label = this.getLabelForValue(val);
-                  if (label.length > 16 && label.includes('T')) {
+                  if (label.length > 16 && label.includes("T")) {
                     // Format as 'HH:MM' or 'MM-DD HH:MM'
-                    const dt = label.split('T');
+                    const dt = label.split("T");
                     const date = dt[0].slice(5); // MM-DD
-                    const time = dt[1].slice(0,5); // HH:MM
+                    const time = dt[1].slice(0, 5); // HH:MM
                     return `${date} ${time}`;
                   }
                   return label;
                 }
-                return '';
+                return "";
               },
               maxRotation: 0,
               minRotation: 0,

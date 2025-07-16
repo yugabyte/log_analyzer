@@ -61,7 +61,7 @@
                 <option value="5">5 minutes</option>
                 <option value="15">15 minutes</option>
                 <option value="30">30 minutes</option>
-                <option value="60">1 hour</option>
+                <option value="60" selected>1 hour</option>
               </select>
             </label>
             <label style="margin-left: 16px"
@@ -73,12 +73,9 @@
             <button id="applyHistogramFilter" style="margin-left: 12px">
               Apply
             </button>
-            <button
-              id="toggleScaleBtn"
-              class="modern-toggle-btn"
-              style="margin-left: 16px"
-            >
-              Log Scale
+            <button id="toggleScaleBtn" class="modern-toggle-btn">
+              <span class="toggle-label">Log Scale</span>
+              <span class="toggle-circle"></span>
             </button>
           </div>
           <div id="histogram"></div>
