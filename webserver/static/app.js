@@ -73,7 +73,7 @@ document.addEventListener("DOMContentLoaded", function () {
       histogramDiv.innerHTML =
         '<div style="display:flex;align-items:center;justify-content:center;height:400px;"><span class="loader" style="width:48px;height:48px;border:6px solid #e2e8f0;border-top:6px solid #36a2eb;border-radius:50%;animation:spin 1s linear infinite;margin-right:16px;"></span> <span style="font-size:1.2em;color:#888;">Loading histogram...</span></div>';
     }
-    const interval = intervalSelect ? parseInt(intervalSelect.value) : 1;
+    const interval = intervalSelect ? parseInt(intervalSelect.value) : 60;
     const start = toApiIso(startTimePicker ? startTimePicker.value : null);
     const end = toApiIso(endTimePicker ? endTimePicker.value : null);
     let url = `/api/histogram/${currentReportId}?interval=${interval}`;
@@ -195,8 +195,10 @@ document.addEventListener("DOMContentLoaded", function () {
     toggleScaleBtn.onclick = function () {
       histogramScale = histogramScale === "normal" ? "log" : "normal";
       toggleScaleBtn.classList.toggle("active", histogramScale === "log");
-      toggleScaleBtn.textContent =
-        histogramScale === "log" ? "Normal Scale" : "Log Scale";
+      const label = toggleScaleBtn.querySelector('.toggle-label');
+      if (label) {
+        label.textContent = histogramScale === "log" ? "Normal Scale" : "Log Scale";
+      }
       renderHistogram();
     };
   }
@@ -230,7 +232,7 @@ document.addEventListener("DOMContentLoaded", function () {
       Object.keys(bucketsObj).forEach((b) => allBucketTimes.push(b));
     });
     if (allBucketTimes.length === 0) {
-      histogramDiv.innerHTML = '<em>No histogram data available.</em>';
+      histogramDiv.innerHTML = "<em>No histogram data available.</em>";
       return;
     }
     // Parse ISO strings to Date objects
@@ -321,12 +323,14 @@ document.addEventListener("DOMContentLoaded", function () {
             labels: { font: { size: 15, family: "Inter, Arial, sans-serif" } },
           },
           title: {
-            display: true,
+            display: false,
             text: "Log Message Histogram",
             font: { size: 22, family: "Inter, Arial, sans-serif" },
             color: "#172447",
           },
           tooltip: {
+            mode: "index", // Show all bars for the hovered time bucket
+            intersect: false, // Show tooltip when hovering anywhere on the index
             callbacks: {
               label: function (context) {
                 return `${context.dataset.label}: ${context.parsed.y}`;

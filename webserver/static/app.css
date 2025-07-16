@@ -159,7 +159,7 @@ tr:nth-child(even) td {
   border: 1px solid var(--yuga-border);
   border-bottom: none;
   padding: 0.7em 2em;
-  font-size: 1.1em;
+  font-size: 0.98em;
   font-weight: 600;
   color: var(--yuga-navy);
   border-radius: 10px 10px 0 0;
@@ -254,26 +254,104 @@ tr:nth-child(even) td {
   margin-top: 2em;
 }
 .modern-toggle-btn {
-  background: #fff;
-  color: var(--yuga-navy);
-  border: 1.5px solid var(--yuga-border);
-  border-radius: 8px;
-  font-size: 1.08em;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 120px;
+  height: 32px;
+  padding: 0 44px 0 16px;
+  font-size: 0.95em;
   font-weight: 600;
-  padding: 0.6em 1.5em;
+  background: #e2e8f0;
+  color: #172447;
+  border: none;
+  border-radius: 16px;
+  box-shadow: 0 1px 6px rgba(23, 36, 71, 0.07);
+  cursor: pointer;
+  outline: none;
+  transition: background 0.18s, color 0.18s;
+  user-select: none;
+}
+.modern-toggle-btn.active {
+  background: #36a2eb;
+  color: #fff;
+}
+.modern-toggle-btn .toggle-label {
+  flex: 1;
+  z-index: 2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  margin-right: 8px;
+}
+.modern-toggle-btn .toggle-circle {
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(23,36,71,0.12);
+  transition: left 0.18s, background 0.18s;
+}
+.modern-toggle-btn.active .toggle-circle {
+  left: calc(100% - 28px);
+  background: #fff;
+}
+#histogram-controls input[type="datetime-local"] {
+  padding: 0.5em 1.2em;
+  font-size: 1em;
+  background: #f5f6fa;
+  color: #172447;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+#histogram-controls input[type="datetime-local"]:focus {
+  border-color: #36a2eb;
+}
+#histogram-controls input[type="datetime-local"],
+#histogram-controls select,
+#histogram-controls button,
+#controls select,
+#controls label {
+  font-size: 0.92em;
+  padding: 0.38em 0.9em;
+}
+#histogram-controls button,
+.modern-toggle-btn,
+#applyHistogramFilter {
+  font-size: 0.92em;
+  padding: 0.45em 1.1em;
+}
+.tab-btn {
+  font-size: 0.98em;
+  padding: 0.55em 1.3em;
+}
+#histogram-controls label,
+#controls label {
+  font-size: 0.92em;
+}
+#applyHistogramFilter {
+  background: #fff;
+  color: #172447;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.92em;
+  font-weight: 600;
+  padding: 0.45em 1.1em;
   cursor: pointer;
   box-shadow: 0 1px 6px rgba(23, 36, 71, 0.07);
   transition: background 0.18s, color 0.18s, border 0.18s;
 }
-.modern-toggle-btn.active {
-  background: var(--yuga-navy);
-  color: #fff;
-  border-color: var(--yuga-navy);
-}
-.modern-toggle-btn:hover {
+#applyHistogramFilter:hover {
   background: #f5f6fa;
-  color: var(--yuga-orange);
-  border-color: var(--yuga-orange);
+  color: #ff9400;
+  border-color: #ff9400;
 }
 @media (max-width: 900px) {
   .yuga-container {
