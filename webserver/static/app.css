@@ -294,7 +294,7 @@ tr:nth-child(even) td {
   height: 24px;
   background: #fff;
   border-radius: 50%;
-  box-shadow: 0 2px 8px rgba(23,36,71,0.12);
+  box-shadow: 0 2px 8px rgba(23, 36, 71, 0.12);
   transition: left 0.18s, background 0.18s;
 }
 .modern-toggle-btn.active .toggle-circle {

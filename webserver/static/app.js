@@ -195,9 +195,10 @@ document.addEventListener("DOMContentLoaded", function () {
     toggleScaleBtn.onclick = function () {
       histogramScale = histogramScale === "normal" ? "log" : "normal";
       toggleScaleBtn.classList.toggle("active", histogramScale === "log");
-      const label = toggleScaleBtn.querySelector('.toggle-label');
+      const label = toggleScaleBtn.querySelector(".toggle-label");
       if (label) {
-        label.textContent = histogramScale === "log" ? "Normal Scale" : "Log Scale";
+        label.textContent =
+          histogramScale === "log" ? "Normal Scale" : "Log Scale";
       }
       renderHistogram();
     };
@@ -319,8 +320,13 @@ document.addEventListener("DOMContentLoaded", function () {
         maintainAspectRatio: false,
         plugins: {
           legend: {
-            position: "top",
-            labels: { font: { size: 15, family: "Inter, Arial, sans-serif" } },
+            position: "bottom", // Move legend to bottom
+            labels: {
+              font: { size: 15, family: "Inter, Arial, sans-serif" },
+              boxWidth: 18,
+              padding: 18,
+            },
+            align: "start", // Align legend to start
           },
           title: {
             display: false,
@@ -329,10 +335,12 @@ document.addEventListener("DOMContentLoaded", function () {
             color: "#172447",
           },
           tooltip: {
-            mode: "index", // Show all bars for the hovered time bucket
-            intersect: false, // Show tooltip when hovering anywhere on the index
+            mode: "index",
+            intersect: false,
             callbacks: {
               label: function (context) {
+                // Only show labels with non-zero values
+                if (context.parsed.y === 0) return "";
                 return `${context.dataset.label}: ${context.parsed.y}`;
               },
             },
