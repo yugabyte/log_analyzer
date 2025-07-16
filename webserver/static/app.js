@@ -226,6 +226,17 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     // Clear loading spinner before rendering chart
     histogramDiv.innerHTML = "";
+    // Create canvas for Chart.js
+    const canvas = document.createElement("canvas");
+    canvas.id = "histogramChart";
+    canvas.height = 600;
+    histogramDiv.appendChild(canvas);
+    // Add double-click event to reset zoom
+    canvas.ondblclick = function () {
+      if (window.histogramChartInstance) {
+        window.histogramChartInstance.resetZoom();
+      }
+    };
     // Prepare color mapping for each message
     const diverseColors = [
       "#172447",
@@ -259,94 +270,116 @@ document.addEventListener("DOMContentLoaded", function () {
       Object.keys(bucketsObj).forEach((b) => allBuckets.add(b));
     });
     allBuckets = Array.from(allBuckets).sort();
-    // For each bucket, collect all message counts for hover
-    let customdata = allBuckets.map((bucket) => {
-      let msgList = [];
-      Object.entries(messageBuckets).forEach(([msg, bucketsObj]) => {
-        const count = bucketsObj[bucket] || 0;
-        if (count > 0) {
-          msgList.push({ msg, count, color: msgColorMap[msg] });
-        }
-      });
-      if (msgList.length === 0)
-        return "<span style='color:#888;'>No messages</span>";
-      return msgList
-        .map(
-          (m) =>
-            `<span style='color:${m.color};font-size:1.2em;'>&#9679;</span> ${m.count} - ${m.msg}`
-        )
-        .join("<br>");
-    });
-    // Prepare traces: one per message
-    let traces = Object.entries(messageBuckets).map(([msg, bucketsObj], i) => {
-      const color = msgColorMap[msg];
-      return {
-        x: allBuckets,
-        y: allBuckets.map((b) => bucketsObj[b] || 0),
-        name: msg,
-        type: "bar",
-        marker: {
-          color: color,
-          line: { width: 0 },
-          opacity: 0.92,
-        },
-        // Only first trace gets the custom hover block
-        hovertemplate: i === 0 ? "%{x}<br>%{customdata}<extra></extra>" : null,
-        customdata: i === 0 ? customdata : undefined,
-        hoverinfo: i === 0 ? undefined : "skip",
-        showlegend: true,
-      };
-    });
-    Plotly.newPlot(
-      histogramDiv,
-      traces,
-      {
-        barmode: "group",
-        title: {
-          font: {
-            family: "Inter, Arial, sans-serif",
-            size: 22,
+    // Prepare datasets for Chart.js
+    const datasets = Object.entries(messageBuckets).map(([msg, bucketsObj], i) => ({
+      label: msg,
+      data: allBuckets.map((b) => bucketsObj[b] || 0),
+      backgroundColor: msgColorMap[msg],
+      borderWidth: 1,
+      borderColor: msgColorMap[msg],
+      barPercentage: 0.9,
+      categoryPercentage: 0.8,
+    }));
+    // Chart.js config
+    const chartConfig = {
+      type: "bar",
+      data: {
+        labels: allBuckets,
+        datasets: datasets,
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: "top",
+            labels: { font: { size: 15, family: "Inter, Arial, sans-serif" } },
+          },
+          title: {
+            display: true,
+            text: "Log Message Histogram",
+            font: { size: 22, family: "Inter, Arial, sans-serif" },
             color: "#172447",
           },
-          x: 0.02,
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                return `${context.dataset.label}: ${context.parsed.y}`;
+              },
+            },
+          },
+          zoom: {
+            pan: {
+              enabled: true,
+              mode: 'x',
+            },
+            zoom: {
+              wheel: {
+                enabled: true,
+              },
+              pinch: {
+                enabled: true,
+              },
+              drag: {
+                enabled: true,
+                modifierKey: null,
+              },
+              mode: 'x',
+            },
+            limits: {
+              x: { min: 0, max: allBuckets.length - 1 },
+              y: { min: 0 },
+            },
+          },
         },
-        plot_bgcolor: "#F5F6FA",
-        paper_bgcolor: "#F5F6FA",
-        font: { family: "Inter, Arial, sans-serif", color: "#172447" },
-        xaxis: {
-          title: { font: { size: 16, color: "#4a5568" } }, // hide x-axis title
-          tickangle: -45,
-          gridcolor: "#e2e8f0",
-          linecolor: "#e2e8f0",
-          tickfont: { size: 13 },
+        scales: {
+          x: {
+            title: { display: false },
+            ticks: {
+              color: "#4a5568",
+              font: { size: 13 },
+              // Show only a few ticks for readability
+              callback: function (val, idx, ticks) {
+                // Show first, last, and every Nth tick
+                const N = Math.ceil(ticks.length / 8); // Show ~8 ticks max
+                if (idx === 0 || idx === ticks.length - 1 || idx % N === 0) {
+                  // If bucket is ISO datetime, show only time or short date
+                  const label = this.getLabelForValue(val);
+                  if (label.length > 16 && label.includes('T')) {
+                    // Format as 'HH:MM' or 'MM-DD HH:MM'
+                    const dt = label.split('T');
+                    const date = dt[0].slice(5); // MM-DD
+                    const time = dt[1].slice(0,5); // HH:MM
+                    return `${date} ${time}`;
+                  }
+                  return label;
+                }
+                return '';
+              },
+              maxRotation: 0,
+              minRotation: 0,
+              autoSkip: false,
+            },
+            grid: { color: "#e2e8f0", display: false }, // Hide grid lines
+          },
+          y: {
+            title: {
+              display: true,
+              text: "Count",
+              color: "#4a5568",
+              font: { size: 16 },
+            },
+            ticks: { color: "#4a5568", font: { size: 13 } },
+            grid: { color: "#e2e8f0", display: false }, // Hide grid lines
+            type: histogramScale === "log" ? "logarithmic" : "linear",
+            beginAtZero: true,
+          },
         },
-        yaxis: {
-          title: { font: { size: 16, color: "#4a5568" } },
-          gridcolor: "#e2e8f0",
-          zeroline: false,
-          tickfont: { size: 13 },
-          type: histogramScale === "log" ? "log" : "linear",
-        },
-        margin: { b: 120, t: 60, l: 60, r: 30 },
-        legend: {
-          orientation: "h",
-          y: -0.25,
-          font: { size: 15, family: "Inter, Arial, sans-serif" },
-          bgcolor: "rgba(255,255,255,0.0)",
-        },
-        width: histogramDiv.offsetWidth,
-        height: 600,
-        bargap: 0.18,
-        bargroupgap: 0.08,
-        hoverlabel: {
-          bgcolor: "#F5F6FA",
-          bordercolor: "black", // visible border color
-          font: { color: "#172447", size: 15 },
-        },
-        hovermode: "x", // Enable hover on closed bar (entire x-axis)
       },
-      { responsive: true, displayModeBar: false }
-    );
+    };
+    // Render Chart.js
+    const chartInstance = new Chart(canvas, chartConfig);
+    window.histogramChartInstance = chartInstance;
   }
 
   window.addEventListener("resize", function () {
