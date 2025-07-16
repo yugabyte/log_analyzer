@@ -562,7 +562,7 @@ document.addEventListener("DOMContentLoaded", function () {
           { key: "placement", label: "Placement" },
           { key: "num_cores", label: "Cores" },
           { key: "mem_size_gb", label: "Memory (GB)" },
-          { key: "volume_size_gb", label: "Volume Size (GB)" }
+          { key: "volume_size_gb", label: "Volume Size (GB)" },
         ];
         let html = `<div class='node-table-collapsible'>
           <div class='node-header nodeinfo-header' data-node-idx='nodeinfo-all'>
