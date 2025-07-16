@@ -231,6 +231,12 @@ document.addEventListener("DOMContentLoaded", function () {
     canvas.id = "histogramChart";
     canvas.height = 600;
     histogramDiv.appendChild(canvas);
+    // Add double-click event to reset zoom
+    canvas.ondblclick = function () {
+      if (window.histogramChartInstance) {
+        window.histogramChartInstance.resetZoom();
+      }
+    };
     // Prepare color mapping for each message
     const diverseColors = [
       "#172447",
@@ -329,8 +335,32 @@ document.addEventListener("DOMContentLoaded", function () {
         scales: {
           x: {
             title: { display: false },
-            ticks: { color: "#4a5568", font: { size: 13 } },
-            grid: { color: "#e2e8f0" },
+            ticks: {
+              color: "#4a5568",
+              font: { size: 13 },
+              // Show only a few ticks for readability
+              callback: function (val, idx, ticks) {
+                // Show first, last, and every Nth tick
+                const N = Math.ceil(ticks.length / 8); // Show ~8 ticks max
+                if (idx === 0 || idx === ticks.length - 1 || idx % N === 0) {
+                  // If bucket is ISO datetime, show only time or short date
+                  const label = this.getLabelForValue(val);
+                  if (label.length > 16 && label.includes('T')) {
+                    // Format as 'HH:MM' or 'MM-DD HH:MM'
+                    const dt = label.split('T');
+                    const date = dt[0].slice(5); // MM-DD
+                    const time = dt[1].slice(0,5); // HH:MM
+                    return `${date} ${time}`;
+                  }
+                  return label;
+                }
+                return '';
+              },
+              maxRotation: 0,
+              minRotation: 0,
+              autoSkip: false,
+            },
+            grid: { color: "#e2e8f0", display: false }, // Hide grid lines
           },
           y: {
             title: {
@@ -340,7 +370,7 @@ document.addEventListener("DOMContentLoaded", function () {
               font: { size: 16 },
             },
             ticks: { color: "#4a5568", font: { size: 13 } },
-            grid: { color: "#e2e8f0" },
+            grid: { color: "#e2e8f0", display: false }, // Hide grid lines
             type: histogramScale === "log" ? "logarithmic" : "linear",
             beginAtZero: true,
           },
@@ -348,7 +378,8 @@ document.addEventListener("DOMContentLoaded", function () {
       },
     };
     // Render Chart.js
-    new Chart(canvas, chartConfig);
+    const chartInstance = new Chart(canvas, chartConfig);
+    window.histogramChartInstance = chartInstance;
   }
 
   window.addEventListener("resize", function () {
