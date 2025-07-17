@@ -337,11 +337,9 @@ document.addEventListener("DOMContentLoaded", function () {
             intersect: false,
             callbacks: {
               label: function (context) {
-                // Only show labels with non-zero values
-                if (context.parsed && context.parsed.y === 0) return "";
-                return `${context.dataset.label}: ${
-                  context.parsed ? context.parsed.y : ""
-                }`;
+                // Only show labels with non-zero and defined values
+                if (!context.parsed || context.parsed.y == null || context.parsed.y === 0) return "";
+                return `${context.dataset.label}: ${context.parsed.y}`;
               },
             },
           },
@@ -381,15 +379,14 @@ document.addEventListener("DOMContentLoaded", function () {
                 const N = Math.ceil(ticks.length / 8); // Show ~8 ticks max
                 if (idx === 0 || idx === ticks.length - 1 || idx % N === 0) {
                   // If bucket is ISO datetime, show only time or short date
-                  const label = this.getLabelForValue(val);
-                  if (label.length > 16 && label.includes("T")) {
+                  const dt = this.getLabelForValue(val);
+                  if (dt.length > 16 && dt.includes("T")) {
                     // Format as 'HH:MM' or 'MM-DD HH:MM'
-                    const dt = label.split("T");
-                    const date = dt[0].slice(5); // MM-DD
-                    const time = dt[1].slice(0, 5); // HH:MM
+                    const date = dt.slice(5, 10); // MM-DD
+                    const time = dt.slice(11, 16); // HH:MM
                     return `${date} ${time}`;
                   }
-                  return label;
+                  return dt;
                 }
                 return "";
               },
