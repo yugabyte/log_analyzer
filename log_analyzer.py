@@ -203,6 +203,25 @@ if __name__ == "__main__":
             logger.info(f"Available nodes: {list(logFilesMetadata.keys())}")
             exit(1)
 
+    # --- Filter log types if --types is specified ---
+    type_map = {
+        'pg': 'postgres',
+        'ts': 'yb-tserver',
+        'ms': 'yb-master',
+        'ybc': 'yb-controller',
+    }
+    if args.types:
+        requested_types = [t.strip().lower() for t in args.types.split(',') if t.strip()]
+        expanded_types = [type_map.get(t, t) for t in requested_types]
+        filtered_logFilesMetadata = {}
+        for node_name, node_data in logFilesMetadata.items():
+            filtered_node_data = {log_type: log_type_data for log_type, log_type_data in node_data.items() if log_type in expanded_types}
+            if filtered_node_data:
+                filtered_logFilesMetadata[node_name] = filtered_node_data
+        logFilesMetadata = filtered_logFilesMetadata
+        if not logFilesMetadata:
+            logger.error(f"No matching log types found for --types: {args.types}")
+            exit(1)
     # Get long and short start and end times
     startTimeLong, endTimeLong, startTimeShort, endTimeShort = getStartAndEndTimes(args)
     logger.info(f"Analyzing logs from {startTimeShort} to {endTimeShort}")
