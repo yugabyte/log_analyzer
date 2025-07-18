@@ -209,14 +209,32 @@ def histogram_api(report_id):
             return datetime.strptime(s, '%Y-%m-%dT%H:%M:%SZ')
         def format_time(dt):
             return dt.strftime('%Y-%m-%dT%H:%M:00Z')
-        if start:
+        # If no start/end provided, compute last 7 days from latest bucket
+        if not start or not end:
+            all_bucket_times = []
+            for node, node_data in data.get('nodes', {}).items():
+                for proc, proc_data in node_data.items():
+                    for msg, msg_stats in proc_data.get('logMessages', {}).items():
+                        hist = msg_stats.get('histogram', {})
+                        all_bucket_times.extend(hist.keys())
+            if all_bucket_times:
+                all_dates = [parse_time(b) for b in all_bucket_times]
+                max_date = max(all_dates)
+                min_date = max_date - timedelta(days=7)
+                if not start:
+                    start_dt = min_date
+                else:
+                    start_dt = parse_time(start)
+                if not end:
+                    end_dt = max_date
+                else:
+                    end_dt = parse_time(end)
+            else:
+                start_dt = None
+                end_dt = None
+        else:
             start_dt = parse_time(start)
-        else:
-            start_dt = None
-        if end:
             end_dt = parse_time(end)
-        else:
-            end_dt = None
         for node, node_data in data.get('nodes', {}).items():
             for proc, proc_data in node_data.items():
                 for msg, msg_stats in proc_data.get('logMessages', {}).items():

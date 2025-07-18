@@ -252,7 +252,20 @@ if __name__ == "__main__":
     }
 
     # --- Add warnings to the root of the JSON ---
-    warnings = collect_report_warnings(logFilesMetadata, logger)
+    warnings = collect_report_warnings(logFilesMetadata, logger) or []
+    # Add custom options warning if --nodes or --types was used
+    custom_opts = []
+    if args.nodes:
+        custom_opts.append(f"--nodes: {args.nodes}")
+    if args.types:
+        custom_opts.append(f"--types: {args.types}")
+    if custom_opts:
+        warnings.append({
+            "message": "This report was generated with custom options.",
+            "details": f"Custom options used: {'; '.join(custom_opts)}",
+            "level": "info",
+            "type": "custom_options"
+        })
     if warnings:
         output_json["warnings"] = warnings
 
