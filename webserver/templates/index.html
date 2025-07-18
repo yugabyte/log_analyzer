@@ -12,144 +12,243 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
       rel="stylesheet"
     />
+    <style>
+      :root {
+        --modern-bg: #f7f8fa;
+        --modern-card: #fff;
+        --modern-border: #e2e8f0;
+        --modern-accent: #172447;
+        --modern-accent2: #3b5bdb;
+        --modern-radius: 14px;
+        --modern-shadow: 0 2px 12px rgba(23,36,71,0.07);
+      }
+      body {
+        background: var(--modern-bg);
+        font-family: 'Inter', sans-serif;
+        color: var(--modern-accent);
+        margin: 0;
+        min-height: 100vh;
+      }
+      .modern-header {
+        display: flex;
+        align-items: center;
+        gap: 1.2em;
+        padding: 2em 0 1.2em 0;
+        justify-content: center;
+      }
+      .modern-header .yuga-logo {
+        width: 48px;
+        height: 48px;
+      }
+      .modern-header .yuga-title {
+        font-size: 2.1em;
+        font-weight: 700;
+        letter-spacing: -1px;
+      }
+      .modern-search-bar {
+        display: flex;
+        gap: 0.5em;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 2em;
+      }
+      .modern-search-bar input {
+        padding: 0.7em 1.2em;
+        font-size: 1.08em;
+        border: 1.5px solid var(--modern-border);
+        border-radius: var(--modern-radius);
+        width: 340px;
+        background: #fafdff;
+        transition: border 0.2s;
+      }
+      .modern-search-bar input:focus {
+        border: 1.5px solid var(--modern-accent2);
+        outline: none;
+      }
+      .modern-search-bar button {
+        padding: 0.7em 1.5em;
+        font-size: 1.08em;
+        border-radius: var(--modern-radius);
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        transition: background 0.18s, color 0.18s;
+      }
+      .modern-search-bar #searchBtn {
+        background: var(--modern-accent2);
+        color: #fff;
+      }
+      .modern-search-bar #searchBtn:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+      }
+      .modern-search-bar #clearSearchBtn {
+        background: #f5f6fa;
+        color: var(--modern-accent);
+        border: 1.5px solid var(--modern-border);
+      }
+      .modern-section-title {
+        font-size: 1.4em;
+        font-weight: 700;
+        margin: 0 0 1.2em 0;
+        text-align: center;
+        letter-spacing: -0.5px;
+      }
+      .modern-reports-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: var(--modern-card);
+        border-radius: var(--modern-radius);
+        box-shadow: var(--modern-shadow);
+        border: 1.5px solid var(--modern-border);
+        overflow: hidden;
+        margin-bottom: 2.5em;
+      }
+      .modern-reports-table th, .modern-reports-table td {
+        padding: 1em 1.1em;
+        text-align: left;
+        font-size: 1em;
+      }
+      .modern-reports-table th {
+        background: #f3f6fa;
+        color: var(--modern-accent2);
+        font-weight: 700;
+        border-bottom: 1.5px solid var(--modern-border);
+      }
+      .modern-reports-table tr:not(:last-child) td {
+        border-bottom: 1px solid var(--modern-border);
+      }
+      .modern-reports-table tr:hover td {
+        background: #f5f8ff;
+      }
+      .modern-view-btn {
+        background: var(--modern-accent2);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 0.45em 1.1em;
+        font-size: 1em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.18s;
+        text-decoration: none;
+        display: inline-block;
+      }
+      .modern-view-btn:hover {
+        background: #2746a0;
+      }
+      .modern-case-link {
+        color: #3b5bdb;
+        text-decoration: underline;
+        font-weight: 500;
+      }
+      .modern-no-reports {
+        text-align: center;
+        color: #888;
+        font-size: 1.1em;
+        margin: 2em 0;
+      }
+      @media (max-width: 900px) {
+        .modern-reports-table th, .modern-reports-table td { padding: 0.7em 0.5em; font-size: 0.97em; }
+      }
+      @media (max-width: 600px) {
+        .modern-header { flex-direction: column; gap: 0.5em; padding: 1.2em 0 0.7em 0; }
+        .modern-section-title { font-size: 1.1em; }
+        .modern-reports-table { font-size: 0.93em; }
+        .modern-reports-table th, .modern-reports-table td { padding: 0.5em 0.3em; }
+      }
+    </style>
   </head>
   <body>
-    <div class="yuga-header">
-      <img
-        class="yuga-logo"
-        src="/img/yugabytedb-icon-seeklogo.svg"
-        alt="YugabyteDB Logo"
-      />
-      <a href="/" style="text-decoration: none; color: inherit"
-        ><span class="yuga-title">YugabyteDB Log Analyzer</span></a
-      >
+    <div class="modern-header">
+      <img class="yuga-logo" src="/img/yugabytedb-icon-seeklogo.svg" alt="YugabyteDB Logo" />
+      <a href="/" style="text-decoration: none; color: inherit">
+        <span class="yuga-title">YugabyteDB Log Analyzer</span>
+      </a>
     </div>
     <div class="yuga-container">
-      <h2>Recent Reports</h2>
-      <div
-        style="
-          margin-bottom: 1.5em;
-          display: flex;
-          gap: 0.5em;
-          align-items: center;
-        "
-      >
+      <div class="modern-section-title">Recent Reports</div>
+      <div class="modern-search-bar">
         <input
           id="searchBox"
           type="text"
           placeholder="Search by UUID, bundle, cluster, org, or case ID..."
-          style="
-            padding: 0.5em 1em;
-            font-size: 1em;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            width: 320px;
-          "
         />
-        <button
-          id="searchBtn"
-          style="
-            padding: 0.5em 1.2em;
-            font-size: 1em;
-            background: #172447;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-          "
-        >
-          Search
-        </button>
-        <button
-          id="clearSearchBtn"
-          style="
-            padding: 0.5em 1.2em;
-            font-size: 1em;
-            background: #f5f6fa;
-            color: #172447;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            cursor: pointer;
-          "
-        >
-          Clear
-        </button>
+        <button id="searchBtn">Search</button>
+        <button id="clearSearchBtn">Clear</button>
       </div>
-      <div
-        id="pagination"
-        style="
-          display: flex;
-          gap: 0.5em;
-          align-items: center;
-          justify-content: center;
-          margin-bottom: 2em;
-        "
-      ></div>
-      <table id="reportsTable" style="margin-bottom: 2em">
-        <thead>
-          <tr>
-            <th>UUID</th>
-            <th>Support Bundle Name</th>
-            <th>Universe/Cluster Name</th>
-            <th>Organization Name</th>
-            <th>Case ID</th>
-            <th>Created At</th>
-            <th>View</th>
-          </tr>
-        </thead>
-        <tbody id="reportsTableBody">
-          {% for report in reports %}
-          <tr>
-            <td>{{ report.id }}</td>
-            <td>{{ report.support_bundle_name }}</td>
-            <td>{{ report.universe_name }}</td>
-            <td>{{ report.organization_name }}</td>
-            <td>
-              {% if report.case_id %}
-              <a
-                href="https://yugabyte.zendesk.com/agent/tickets/{{ report.case_id }}"
-                target="_blank"
-                >{{ report.case_id }}</a
-              >
-              {% else %}-{% endif %}
-            </td>
-            <td>{{ report.created_at }}</td>
-            <td>
-              <a href="/reports/{{ report.id }}">View Report</a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
       <div id="modern-pagination"></div>
+      <div id="modernReportsList">
+        {% if reports|length == 0 %}
+          <div class="modern-no-reports">No reports found.</div>
+        {% else %}
+        <table class="modern-reports-table">
+          <thead>
+            <tr>
+              <th>Bundle Name</th>
+              <th>UUID</th>
+              <th>Cluster</th>
+              <th>Org</th>
+              <th>Created</th>
+              <th>Case</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for report in reports %}
+            <tr>
+              <td>{{ report.support_bundle_name }}</td>
+              <td style="font-family:monospace;">{{ report.id }}</td>
+              <td>{{ report.universe_name }}</td>
+              <td>{{ report.organization_name }}</td>
+              <td>{{ report.created_at }}</td>
+              <td>{% if report.case_id %}<a class="modern-case-link" href="https://yugabyte.zendesk.com/agent/tickets/{{ report.case_id }}" target="_blank">{{ report.case_id }}</a>{% else %}-{% endif %}</td>
+              <td><a class="modern-view-btn" href="/reports/{{ report.id }}">View Report</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+      </div>
     </div>
     <script>
       const searchBox = document.getElementById('searchBox');
       const searchBtn = document.getElementById('searchBtn');
       const clearSearchBtn = document.getElementById('clearSearchBtn');
-      const reportsTableBody = document.getElementById('reportsTableBody');
+      const modernReportsList = document.getElementById('modernReportsList');
       let currentPage = {{ page|default(1) }};
       let totalPages = {{ total_pages|default(1) }};
       let lastQuery = '';
       function renderReportsTable(reports) {
-        reportsTableBody.innerHTML = '';
+        const modernReportsList = document.getElementById('modernReportsList');
+        modernReportsList.innerHTML = '';
         if (!reports || reports.length === 0) {
-          reportsTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#888;">No reports found.</td></tr>';
+          modernReportsList.innerHTML = '<div class="modern-no-reports">No reports found.</div>';
           return;
         }
+        let html = `<table class='modern-reports-table'><thead><tr>
+          <th>Bundle Name</th>
+          <th>UUID</th>
+          <th>Cluster</th>
+          <th>Org</th>
+          <th>Created</th>
+          <th>Case</th>
+          <th>Action</th>
+        </tr></thead><tbody>`;
         for (const report of reports) {
-          reportsTableBody.innerHTML += `
-            <tr>
-              <td>${report.id}</td>
-              <td>${report.support_bundle_name}</td>
-              <td>${report.universe_name}</td>
-              <td>${report.organization_name}</td>
-              <td>${report.case_id ? `<a href='https://yugabyte.zendesk.com/agent/tickets/${report.case_id}' target='_blank'>${report.case_id}</a>` : '-'}</td>
-              <td>${report.created_at}</td>
-              <td><a href="/reports/${report.id}">View Report</a></td>
-            </tr>
-          `;
+          html += `<tr>
+            <td>${report.support_bundle_name}</td>
+            <td style='font-family:monospace;'>${report.id}</td>
+            <td>${report.universe_name}</td>
+            <td>${report.organization_name}</td>
+            <td>${report.created_at}</td>
+            <td>${report.case_id ? `<a class='modern-case-link' href='https://yugabyte.zzendesk.com/agent/tickets/${report.case_id}' target='_blank'>${report.case_id}</a>` : '-'}</td>
+            <td><a class='modern-view-btn' href='/reports/${report.id}'>View Report</a></td>
+          </tr>`;
         }
+        html += '</tbody></table>';
+        modernReportsList.innerHTML = html;
       }
       function renderPagination(page, totalPages) {
         const pagination = document.getElementById('modern-pagination');

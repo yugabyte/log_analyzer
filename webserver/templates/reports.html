@@ -14,9 +14,154 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
       rel="stylesheet"
     />
+    <style>
+      :root {
+        --modern-bg: #f7f8fa;
+        --modern-card: #fff;
+        --modern-border: #e2e8f0;
+        --modern-accent: #172447;
+        --modern-accent2: #3b5bdb;
+        --modern-radius: 14px;
+        --modern-shadow: 0 2px 12px rgba(23, 36, 71, 0.07);
+      }
+      body {
+        background: var(--modern-bg);
+        font-family: "Inter", sans-serif;
+        color: var(--modern-accent);
+        margin: 0;
+        min-height: 100vh;
+      }
+      .modern-header {
+        display: flex;
+        align-items: center;
+        gap: 1.2em;
+        padding: 2em 0 1.2em 0;
+        justify-content: center;
+      }
+      .modern-header .yuga-logo {
+        width: 48px;
+        height: 48px;
+      }
+      .modern-header .yuga-title {
+        font-size: 2.1em;
+        font-weight: 700;
+        letter-spacing: -1px;
+      }
+      .yuga-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: var(--modern-card);
+        border-radius: var(--modern-radius);
+        box-shadow: var(--modern-shadow);
+        border: 1.5px solid var(--modern-border);
+        padding: 2.2em 2.5em 2.5em 2.5em;
+        margin-bottom: 2.5em;
+      }
+      .tab-bar {
+        display: flex;
+        gap: 0.5em;
+        margin-bottom: 2em;
+        background: #f3f6fa;
+        border-radius: var(--modern-radius);
+        padding: 0.5em 0.7em;
+        box-shadow: 0 1px 4px rgba(23, 36, 71, 0.04);
+        overflow-x: auto;
+      }
+      .tab-btn {
+        background: none;
+        border: none;
+        color: var(--modern-accent2);
+        font-size: 1.08em;
+        font-weight: 600;
+        padding: 0.7em 1.3em;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+      }
+      .tab-btn.active,
+      .tab-btn:focus {
+        background: var(--modern-accent2);
+        color: #fff;
+        outline: none;
+      }
+      .tab-panel {
+        background: #fafdff;
+        border-radius: var(--modern-radius);
+        box-shadow: 0 1px 4px rgba(23, 36, 71, 0.04);
+        padding: 2em 1.5em 1.5em 1.5em;
+        margin-bottom: 1.5em;
+      }
+      #histogram-controls label {
+        margin-right: 1.5em;
+        font-weight: 500;
+        color: var(--modern-accent);
+      }
+      #histogram-controls select,
+      #histogram-controls input[type="datetime-local"] {
+        margin-left: 0.5em;
+        padding: 0.4em 0.8em;
+        border-radius: 8px;
+        border: 1.5px solid var(--modern-border);
+        font-size: 1em;
+        background: #fff;
+        color: var(--modern-accent);
+        transition: border 0.18s;
+      }
+      #histogram-controls select:focus,
+      #histogram-controls input[type="datetime-local"]:focus {
+        border: 1.5px solid var(--modern-accent2);
+        outline: none;
+      }
+      .modern-toggle-btn {
+        background: var(--modern-accent2);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 0.45em 1.1em;
+        font-size: 1em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.18s;
+        text-decoration: none;
+        display: inline-block;
+      }
+      .modern-toggle-btn:hover {
+        background: #2746a0;
+      }
+      @media (max-width: 900px) {
+        .yuga-container {
+          padding: 1.2em 0.5em;
+        }
+        .tab-panel {
+          padding: 1em 0.5em;
+        }
+      }
+      @media (max-width: 600px) {
+        .modern-header {
+          flex-direction: column;
+          gap: 0.5em;
+          padding: 1.2em 0 0.7em 0;
+        }
+        .yuga-container {
+          padding: 0.5em 0.2em;
+        }
+        .tab-bar {
+          flex-wrap: wrap;
+          gap: 0.2em;
+          padding: 0.3em 0.2em;
+        }
+        .tab-btn {
+          font-size: 0.97em;
+          padding: 0.5em 0.7em;
+        }
+        .tab-panel {
+          padding: 0.7em 0.2em;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div class="yuga-header">
+    <div class="modern-header">
       <img
         class="yuga-logo"
         src="/img/yugabytedb-icon-seeklogo.svg"
