@@ -76,6 +76,10 @@ select {
   background: #fff;
   color: var(--modern-accent);
   transition: border 0.18s;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 #histogram {
   width: 100%;
