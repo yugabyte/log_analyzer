@@ -64,10 +64,30 @@
             </label>
             <label>
               Time Range
+              <span
+                style="margin-left: 0.4em; cursor: pointer"
+                title="Show data from the latest datetime available in the dataset for this report"
+              >
+                <span
+                  style="
+                    display: inline-block;
+                    width: 18px;
+                    height: 18px;
+                    border-radius: 50%;
+                    background: #e2e8f0;
+                    color: #172447;
+                    text-align: center;
+                    font-weight: bold;
+                    font-size: 1em;
+                    line-height: 18px;
+                  "
+                  >i</span
+                >
+              </span>
               <div style="display: flex; align-items: center; gap: 0.5em">
                 <select
                   id="quickRangeSelect"
-                  title="from the latest datetime available in the dataset"
+                  title="Show data from the latest datetime available in the dataset for this report"
                   style="min-width: 120px"
                 >
                   <option value="7" selected>Last 7 days</option>
@@ -78,13 +98,13 @@
                 <input
                   type="datetime-local"
                   id="startTimePicker"
-                  title="from the latest datetime available in the dataset"
+                  title="Show data from the latest datetime available in the dataset for this report"
                 />
                 <span style="font-size: 0.95em; color: #888">to</span>
                 <input
                   type="datetime-local"
                   id="endTimePicker"
-                  title="from the latest datetime available in the dataset"
+                  title="Show data from the latest datetime available in the dataset for this report"
                 />
                 <button
                   id="applyHistogramFilter"
