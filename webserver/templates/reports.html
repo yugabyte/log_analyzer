@@ -208,27 +208,13 @@
               </select>
             </label>
             <label>
-              Time Range
-              <span
-                style="margin-left: 0.4em; cursor: pointer"
-                title="Show data from the latest datetime available in the dataset for this report"
-              >
-                <span
-                  style="
-                    display: inline-block;
-                    width: 18px;
-                    height: 18px;
-                    border-radius: 50%;
-                    background: #e2e8f0;
-                    color: #172447;
-                    text-align: center;
-                    font-weight: bold;
-                    font-size: 1em;
-                    line-height: 18px;
-                  "
-                  >i</span
-                >
-              </span>
+                <div style="display: inline-flex; align-items: center; gap: 0.3em">
+                  Time Range
+                  <span
+                  title="Since the last timestamp in the result"
+                  style="font-size: 0.9em; color: #888; cursor: help"
+                  >(?)</span>
+                </div>
               <div style="display: flex; align-items: center; gap: 0.5em">
                 <select
                   id="quickRangeSelect"

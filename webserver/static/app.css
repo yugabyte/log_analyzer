@@ -32,7 +32,7 @@ body {
   letter-spacing: 1px;
 }
 .yuga-container {
-  max-width: 1200px;
+  max-width: 1500px !important;
   margin: 2em auto;
   background: #fff;
   border-radius: 12px;

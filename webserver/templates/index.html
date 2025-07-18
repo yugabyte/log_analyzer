@@ -20,11 +20,11 @@
         --modern-accent: #172447;
         --modern-accent2: #3b5bdb;
         --modern-radius: 14px;
-        --modern-shadow: 0 2px 12px rgba(23,36,71,0.07);
+        --modern-shadow: 0 2px 12px rgba(23, 36, 71, 0.07);
       }
       body {
         background: var(--modern-bg);
-        font-family: 'Inter', sans-serif;
+        font-family: "Inter", sans-serif;
         color: var(--modern-accent);
         margin: 0;
         min-height: 100vh;
@@ -105,7 +105,8 @@
         overflow: hidden;
         margin-bottom: 2.5em;
       }
-      .modern-reports-table th, .modern-reports-table td {
+      .modern-reports-table th,
+      .modern-reports-table td {
         padding: 1em 1.1em;
         text-align: left;
         font-size: 1em;
@@ -150,19 +151,38 @@
         margin: 2em 0;
       }
       @media (max-width: 900px) {
-        .modern-reports-table th, .modern-reports-table td { padding: 0.7em 0.5em; font-size: 0.97em; }
+        .modern-reports-table th,
+        .modern-reports-table td {
+          padding: 0.7em 0.5em;
+          font-size: 0.97em;
+        }
       }
       @media (max-width: 600px) {
-        .modern-header { flex-direction: column; gap: 0.5em; padding: 1.2em 0 0.7em 0; }
-        .modern-section-title { font-size: 1.1em; }
-        .modern-reports-table { font-size: 0.93em; }
-        .modern-reports-table th, .modern-reports-table td { padding: 0.5em 0.3em; }
+        .modern-header {
+          flex-direction: column;
+          gap: 0.5em;
+          padding: 1.2em 0 0.7em 0;
+        }
+        .modern-section-title {
+          font-size: 1.1em;
+        }
+        .modern-reports-table {
+          font-size: 0.93em;
+        }
+        .modern-reports-table th,
+        .modern-reports-table td {
+          padding: 0.5em 0.3em;
+        }
       }
     </style>
   </head>
   <body>
     <div class="modern-header">
-      <img class="yuga-logo" src="/img/yugabytedb-icon-seeklogo.svg" alt="YugabyteDB Logo" />
+      <img
+        class="yuga-logo"
+        src="/img/yugabytedb-icon-seeklogo.svg"
+        alt="YugabyteDB Logo"
+      />
       <a href="/" style="text-decoration: none; color: inherit">
         <span class="yuga-title">YugabyteDB Log Analyzer</span>
       </a>
@@ -181,7 +201,7 @@
       <div id="modern-pagination"></div>
       <div id="modernReportsList">
         {% if reports|length == 0 %}
-          <div class="modern-no-reports">No reports found.</div>
+        <div class="modern-no-reports">No reports found.</div>
         {% else %}
         <table class="modern-reports-table">
           <thead>
@@ -199,12 +219,23 @@
             {% for report in reports %}
             <tr>
               <td>{{ report.support_bundle_name }}</td>
-              <td style="font-family:monospace;">{{ report.id }}</td>
+              <td style="font-family: monospace">{{ report.id }}</td>
               <td>{{ report.universe_name }}</td>
               <td>{{ report.organization_name }}</td>
               <td>{{ report.created_at }}</td>
-              <td>{% if report.case_id %}<a class="modern-case-link" href="https://yugabyte.zendesk.com/agent/tickets/{{ report.case_id }}" target="_blank">{{ report.case_id }}</a>{% else %}-{% endif %}</td>
-              <td><a class="modern-view-btn" href="/reports/{{ report.id }}">View Report</a></td>
+              <td>
+                {% if report.case_id %}<a
+                  class="modern-case-link"
+                  href="https://yugabyte.zendesk.com/agent/tickets/{{ report.case_id }}"
+                  target="_blank"
+                  >{{ report.case_id }}</a
+                >{% else %}-{% endif %}
+              </td>
+              <td>
+                <a class="modern-view-btn" href="/reports/{{ report.id }}"
+                  >View Report</a
+                >
+              </td>
             </tr>
             {% endfor %}
           </tbody>
