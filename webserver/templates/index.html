@@ -333,7 +333,7 @@
         searchBtn.disabled = true;
         searchBtn.textContent = 'Searching...';
         fetch(`/api/search_reports?q=${encodeURIComponent(q)}&page=1`)
-          .then(r => r.json())
+          .then r => r.json())
           .then(data => {
             renderReportsTable(data.reports);
             renderPagination(data.page, data.total_pages);

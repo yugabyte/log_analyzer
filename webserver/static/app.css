@@ -5,6 +5,13 @@
   --yuga-gray: #f5f6fa;
   --yuga-dark-gray: #4a5568;
   --yuga-border: #e2e8f0;
+  --modern-bg: #f7f8fa;
+  --modern-card: #fff;
+  --modern-border: #e2e8f0;
+  --modern-accent: #172447;
+  --modern-accent2: #3b5bdb;
+  --modern-radius: 14px;
+  --modern-shadow: 0 2px 12px rgba(23, 36, 71, 0.07);
 }
 body {
   font-family: "Inter", Arial, sans-serif;
@@ -12,6 +19,8 @@ body {
   color: var(--yuga-navy);
   margin: 0;
   padding: 0;
+  background: var(--modern-bg);
+  min-height: 100vh;
 }
 .yuga-header {
   background: var(--yuga-navy);
@@ -27,9 +36,11 @@ body {
   margin-right: 1em;
 }
 .yuga-title {
-  font-size: 2em;
-  font-weight: 600;
-  letter-spacing: 1px;
+  font-size: 2.1em;
+  font-weight: 700;
+  letter-spacing: -1px;
+  color: var(--modern-accent);
+  text-align: center;
 }
 .yuga-container {
   max-width: 1500px !important;
@@ -38,6 +49,9 @@ body {
   border-radius: 12px;
   box-shadow: 0 2px 16px rgba(23, 36, 71, 0.07);
   padding: 2em 2.5em 2em 2.5em;
+  max-width: 1200px;
+  margin-bottom: 2.5em;
+  border: 1.5px solid var(--modern-border);
 }
 #controls {
   margin-bottom: 2em;
@@ -55,6 +69,13 @@ select {
   border: 1px solid var(--yuga-border);
   background: #fff;
   font-size: 1em;
+  padding: 0.4em 0.8em;
+  border-radius: 8px;
+  border: 1.5px solid var(--modern-border);
+  font-size: 1em;
+  background: #fff;
+  color: var(--modern-accent);
+  transition: border 0.18s;
 }
 #histogram {
   width: 100%;
@@ -153,26 +174,46 @@ tr:nth-child(even) td {
   display: flex;
   gap: 1em;
   margin-bottom: 1.5em;
+  background: var(--modern-card);
+  border-radius: var(--modern-radius);
+  padding: 0.5em 0.7em;
+  overflow-x: auto;
+  align-items: center;
+  border: none;
+  box-shadow: none;
 }
 .tab-btn {
-  background: #f5f6fa;
-  border: 1px solid var(--yuga-border);
-  border-bottom: none;
-  padding: 0.7em 2em;
-  font-size: 0.98em;
+  background: var(--modern-card);
+  border: none;
+  color: var(--modern-accent);
+  font-size: 1.08em;
   font-weight: 600;
-  color: var(--yuga-navy);
-  border-radius: 10px 10px 0 0;
+  padding: 0.7em 1.3em;
+  border-top-left-radius: var(--modern-radius);
+  border-top-right-radius: var(--modern-radius);
+  border-bottom: 2px solid transparent;
   cursor: pointer;
-  outline: none;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s, border-bottom 0.15s;
+  box-shadow: var(--modern-shadow);
 }
-.tab-btn.active {
-  background: #fff;
-  border-bottom: 2px solid #fff;
+.tab-btn.active,
+.tab-btn:focus {
+  background: var(--modern-card);
+  color: var(--modern-accent2);
+  border-bottom: 2px solid var(--modern-accent2);
+  outline: none;
+}
+.tab-btn:hover {
+  background: #f1f5f9;
+  color: var(--modern-accent2);
 }
 .tab-panel {
   display: none;
+  background: #fafdff;
+  border-radius: var(--modern-radius);
+  box-shadow: 0 1px 4px rgba(23, 36, 71, 0.04);
+  padding: 2em 1.5em 1.5em 1.5em;
+  margin-bottom: 1.5em;
 }
 .tab-panel[style*="display:block"] {
   display: block;
@@ -271,6 +312,8 @@ tr:nth-child(even) td {
   outline: none;
   transition: background 0.18s, color 0.18s;
   user-select: none;
+  background: var(--modern-accent2);
+  color: #fff;
 }
 .modern-toggle-btn.active {
   background: #36a2eb;
@@ -282,7 +325,7 @@ tr:nth-child(even) td {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-align: left;
+  text-align: center;
   margin-right: 8px;
 }
 .modern-toggle-btn .toggle-circle {
@@ -317,6 +360,9 @@ tr:nth-child(even) td {
   color: var(--yuga-dark-gray);
   min-width: 120px;
   margin-right: 0.2em;
+  margin-right: 1.5em;
+  font-weight: 500;
+  color: var(--modern-accent);
 }
 #histogram-controls input[type="datetime-local"],
 #histogram-controls select {
@@ -327,6 +373,14 @@ tr:nth-child(even) td {
   background: #fff;
   margin-top: 2px;
   min-width: 110px;
+  margin-left: 0.5em;
+  padding: 0.4em 0.8em;
+  border-radius: 8px;
+  border: 1.5px solid var(--modern-border);
+  font-size: 1em;
+  background: #fff;
+  color: var(--modern-accent);
+  transition: border 0.18s;
 }
 #histogram-controls input[type="datetime-local"] {
   font-size: 0.95em;
@@ -384,4 +438,34 @@ tr:nth-child(even) td {
   #histogram {
     height: 350px;
   }
+}
+@media (max-width: 600px) {
+  .modern-header {
+    flex-direction: column;
+    gap: 0.5em;
+    padding: 1.2em 0 0.7em 0;
+  }
+  .yuga-container {
+    padding: 0.5em 0.2em;
+  }
+  .tab-bar {
+    flex-wrap: wrap;
+    gap: 0.2em;
+    padding: 0.3em 0.2em;
+  }
+  .tab-btn {
+    font-size: 0.97em;
+    padding: 0.5em 0.7em;
+  }
+  .tab-panel {
+    padding: 0.7em 0.2em;
+  }
+}
+.modern-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2em;
+  padding: 2em 0 1.2em 0;
+  margin: 0 auto;
 }
