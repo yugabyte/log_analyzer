@@ -189,6 +189,20 @@ if __name__ == "__main__":
         stop_event.set()
         spinner_thread.join()
         logger.info(f"Log files metadata saved to {logFilesMetadataFile}")
+
+    # --- Filter nodes if --nodes is specified ---
+    if args.nodes:
+        requested_nodes = [n.strip().lower() for n in args.nodes.split(',') if n.strip()]
+        filtered_logFilesMetadata = {}
+        for node_name, node_data in logFilesMetadata.items():
+            if any(req in node_name.lower() for req in requested_nodes):
+                filtered_logFilesMetadata[node_name] = node_data
+        logFilesMetadata = filtered_logFilesMetadata
+        if not logFilesMetadata:
+            logger.error(f"No matching nodes found for --nodes: {args.nodes}")
+            logger.info(f"Available nodes: {list(logFilesMetadata.keys())}")
+            exit(1)
+
     # Get long and short start and end times
     startTimeLong, endTimeLong, startTimeShort, endTimeShort = getStartAndEndTimes(args)
     logger.info(f"Analyzing logs from {startTimeShort} to {endTimeShort}")

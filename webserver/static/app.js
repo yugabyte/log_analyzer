@@ -338,7 +338,12 @@ document.addEventListener("DOMContentLoaded", function () {
             callbacks: {
               label: function (context) {
                 // Only show labels with non-zero and defined values
-                if (!context.parsed || context.parsed.y == null || context.parsed.y === 0) return "";
+                if (
+                  !context.parsed ||
+                  context.parsed.y == null ||
+                  context.parsed.y === 0
+                )
+                  return "";
                 return `${context.dataset.label}: ${context.parsed.y}`;
               },
             },
