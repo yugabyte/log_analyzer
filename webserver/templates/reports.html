@@ -65,9 +65,27 @@
             <label>
               Time Range
               <div style="display: flex; align-items: center; gap: 0.5em">
-                <input type="datetime-local" id="startTimePicker" />
+                <select
+                  id="quickRangeSelect"
+                  title="from the latest datetime available in the dataset"
+                  style="min-width: 120px"
+                >
+                  <option value="7" selected>Last 7 days</option>
+                  <option value="3">Last 3 days</option>
+                  <option value="15">Last 15 days</option>
+                  <option value="30">Last 30 days</option>
+                </select>
+                <input
+                  type="datetime-local"
+                  id="startTimePicker"
+                  title="from the latest datetime available in the dataset"
+                />
                 <span style="font-size: 0.95em; color: #888">to</span>
-                <input type="datetime-local" id="endTimePicker" />
+                <input
+                  type="datetime-local"
+                  id="endTimePicker"
+                  title="from the latest datetime available in the dataset"
+                />
                 <button
                   id="applyHistogramFilter"
                   class="modern-toggle-btn"

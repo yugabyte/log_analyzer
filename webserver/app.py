@@ -474,5 +474,51 @@ def node_info_api(uuid):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/histogram_latest_datetime/<report_id>')
+def histogram_latest_datetime_api(report_id):
+    """
+    Returns the latest datetime available in the histogram data for the given report.
+    """
+    try:
+        db_config = load_db_config()
+        conn = psycopg2.connect(
+            dbname=db_config["dbname"],
+            user=db_config["user"],
+            password=db_config["password"],
+            host=db_config["host"],
+            port=db_config["port"]
+        )
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                SELECT json_report FROM public.log_analyzer_reports WHERE id::text = %s
+            """, (str(report_id),))
+        except Exception:
+            cur.execute("""
+                SELECT json_report FROM public.log_analyzer_reports WHERE id = %s
+            """, (report_id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        if not row:
+            return jsonify({'error': 'Report not found'}), 404
+        data = row[0]
+        if isinstance(data, str):
+            data = json.loads(data)
+        all_bucket_times = []
+        for node, node_data in data.get('nodes', {}).items():
+            for proc, proc_data in node_data.items():
+                for msg, msg_stats in proc_data.get('logMessages', {}).items():
+                    hist = msg_stats.get('histogram', {})
+                    all_bucket_times.extend(hist.keys())
+        if not all_bucket_times:
+            return jsonify({'latest_datetime': None})
+        from datetime import datetime
+        all_dates = [datetime.strptime(b, '%Y-%m-%dT%H:%M:%SZ') for b in all_bucket_times]
+        max_date = max(all_dates)
+        return jsonify({'latest_datetime': max_date.strftime('%Y-%m-%dT%H:%M:%SZ')})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True)
