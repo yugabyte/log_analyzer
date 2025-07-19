@@ -431,6 +431,29 @@ tr:nth-child(even) td {
   padding: 0.38em 0.9em;
   min-width: 90px;
 }
+/* Fixed column widths for log tables in Table View */
+.table-view-log-table th.log-msg-col,
+.table-view-log-table td.log-msg-col {
+  width: 50%;
+  min-width: 260px;
+  max-width: 600px;
+  word-break: break-word;
+}
+.table-view-log-table th.first-occ-col,
+.table-view-log-table td.first-occ-col,
+.table-view-log-table th.last-occ-col,
+.table-view-log-table td.last-occ-col {
+  width: 14%;
+  min-width: 120px;
+  max-width: 200px;
+}
+.table-view-log-table th.count-col,
+.table-view-log-table td.count-col {
+  width: 6%;
+  min-width: 60px;
+  max-width: 90px;
+  text-align: right;
+}
 @media (max-width: 700px) {
   #histogram-controls {
     flex-direction: column;

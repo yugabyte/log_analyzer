@@ -102,7 +102,9 @@ document.addEventListener("DOMContentLoaded", function () {
   // Helper to fetch the latest datetime from the backend
   async function fetchLatestDatetime() {
     if (!currentReportId) return null;
-    const resp = await fetch(`/api/histogram_latest_datetime/${currentReportId}`);
+    const resp = await fetch(
+      `/api/histogram_latest_datetime/${currentReportId}`
+    );
     const data = await resp.json();
     return data.latest_datetime ? new Date(data.latest_datetime) : null;
   }
@@ -499,13 +501,19 @@ document.addEventListener("DOMContentLoaded", function () {
         if (Object.keys(logMessages).length === 0) return;
         nodeHtml += `<h4> ${logType}</h4>`;
         nodeHtml +=
-          "<table><tr><th>Log Message</th><th>First Occurrence</th><th>Last Occurrence</th><th>Count</th></tr>";
+          "<table class='table-view-log-table'><tr>" +
+          "<th class='log-msg-col'>Log Message</th>" +
+          "<th class='first-occ-col'>First Occurrence</th>" +
+          "<th class='last-occ-col'>Last Occurrence</th>" +
+          "<th class='count-col'>Count</th></tr>";
         Object.entries(logMessages).forEach(([msg, stats]) => {
-          nodeHtml += `<tr><td>${msg}</td><td>${
-            stats.StartTime || ""
-          }</td><td>${stats.EndTime || ""}</td><td>${
-            stats.count || 0
-          }</td></tr>`;
+          nodeHtml +=
+            `<tr>` +
+            `<td class='log-msg-col'>${msg}</td>` +
+            `<td class='first-occ-col'>${stats.StartTime || ""}</td>` +
+            `<td class='last-occ-col'>${stats.EndTime || ""}</td>` +
+            `<td class='count-col'>${stats.count || 0}</td>` +
+            `</tr>`;
         });
         nodeHtml += "</table>";
       });
