@@ -174,50 +174,60 @@ tr:nth-child(even) td {
   border-radius: 0 0 8px 8px;
   box-shadow: 0 1px 4px rgba(23, 36, 71, 0.03);
 }
+/* Modern, seamless tab bar redesign */
 .tab-bar {
   display: flex;
-  gap: 1em;
-  margin-bottom: 1.5em;
-  background: var(--modern-card);
-  border-radius: var(--modern-radius);
-  padding: 0.5em 0.7em;
-  overflow-x: auto;
-  align-items: center;
+  gap: 0.2em;
+  margin-bottom: 0;
+  background: transparent;
+  border-radius: var(--modern-radius) var(--modern-radius) 0 0;
+  padding: 0.5em 0.7em 0 0.7em;
+  align-items: flex-end;
   border: none;
   box-shadow: none;
+  position: relative;
+  z-index: 2;
 }
 .tab-btn {
-  background: var(--modern-card);
+  background: #f3f6fa;
   border: none;
   color: var(--modern-accent);
   font-size: 1.08em;
   font-weight: 600;
-  padding: 0.7em 1.3em;
-  border-top-left-radius: var(--modern-radius);
-  border-top-right-radius: var(--modern-radius);
-  border-bottom: 2px solid transparent;
+  padding: 0.7em 1.5em 0.7em 1.5em;
+  border-radius: 0.7em 0.7em 0 0;
+  margin-bottom: 0;
+  box-shadow: none;
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s, z-index 0.18s;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-bottom 0.15s;
-  box-shadow: var(--modern-shadow);
+  position: relative;
+  z-index: 1;
+  border: 1.5px solid var(--modern-border);
+  border-bottom: none;
 }
 .tab-btn.active,
 .tab-btn:focus {
-  background: var(--modern-card);
+  background: #fff;
   color: var(--modern-accent2);
-  border-bottom: 2px solid var(--modern-accent2);
-  outline: none;
+  z-index: 3;
+  border-bottom: none;
+  box-shadow: none;
 }
-.tab-btn:hover {
-  background: #f1f5f9;
+.tab-btn:hover:not(.active) {
+  background: #e9f1fb;
   color: var(--modern-accent2);
 }
 .tab-panel {
   display: none;
-  background: #fafdff;
-  border-radius: var(--modern-radius);
+  background: #fff;
+  border-radius: 0 0 var(--modern-radius) var(--modern-radius);
   box-shadow: 0 1px 4px rgba(23, 36, 71, 0.04);
   padding: 2em 1.5em 1.5em 1.5em;
   margin-bottom: 1.5em;
+  margin-top: 0;
+  border-top: none;
+  position: relative;
+  z-index: 1;
 }
 .tab-panel[style*="display:block"] {
   display: block;
