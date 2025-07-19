@@ -188,7 +188,6 @@
       </a>
     </div>
     <div class="yuga-container">
-      <div class="modern-section-title">Recent Reports</div>
       <div class="modern-search-bar">
         <input
           id="searchBox"
@@ -212,7 +211,7 @@
               <th>Org</th>
               <th>Created</th>
               <th>Case</th>
-              <th>Action</th>
+              <th>View</th>
             </tr>
           </thead>
           <tbody>
@@ -232,9 +231,25 @@
                 >{% else %}-{% endif %}
               </td>
               <td>
-                <a class="modern-view-btn" href="/reports/{{ report.id }}"
-                  >View Report</a
+                <a
+                  class="modern-view-btn"
+                  href="/reports/{{ report.id }}"
+                  title="View Report"
                 >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    fill="none"
+                    viewBox="0 0 20 20"
+                    style="vertical-align: middle"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M10 4c-5 0-8 5.5-8 6s3 6 8 6 8-5.5 8-6-3-6-8-6zm0 10c-3.9 0-6.6-3.7-7.3-5C3.4 7.7 6.1 4 10 4s6.6 3.7 7.3 5c-.7 1.3-3.4 5-7.3 5zm0-8a3 3 0 100 6 3 3 0 000-6zm0 5a2 2 0 110-4 2 2 0 010 4z"
+                    />
+                  </svg>
+                </a>
               </td>
             </tr>
             {% endfor %}
@@ -265,7 +280,7 @@
           <th>Org</th>
           <th>Created</th>
           <th>Case</th>
-          <th>Action</th>
+          <th>Action to View</th>
         </tr></thead><tbody>`;
         for (const report of reports) {
           html += `<tr>
@@ -275,7 +290,7 @@
             <td>${report.organization_name}</td>
             <td>${report.created_at}</td>
             <td>${report.case_id ? `<a class='modern-case-link' href='https://yugabyte.zzendesk.com/agent/tickets/${report.case_id}' target='_blank'>${report.case_id}</a>` : '-'}</td>
-            <td><a class='modern-view-btn' href='/reports/${report.id}'>View Report</a></td>
+            <td><a class='modern-view-btn' href='/reports/${report.id}' title='View Report'><svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='none' viewBox='0 0 20 20' style='vertical-align:middle;'><path fill='currentColor' d='M10 4c-5 0-8 5.5-8 6s3 6 8 6 8-5.5 8-6-3-6-8-6zm0 10c-3.9 0-6.6-3.7-7.3-5C3.4 7.7 6.1 4 10 4s6.6 3.7 7.3 5c-.7 1.3-3.4 5-7.3 5zm0-8a3 3 0 100 6 3 3 0 000-6zm0 5a2 2 0 110-4 2 2 0 010 4z'/></svg></a></td>
           </tr>`;
         }
         html += '</tbody></table>';
