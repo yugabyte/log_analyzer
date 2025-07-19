@@ -304,10 +304,11 @@
       }
       function goToPage(page) {
         currentPage = page;
+        const perPage = 10;
         if (lastQuery) {
           searchBtn.disabled = true;
           searchBtn.textContent = 'Searching...';
-          fetch(`/api/search_reports?q=${encodeURIComponent(lastQuery)}&page=${page}`)
+          fetch(`/api/search_reports?q=${encodeURIComponent(lastQuery)}&page=${page}&per_page=${perPage}`)
             .then(r => r.json())
             .then(data => {
               renderReportsTable(data.reports);
@@ -330,10 +331,11 @@
         if (!q) return;
         lastQuery = q;
         currentPage = 1;
+        const perPage = 10;
         searchBtn.disabled = true;
         searchBtn.textContent = 'Searching...';
-        fetch(`/api/search_reports?q=${encodeURIComponent(q)}&page=1`)
-          .then r => r.json())
+        fetch(`/api/search_reports?q=${encodeURIComponent(q)}&page=1&per_page=${perPage}`)
+          .then(r => r.json())
           .then(data => {
             renderReportsTable(data.reports);
             renderPagination(data.page, data.total_pages);
