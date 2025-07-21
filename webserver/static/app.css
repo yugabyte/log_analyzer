@@ -506,3 +506,209 @@ tr:nth-child(even) td {
   padding: 2em 0 1.2em 0;
   margin: 0 auto;
 }
+
+/* Help modal styles */
+.help-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.help-modal-content {
+  background: #fff;
+  padding: 2em;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  max-width: 800px;
+  width: 95%;
+  position: relative;
+}
+.help-modal-close {
+  position: absolute;
+  top: 1em;
+  right: 1em;
+  background: none;
+  border: none;
+  font-size: 1.5em;
+  color: #333;
+  cursor: pointer;
+}
+.help-modal h2 {
+  font-size: 1.6em;
+  margin: 0 0 0.5em 0;
+  color: var(--modern-accent);
+}
+.help-modal p {
+  margin: 0 0 1.2em 0;
+  line-height: 1.5em;
+  color: #555;
+}
+.help-modal ul {
+  margin: 0 0 1.5em 1.2em;
+  padding: 0;
+  list-style: disc;
+}
+.help-modal li {
+  margin-bottom: 0.8em;
+  color: #444;
+}
+.help-modal a {
+  color: var(--modern-accent2);
+  text-decoration: underline;
+}
+.help-modal a:hover {
+  text-decoration: none;
+}
+/* Floating help button */
+#help-fab {
+  position: fixed;
+  bottom: 2em;
+  right: 2em;
+  background: var(--modern-accent2);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  z-index: 1001;
+  transition: background 0.2s;
+}
+#help-fab:hover {
+  background: #2746a0;
+}
+/* Utility classes for inline styles moved from reports.html */
+.no-underline-inherit {
+  text-decoration: none;
+  color: inherit;
+}
+.d-block {
+  display: block !important;
+}
+.d-none {
+  display: none !important;
+}
+.inline-flex {
+  display: inline-flex;
+}
+.flex {
+  display: flex;
+}
+.align-center {
+  align-items: center;
+}
+.gap-03em {
+  gap: 0.3em;
+}
+.gap-05em {
+  gap: 0.5em;
+}
+.font-09em {
+  font-size: 0.9em;
+}
+.font-095em {
+  font-size: 0.95em;
+}
+.font-1em {
+  font-size: 1em;
+}
+.font-11em {
+  font-size: 1.1em;
+}
+.color-888 {
+  color: #888;
+}
+.cursor-help {
+  cursor: help;
+}
+.minw-120px {
+  min-width: 120px;
+}
+.minw-60px {
+  min-width: 60px;
+}
+.minw-160px {
+  min-width: 160px;
+}
+.ml-0 {
+  margin-left: 0;
+}
+.pos-rel {
+  position: relative;
+}
+.abs-top-right-18 {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+}
+.z-2 {
+  z-index: 2;
+}
+.mb-1-5em {
+  margin-bottom: 1.5em;
+}
+.mt-1-2em {
+  margin-top: 1.2em;
+}
+.bg-f3f6fa {
+  background: #f3f6fa;
+}
+.p-1em-1-2em {
+  padding: 1em 1.2em;
+}
+.br-8px {
+  border-radius: 8px;
+}
+/* Modern search bar styles (restored) */
+.modern-search-bar {
+  display: flex;
+  gap: 0.5em;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2em;
+}
+.modern-search-bar input {
+  padding: 0.7em 1.2em;
+  font-size: 1.08em;
+  border: 1.5px solid var(--modern-border);
+  border-radius: var(--modern-radius);
+  width: 340px;
+  background: #fafdff;
+  transition: border 0.2s;
+}
+.modern-search-bar input:focus {
+  border: 1.5px solid var(--modern-accent2);
+  outline: none;
+}
+.modern-search-bar button {
+  padding: 0.7em 1.5em;
+  font-size: 1.08em;
+  border-radius: var(--modern-radius);
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.18s, color 0.18s;
+}
+.modern-search-bar #searchBtn {
+  background: var(--modern-accent2);
+  color: #fff;
+}
+.modern-search-bar #searchBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.modern-search-bar #clearSearchBtn {
+  background: #f5f6fa;
+  color: var(--modern-accent);
+  border: 1.5px solid var(--modern-border);
+}
