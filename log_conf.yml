@@ -176,6 +176,19 @@ universe:
         
         **KB Article**: [Application Failure Due to DDL Verification State in YugabyteDB](https://support.yugabyte.com/hc/en-us/articles/35702194950029-Backup-or-Application-Failure-Due-to-DDL-Verification-State-in-YugabyteDB)
 
+    - name: "Long time to resolve DNS for hostname"
+      pattern: "Long time to res.*e DNS for"
+      solution: |
+        This message is observed when the DNS resolution for a hostname is taking a long time. This could be because of network issues or DNS server issues. If number of occurrences of this message is high, then we need to check the DNS server performance.
+
+        **Useful Commands**:
+        - Get the list of hostnames against which this error is observed with the count of occurrences.
+          ```
+          grep -hoE "Long time to res.*e DNS for.*" -r |sed 's/.*DNS for //g'|sed 's/:.*//g' |sort|uniq -c
+          ```
+        **Note**:
+        - In few of the releases, there is typographical error in the log message where it is written as "resolse" instead of "resolve". So, we are using regex to match both the cases. In case, You are reviewing the logs manually, please check for both the cases.
+
 pg:
   log_messages:
     - name: "latch already owned by"
