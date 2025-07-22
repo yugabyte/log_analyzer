@@ -164,7 +164,7 @@ universe:
         This message is observed when customer using a preview `flag ysql_ddl_rollback_enabled` which may or may not work in this version because this version may not have all the other fixes which are related to this preview flag.
 
         - To resolve this follow the KB
-        
+
         **KB Article**: [Application Failure Due to DDL Verification State in YugabyteDB](https://support.yugabyte.com/hc/en-us/articles/35702194950029-Backup-or-Application-Failure-Due-to-DDL-Verification-State-in-YugabyteDB)
 
     - name: "Snapshot Too Old Error in YSQL can occur due to prefetch pg_authid"
@@ -173,11 +173,12 @@ universe:
         This message is observed when customer using a preview `flag ysql_ddl_rollback_enabled` which may or may not work in this version because this version may not have all the other fixes which are related to this preview flag.
 
         - To resolve this follow the KB
-        
+
         **KB Article**: [Application Failure Due to DDL Verification State in YugabyteDB](https://support.yugabyte.com/hc/en-us/articles/35702194950029-Backup-or-Application-Failure-Due-to-DDL-Verification-State-in-YugabyteDB)
 
     - name: "Long time to resolve DNS for hostname"
-      pattern: "Long time to res.*e DNS for"
+      # Make the pattern more specific to avoid ambiguity in UI matching
+      pattern: "Long time to (resolve|resolse) DNS for [^ ]+"
       solution: |
         This message is observed when the DNS resolution for a hostname is taking a long time. This could be because of network issues or DNS server issues. If number of occurrences of this message is high, then we need to check the DNS server performance.
 
@@ -222,13 +223,13 @@ Yugabytedb_anywhere:
         2024.2.x added validation to the TLS cert deployment, which was not present in 2.20.x.
         The validation checks the MD5 sum of the root CA/root chain provided to YBA against the root CA/root chain deployed to the DB nodes.
         Even if the certs are functionally equivalent (same text, same values), if the checksums are different, this validation check will fail.
-   
+
         In our experience this may mean:
         One of root certs (either YBA or DB) has extra whitespace added to it (meaning the checksums mismatch)
         One of the root certs (either YBA or DB) was edited in Windows (giving it Windows-style line endings), where the other has Unix-style line endings (meaning the checksums mismatch)
-   
+
         Or it could mean that the certs are legitimately different, if there was a mistake in upload
-   
+
         Questions:
         How are your certs produced?
         How are your certs deployed to the YBA and DB nodes?
