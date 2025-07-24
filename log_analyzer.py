@@ -261,8 +261,8 @@ if __name__ == "__main__":
         custom_opts.append(f"--types: {args.types}")
     if custom_opts:
         warnings.append({
-            "message": "This report was generated with custom options.",
-            "details": f"Custom options used: {'; '.join(custom_opts)}",
+            "message": "This report was generated with custom options. So, the results may not include all logs.",
+            "additional_details": f"Custom options used: {'; '.join(custom_opts)}",
             "level": "info",
             "type": "custom_options"
         })

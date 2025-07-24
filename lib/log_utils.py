@@ -126,7 +126,6 @@ def getFileMetadata(logFile, logger):
                 continue
     except Exception as e:
         print(f"Error processing file: {logFile} - {e}")
-        return None
     
     if logStartsAt is None:
         logStartsAt = datetime.datetime.strptime('0101 00:00', '%m%d %H:%M')

@@ -16,15 +16,15 @@
     />
   </head>
   <body>
-    <div class="yuga-header">
+    <div class="modern-header">
       <img
         class="yuga-logo"
         src="/img/yugabytedb-icon-seeklogo.svg"
         alt="YugabyteDB Logo"
       />
-      <a href="/" style="text-decoration: none; color: inherit"
-        ><span class="yuga-title">YugabyteDB Log Analyzer</span></a
-      >
+      <a href="/" class="no-underline-inherit">
+        <span class="yuga-title">YugabyteDB Log Analyzer</span>
+      </a>
     </div>
     <div class="yuga-container">
       <div id="report-warnings"></div>
@@ -63,30 +63,50 @@
               </select>
             </label>
             <label>
-              Time Range
-              <div style="display: flex; align-items: center; gap: 0.5em">
-                <input type="datetime-local" id="startTimePicker" />
-                <span style="font-size: 0.95em; color: #888">to</span>
-                <input type="datetime-local" id="endTimePicker" />
+              <div class="inline-flex align-center gap-03em">
+                Time Range
+                <span
+                  title="Since the last timestamp in the result"
+                  class="font-09em color-888 cursor-help"
+                  >(?)</span
+                >
+              </div>
+              <div class="flex align-center gap-05em">
+                <select
+                  id="quickRangeSelect"
+                  title="Show data from the latest datetime available in the dataset for this report"
+                  class="minw-120px"
+                >
+                  <option value="3">Last 3 days</option>
+                  <option value="7" selected>Last 7 days</option>
+                  <option value="15">Last 15 days</option>
+                  <option value="30">Last 30 days</option>
+                </select>
+                <input
+                  type="datetime-local"
+                  id="startTimePicker"
+                  title="Show data from the latest datetime available in the dataset for this report"
+                />
+                <span class="font-095em color-888">to</span>
+                <input
+                  type="datetime-local"
+                  id="endTimePicker"
+                  title="Show data from the latest datetime available in the dataset for this report"
+                />
                 <button
                   id="applyHistogramFilter"
-                  class="modern-toggle-btn"
-                  style="margin-left: 0; min-width: 60px"
+                  class="modern-toggle-btn ml-0 minw-60px"
                 >
                   Apply
                 </button>
               </div>
             </label>
           </div>
-          <div id="histogram-chart-container" style="position: relative">
-            <div
-              id="chart-toggle-btn"
-              style="position: absolute; top: 18px; right: 18px; z-index: 2"
-            >
+          <div id="histogram-chart-container" class="pos-rel">
+            <div id="chart-toggle-btn" class="abs-top-right-18 z-2">
               <button
                 id="toggleScaleBtnChart"
-                class="modern-toggle-btn"
-                style="min-width: 160px"
+                class="modern-toggle-btn minw-160px"
               >
                 <span class="toggle-label">Log Scale</span>
                 <span class="toggle-circle"></span>
@@ -95,29 +115,121 @@
             <div id="histogram"></div>
           </div>
         </div>
-        <div id="table-tab" class="tab-panel" style="display: none">
-          <div id="tables"></div>
-        </div>
-        <div id="gflags-tab" class="tab-panel" style="display: none">
-          <div id="gflags"></div>
-        </div>
-        <div id="nodeinfo-tab" class="tab-panel" style="display: none">
-          <div id="nodeinfo"></div>
-        </div>
-        <div id="logsolutions-tab" class="tab-panel" style="display: none">
+        <div id="table-tab" class="tab-panel"><div id="tables"></div></div>
+        <div id="gflags-tab" class="tab-panel"><div id="gflags"></div></div>
+        <div id="nodeinfo-tab" class="tab-panel"><div id="nodeinfo"></div></div>
+        <div id="logsolutions-tab" class="tab-panel">
           <div id="logsolutions"></div>
         </div>
-        <div id="warnings-tab" class="tab-panel" style="display: none">
-          <div id="warnings"></div>
-        </div>
-        <div id="related-tab" class="tab-panel" style="display: none">
+        <div id="warnings-tab" class="tab-panel"><div id="warnings"></div></div>
+        <div id="related-tab" class="tab-panel">
           <div id="related-reports"></div>
+        </div>
+      </div>
+    </div>
+    <!-- Floating Help Button -->
+    <button id="help-fab" title="Help">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="14" fill="#3b5bdb" />
+        <text
+          x="50%"
+          y="55%"
+          text-anchor="middle"
+          fill="#fff"
+          font-size="18"
+          font-family="Inter, Arial, sans-serif"
+          dy=".3em"
+        >
+          ?
+        </text>
+      </svg>
+    </button>
+    <!-- Help Modal -->
+    <div id="help-modal" class="help-modal-overlay d-none">
+      <div class="help-modal-content help-modal">
+        <button class="help-modal-close" id="help-modal-close" title="Close">
+          &times;
+        </button>
+        <h2>Report Page Help</h2>
+        <p class="help-modal-desc font-11em">
+          This page provides a detailed analysis of a specific log bundle.
+          Here’s how to use it:
+        </p>
+        <ul class="help-modal-list mb-1-5em">
+          <li>
+            <b>Tabs:</b> Switch between <b>Histogram</b>, <b>Table View</b>,
+            <b>GFlags</b>, <b>Node Info</b>, <b>Log Details</b>,
+            <b>Warnings</b>, and <b>Related Reports</b> for different insights.
+          </li>
+          <li>
+            <b>Histogram:</b> Visualize log event frequency over time. By default, 
+            It displays the histogram for the last 7 days from the last timestamp in the report. Use
+            filters for node, process, interval, and time range. Toggle log
+            scale for better visibility of spikes.
+          </li>
+          <li>
+            <b>Table View:</b> See a breakdown of log messages, their counts,
+            and first/last occurrence.
+          </li>
+          <li>
+            <b>GFlags:</b> Review the configuration flags used by each process at
+            the time of the log bundle.
+          </li>
+          <li>
+            <b>Node Info:</b> Get information about each node in the cluster,
+            including hardware and software details.
+          </li>
+          <li>
+            <b>Log Details:</b> See parsed log lines and details or solutions if available.
+          </li>
+          <li>
+            <b>Warnings:</b> Review any detected issues, anomalies, or
+            recommendations for the cluster.
+          </li>
+          <li>
+            <b>Related Reports:</b> Quickly jump to other reports from the same
+            cluster, org.
+          </li>
+        </ul>
+        <div class="help-modal-tip bg-f3f6fa p-1em-1-2em br-8px font-1em">
+          <b>Tip:</b> Use the filters above the histogram to focus on specific
+          nodes, processes, or time intervals. Hover over chart points for
+          details.
+        </div>
+        <br/>
+        <div class="help-modal-tip">
+          <b>Need more help? Drop a message to </b>
+          <a href="https://yugabyte.slack.com/archives/D02TSRPK9SA" target="_blank"
+            >Current maintainer</a
+          >
         </div>
       </div>
     </div>
     <script>
       window.report_uuid = "{{ report_uuid|default('') }}";
       window.logSolutionsMap = {{ log_solutions_map|tojson|safe }};
+    </script>
+    <script>
+      // Help modal logic for reports page
+      const helpFab = document.getElementById("help-fab");
+      const helpModal = document.getElementById("help-modal");
+      const helpModalClose = document.getElementById("help-modal-close");
+      function showHelpModal() {
+        helpModal.classList.remove("d-none");
+        helpModal.style.display = "flex";
+      }
+      function hideHelpModal() {
+        helpModal.classList.add("d-none");
+        helpModal.style.display = "none";
+      }
+      helpFab.onclick = showHelpModal;
+      helpModalClose.onclick = hideHelpModal;
+      helpModal.onclick = function (e) {
+        if (e.target === helpModal) hideHelpModal();
+      };
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") hideHelpModal();
+      });
     </script>
   </body>
 </html>

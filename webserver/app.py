@@ -382,8 +382,11 @@ def related_reports_api(uuid):
 @app.route('/api/search_reports')
 def search_reports():
     query = request.args.get('q', '').strip()
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 10))
+    offset = (page - 1) * per_page
     if not query:
-        return jsonify([])
+        return jsonify({"reports": [], "page": 1, "total_pages": 1})
     try:
         db_config = load_db_config()
         conn = psycopg2.connect(
@@ -394,7 +397,20 @@ def search_reports():
             port=db_config["port"]
         )
         cur = conn.cursor()
-        # Search by id, support_bundle_name, cluster_name, organization, or case_id
+        # Count total matching
+        cur.execute("""
+            SELECT COUNT(*)
+            FROM public.log_analyzer_reports r
+            LEFT JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
+            WHERE r.id::text ILIKE %s
+               OR r.support_bundle_name ILIKE %s
+               OR h.cluster_name ILIKE %s
+               OR h.organization ILIKE %s
+               OR h.case_id::text ILIKE %s
+        """, tuple(['%' + query + '%'] * 5))
+        total_reports = cur.fetchone()[0]
+        total_pages = (total_reports + per_page - 1) // per_page if total_reports else 1
+        # Fetch paginated results
         cur.execute("""
             SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.case_id, r.created_at
             FROM public.log_analyzer_reports r
@@ -404,8 +420,8 @@ def search_reports():
                OR h.cluster_name ILIKE %s
                OR h.organization ILIKE %s
                OR h.case_id::text ILIKE %s
-            ORDER BY r.created_at DESC LIMIT 20
-        """, tuple(['%' + query + '%'] * 5))
+            ORDER BY r.created_at DESC LIMIT %s OFFSET %s
+        """, tuple(['%' + query + '%'] * 5) + (per_page, offset))
         reports = [
             {
                 'id': str(row[0]),
@@ -421,8 +437,8 @@ def search_reports():
         conn.close()
         return jsonify({
             "reports": reports,
-            "page": 1,
-            "total_pages": 1
+            "page": page,
+            "total_pages": total_pages
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -471,6 +487,52 @@ def node_info_api(uuid):
         cur.close()
         conn.close()
         return jsonify({'nodes': nodes})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/histogram_latest_datetime/<report_id>')
+def histogram_latest_datetime_api(report_id):
+    """
+    Returns the latest datetime available in the histogram data for the given report.
+    """
+    try:
+        db_config = load_db_config()
+        conn = psycopg2.connect(
+            dbname=db_config["dbname"],
+            user=db_config["user"],
+            password=db_config["password"],
+            host=db_config["host"],
+            port=db_config["port"]
+        )
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                SELECT json_report FROM public.log_analyzer_reports WHERE id::text = %s
+            """, (str(report_id),))
+        except Exception:
+            cur.execute("""
+                SELECT json_report FROM public.log_analyzer_reports WHERE id = %s
+            """, (report_id,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        if not row:
+            return jsonify({'error': 'Report not found'}), 404
+        data = row[0]
+        if isinstance(data, str):
+            data = json.loads(data)
+        all_bucket_times = []
+        for node, node_data in data.get('nodes', {}).items():
+            for proc, proc_data in node_data.items():
+                for msg, msg_stats in proc_data.get('logMessages', {}).items():
+                    hist = msg_stats.get('histogram', {})
+                    all_bucket_times.extend(hist.keys())
+        if not all_bucket_times:
+            return jsonify({'latest_datetime': None})
+        from datetime import datetime
+        all_dates = [datetime.strptime(b, '%Y-%m-%dT%H:%M:%SZ') for b in all_bucket_times]
+        max_date = max(all_dates)
+        return jsonify({'latest_datetime': max_date.strftime('%Y-%m-%dT%H:%M:%SZ')})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

@@ -14,142 +14,124 @@
     />
   </head>
   <body>
-    <div class="yuga-header">
+    <div class="modern-header">
       <img
         class="yuga-logo"
         src="/img/yugabytedb-icon-seeklogo.svg"
         alt="YugabyteDB Logo"
       />
-      <a href="/" style="text-decoration: none; color: inherit"
-        ><span class="yuga-title">YugabyteDB Log Analyzer</span></a
-      >
+      <a href="/" class="no-underline-inherit">
+        <span class="yuga-title">YugabyteDB Log Analyzer</span>
+      </a>
     </div>
     <div class="yuga-container">
-      <h2>Recent Reports</h2>
-      <div
-        style="
-          margin-bottom: 1.5em;
-          display: flex;
-          gap: 0.5em;
-          align-items: center;
-        "
-      >
+      <div class="modern-search-bar">
         <input
           id="searchBox"
           type="text"
           placeholder="Search by UUID, bundle, cluster, org, or case ID..."
-          style="
-            padding: 0.5em 1em;
-            font-size: 1em;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            width: 320px;
-          "
         />
-        <button
-          id="searchBtn"
-          style="
-            padding: 0.5em 1.2em;
-            font-size: 1em;
-            background: #172447;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-          "
-        >
-          Search
-        </button>
-        <button
-          id="clearSearchBtn"
-          style="
-            padding: 0.5em 1.2em;
-            font-size: 1em;
-            background: #f5f6fa;
-            color: #172447;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            cursor: pointer;
-          "
-        >
-          Clear
-        </button>
+        <button id="searchBtn">Search</button>
+        <button id="clearSearchBtn">Clear</button>
       </div>
-      <div
-        id="pagination"
-        style="
-          display: flex;
-          gap: 0.5em;
-          align-items: center;
-          justify-content: center;
-          margin-bottom: 2em;
-        "
-      ></div>
-      <table id="reportsTable" style="margin-bottom: 2em">
-        <thead>
-          <tr>
-            <th>UUID</th>
-            <th>Support Bundle Name</th>
-            <th>Universe/Cluster Name</th>
-            <th>Organization Name</th>
-            <th>Case ID</th>
-            <th>Created At</th>
-            <th>View</th>
-          </tr>
-        </thead>
-        <tbody id="reportsTableBody">
-          {% for report in reports %}
-          <tr>
-            <td>{{ report.id }}</td>
-            <td>{{ report.support_bundle_name }}</td>
-            <td>{{ report.universe_name }}</td>
-            <td>{{ report.organization_name }}</td>
-            <td>
-              {% if report.case_id %}
-              <a
-                href="https://yugabyte.zendesk.com/agent/tickets/{{ report.case_id }}"
-                target="_blank"
-                >{{ report.case_id }}</a
-              >
-              {% else %}-{% endif %}
-            </td>
-            <td>{{ report.created_at }}</td>
-            <td>
-              <a href="/reports/{{ report.id }}">View Report</a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
       <div id="modern-pagination"></div>
+      <div id="modernReportsList">
+        {% if reports|length == 0 %}
+        <div class="modern-no-reports">No reports found.</div>
+        {% else %}
+        <table class="modern-reports-table">
+          <thead>
+            <tr>
+              <th>Bundle Name</th>
+              <th>UUID</th>
+              <th>Cluster</th>
+              <th>Org</th>
+              <th>Created</th>
+              <th>Case</th>
+              <th>View</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for report in reports %}
+            <tr>
+              <td>{{ report.support_bundle_name }}</td>
+              <td style="font-family: monospace">{{ report.id }}</td>
+              <td>{{ report.universe_name }}</td>
+              <td>{{ report.organization_name }}</td>
+              <td>{{ report.created_at }}</td>
+              <td>
+                {% if report.case_id %}<a
+                  class="modern-case-link"
+                  href="https://yugabyte.zendesk.com/agent/tickets/{{ report.case_id }}"
+                  target="_blank"
+                  >{{ report.case_id }}</a
+                >{% else %}-{% endif %}
+              </td>
+              <td>
+                <a
+                  class="modern-view-btn"
+                  href="/reports/{{ report.id }}"
+                  title="View Report"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    fill="none"
+                    viewBox="0 0 20 20"
+                    style="vertical-align: middle"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M10 4c-5 0-8 5.5-8 6s3 6 8 6 8-5.5 8-6-3-6-8-6zm0 10c-3.9 0-6.6-3.7-7.3-5C3.4 7.7 6.1 4 10 4s6.6 3.7 7.3 5c-.7 1.3-3.4 5-7.3 5zm0-8a3 3 0 100 6 3 3 0 000-6zm0 5a2 2 0 110-4 2 2 0 010 4z"
+                    />
+                  </svg>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+      </div>
     </div>
     <script>
       const searchBox = document.getElementById('searchBox');
       const searchBtn = document.getElementById('searchBtn');
       const clearSearchBtn = document.getElementById('clearSearchBtn');
-      const reportsTableBody = document.getElementById('reportsTableBody');
+      const modernReportsList = document.getElementById('modernReportsList');
       let currentPage = {{ page|default(1) }};
       let totalPages = {{ total_pages|default(1) }};
       let lastQuery = '';
       function renderReportsTable(reports) {
-        reportsTableBody.innerHTML = '';
+        const modernReportsList = document.getElementById('modernReportsList');
+        modernReportsList.innerHTML = '';
         if (!reports || reports.length === 0) {
-          reportsTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#888;">No reports found.</td></tr>';
+          modernReportsList.innerHTML = '<div class="modern-no-reports">No reports found.</div>';
           return;
         }
+        let html = `<table class='modern-reports-table'><thead><tr>
+          <th>Bundle Name</th>
+          <th>UUID</th>
+          <th>Cluster</th>
+          <th>Org</th>
+          <th>Created</th>
+          <th>Case</th>
+          <th>Action to View</th>
+        </tr></thead><tbody>`;
         for (const report of reports) {
-          reportsTableBody.innerHTML += `
-            <tr>
-              <td>${report.id}</td>
-              <td>${report.support_bundle_name}</td>
-              <td>${report.universe_name}</td>
-              <td>${report.organization_name}</td>
-              <td>${report.case_id ? `<a href='https://yugabyte.zendesk.com/agent/tickets/${report.case_id}' target='_blank'>${report.case_id}</a>` : '-'}</td>
-              <td>${report.created_at}</td>
-              <td><a href="/reports/${report.id}">View Report</a></td>
-            </tr>
-          `;
+          html += `<tr>
+            <td>${report.support_bundle_name}</td>
+            <td style='font-family:monospace;'>${report.id}</td>
+            <td>${report.universe_name}</td>
+            <td>${report.organization_name}</td>
+            <td>${report.created_at}</td>
+            <td>${report.case_id ? `<a class='modern-case-link' href='https://yugabyte.zzendesk.com/agent/tickets/${report.case_id}' target='_blank'>${report.case_id}</a>` : '-'}</td>
+            <td><a class='modern-view-btn' href='/reports/${report.id}' title='View Report'><svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='none' viewBox='0 0 20 20' style='vertical-align:middle;'><path fill='currentColor' d='M10 4c-5 0-8 5.5-8 6s3 6 8 6 8-5.5 8-6-3-6-8-6zm0 10c-3.9 0-6.6-3.7-7.3-5C3.4 7.7 6.1 4 10 4s6.6 3.7 7.3 5c-.7 1.3-3.4 5-7.3 5zm0-8a3 3 0 100 6 3 3 0 000-6zm0 5a2 2 0 110-4 2 2 0 010 4z'/></svg></a></td>
+          </tr>`;
         }
+        html += '</tbody></table>';
+        modernReportsList.innerHTML = html;
       }
       function renderPagination(page, totalPages) {
         const pagination = document.getElementById('modern-pagination');
@@ -174,10 +156,11 @@
       }
       function goToPage(page) {
         currentPage = page;
+        const perPage = 10;
         if (lastQuery) {
           searchBtn.disabled = true;
           searchBtn.textContent = 'Searching...';
-          fetch(`/api/search_reports?q=${encodeURIComponent(lastQuery)}&page=${page}`)
+          fetch(`/api/search_reports?q=${encodeURIComponent(lastQuery)}&page=${page}&per_page=${perPage}`)
             .then(r => r.json())
             .then(data => {
               renderReportsTable(data.reports);
@@ -200,9 +183,10 @@
         if (!q) return;
         lastQuery = q;
         currentPage = 1;
+        const perPage = 10;
         searchBtn.disabled = true;
         searchBtn.textContent = 'Searching...';
-        fetch(`/api/search_reports?q=${encodeURIComponent(q)}&page=1`)
+        fetch(`/api/search_reports?q=${encodeURIComponent(q)}&page=1&per_page=${perPage}`)
           .then(r => r.json())
           .then(data => {
             renderReportsTable(data.reports);
@@ -225,6 +209,85 @@
         if (e.key === 'Enter') searchBtn.onclick();
       });
       renderPagination(currentPage, totalPages);
+    </script>
+    <!-- Floating Help Button -->
+    <button id="help-fab" title="Help">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="14" fill="#3b5bdb" />
+        <text
+          x="50%"
+          y="55%"
+          text-anchor="middle"
+          fill="#fff"
+          font-size="18"
+          font-family="Inter,Arial,sans-serif"
+          dy=".3em"
+        >
+          ?
+        </text>
+      </svg>
+    </button>
+    <!-- Help Modal -->
+    <div id="help-modal" class="help-modal-overlay" style="display: none">
+      <div class="help-modal-content help-modal">
+        <button class="help-modal-close" id="help-modal-close" title="Close">
+          &times;
+        </button>
+        <h2>Log Analyzer Help Center</h2>
+        <p class="help-modal-desc">
+          Welcome! Here’s how to use the Log Analyzer effectively:
+        </p>
+        <ul class="help-modal-list mb-1-5em">
+          <li>
+            <b>Search:</b> Use the search bar to find reports by UUID, bundle
+            name, cluster, org, or case ID. Results update instantly.
+          </li>
+          <li>
+            <b>Pagination:</b> Use the page controls below the search bar to
+            navigate through multiple pages of reports.
+          </li>
+          <li>
+            <b>View Reports:</b> Click the <b>View</b> button to see a detailed
+            analysis for a specific report.
+          </li>
+          <li>
+            <b>Case Links:</b> If a report is linked to a support case, click
+            the case ID to open it in Zendesk.
+          </li>
+        </ul>
+        <h3>How to Run Log Analyzer</h3>
+        <ol class="mb-1-5em">
+          <li>
+            Run Log Analyzer<br /><code
+              >log_analyzer.py -s yb-support-bundle-test-universe-20250101000000.tar.gz</code
+            >
+          </li>
+        </ol>
+        <div class="help-modal-tip">
+          <b>Need more help? Drop a message to </b>
+          <a href="https://yugabyte.slack.com/archives/D02TSRPK9SA" target="_blank"
+            >Current maintainer</a
+          >
+        </div>
+      </div>
+    </div>
+    <script>
+      // Help modal logic
+      const helpFab = document.getElementById("help-fab");
+      const helpModal = document.getElementById("help-modal");
+      const helpModalClose = document.getElementById("help-modal-close");
+      helpFab.onclick = function () {
+        helpModal.style.display = "flex";
+      };
+      helpModalClose.onclick = function () {
+        helpModal.style.display = "none";
+      };
+      helpModal.onclick = function (e) {
+        if (e.target === helpModal) helpModal.style.display = "none";
+      };
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") helpModal.style.display = "none";
+      });
     </script>
   </body>
 </html>
