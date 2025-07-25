@@ -11,6 +11,7 @@ from lib.log_utils import (
     getTimeFromLog,
     extract_node_info_from_logs,
     count_tablets_per_tserver,
+    get_support_bundle_details,
     collect_report_warnings
 )
 from multiprocessing import Pool, Lock, Manager
@@ -37,6 +38,8 @@ import itertools
 import time
 import threading
 import socket
+import duckdb
+import pandas as pd
 from tqdm import tqdm
 
 class ColoredHelpFormatter(argparse.RawTextHelpFormatter):
@@ -74,6 +77,7 @@ class ColoredHelpFormatter(argparse.RawTextHelpFormatter):
 # Command line arguments
 parser = argparse.ArgumentParser(description="Log Analyzer for YugabyteDB logs", formatter_class=ColoredHelpFormatter)
 parser.add_argument("-s","--support_bundle", help="Support bundle file name")
+parser.add_argument("--parquet_files", metavar="DIR", help="Directory containing Parquet files to analyze")
 parser.add_argument("--types", metavar="LIST", help="List of log types to analyze \n Example: --types 'ms,ybc' \n Default: --types 'pg,ts,ms'")
 parser.add_argument("-n", "--nodes", metavar="LIST", help="List of nodes to analyze \n Example: --nodes 'n1,n2'")
 parser.add_argument("-o", "--output", metavar="FILE", dest="output_file", help="Output file name")
@@ -106,14 +110,9 @@ start_time = datetime.datetime.strptime(args.start_time, "%m%d %H:%M") if args.s
 end_time = datetime.datetime.strptime(args.end_time, "%m%d %H:%M") if args.end_time else datetime.datetime.now()
 
 reportJSON = {}
-
-# Extract support_bundle_name from args.support_bundle (remove .tar.gz or .tgz)
-support_bundle_name = os.path.basename(args.support_bundle) if args.support_bundle else "unknown"
-if support_bundle_name.endswith(".tar.gz"):
-    support_bundle_name = support_bundle_name[:-7]
-elif support_bundle_name.endswith(".tgz"):
-    support_bundle_name = support_bundle_name[:-4]
-support_bundle_dir = os.path.dirname(args.support_bundle)
+support_bundle_name, support_bundle_dir = get_support_bundle_details(args)
+print(f"Analyzing support bundle: {support_bundle_name} from {support_bundle_dir}")
+        
 
 # Set up logging
 
@@ -149,46 +148,47 @@ if __name__ == "__main__":
     logFilesMetadata = {}
     logFilesMetadataFile = os.path.join(support_bundle_dir, support_bundle_name + '_log_files_metadata.json')
     nodeLogSummaryFile = os.path.join(support_bundle_dir, support_bundle_name + '_node_log_summary.json')
-    if os.path.exists(logFilesMetadataFile):
-        logger.info(f"Loading log files metadata from {logFilesMetadataFile}")
-        with open(logFilesMetadataFile, 'r') as f:
-            logFilesMetadata = json.load(f)
-    else:
-        # Only support_bundle is supported now
-        logFileList = getLogFilesToBuildMetadata(args, logger, logFile)
-        if not logFileList:
-            logger.error("No log files found in the specified support bundle.")
-            exit(1)
-        done = False
-
-        # Start the spinner in a separate thread
-        stop_event = threading.Event()
-        spinner_thread = threading.Thread(target=spinner, args=(stop_event,))
-        spinner_thread.start()
-
-        # Build the metadata for the log files
-        for logFile in logFileList:
-            metadata = getFileMetadata(logFile, logger)
-            if metadata:
-                node = metadata["nodeName"]
-                logType = metadata["logType"]
-                subType = metadata["subType"]
-                if node not in logFilesMetadata:
-                    logFilesMetadata[node] = {}
-                if logType not in logFilesMetadata[node]:
-                    logFilesMetadata[node][logType] = {}
-                if subType not in logFilesMetadata[node][logType]:
-                    logFilesMetadata[node][logType][subType] = {}
-                logFilesMetadata[node][logType][subType][logFile] = {
-                    "logStartsAt": str(metadata["logStartsAt"]),
-                    "logEndsAt": str(metadata["logEndsAt"])
-                }
-        # Save the metadata to a file
-        with open(logFilesMetadataFile, 'w') as f:
-            json.dump(logFilesMetadata, f, indent=4)
-        stop_event.set()
-        spinner_thread.join()
-        logger.info(f"Log files metadata saved to {logFilesMetadataFile}")
+    if args.support_bundle:
+        if os.path.exists(logFilesMetadataFile):
+            logger.info(f"Loading log files metadata from {logFilesMetadataFile}")
+            with open(logFilesMetadataFile, 'r') as f:
+                logFilesMetadata = json.load(f)
+        else:
+            # Only support_bundle is supported now
+            logFileList = getLogFilesToBuildMetadata(args, logger, logFile)
+            if not logFileList:
+                logger.error("No log files found in the specified support bundle.")
+                exit(1)
+            done = False
+    
+            # Start the spinner in a separate thread
+            stop_event = threading.Event()
+            spinner_thread = threading.Thread(target=spinner, args=(stop_event,))
+            spinner_thread.start()
+    
+            # Build the metadata for the log files
+            for logFile in logFileList:
+                metadata = getFileMetadata(logFile, logger)
+                if metadata:
+                    node = metadata["nodeName"]
+                    logType = metadata["logType"]
+                    subType = metadata["subType"]
+                    if node not in logFilesMetadata:
+                        logFilesMetadata[node] = {}
+                    if logType not in logFilesMetadata[node]:
+                        logFilesMetadata[node][logType] = {}
+                    if subType not in logFilesMetadata[node][logType]:
+                        logFilesMetadata[node][logType][subType] = {}
+                    logFilesMetadata[node][logType][subType][logFile] = {
+                        "logStartsAt": str(metadata["logStartsAt"]),
+                        "logEndsAt": str(metadata["logEndsAt"])
+                    }
+            # Save the metadata to a file
+            with open(logFilesMetadataFile, 'w') as f:
+                json.dump(logFilesMetadata, f, indent=4)
+            stop_event.set()
+            spinner_thread.join()
+            logger.info(f"Log files metadata saved to {logFilesMetadataFile}")
 
     # --- Filter nodes if --nodes is specified ---
     if args.nodes:
@@ -288,12 +288,7 @@ if __name__ == "__main__":
         cur = conn.cursor()
         with open(nodeLogSummaryFile) as f:
             report_json = json.load(f)
-        # Extract support_bundle_name from args.support_bundle (remove .tar.gz or .tgz)
-        support_bundle_name = os.path.basename(args.support_bundle) if args.support_bundle else "unknown"
-        if support_bundle_name.endswith(".tar.gz"):
-            support_bundle_name = support_bundle_name[:-7]
-        elif support_bundle_name.endswith(".tgz"):
-            support_bundle_name = support_bundle_name[:-4]
+
         random_id = os.urandom(16).hex()  # Generate a random ID
         cur.execute(
             """

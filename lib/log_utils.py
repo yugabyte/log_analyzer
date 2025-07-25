@@ -3,9 +3,30 @@ import tarfile
 import gzip
 import re
 import datetime
+import duckdb
 from collections import deque
 
 # Expect logger and args to be passed as parameters to functions that need them
+
+def get_support_bundle_details(args, df=None):
+    """
+    Get the support bundle name from the args or from the DataFrame if provided
+    """
+    try:
+        if args.support_bundle:
+            support_bundle_name = os.path.basename(args.support_bundle).replace('.tar.gz', '').replace('.tgz', '')
+            support_bundle_dir = os.path.dirname(args.support_bundle)
+            return support_bundle_name, support_bundle_dir
+        if args.parquet_files:
+            # Query it
+            df = df or duckdb.connect().execute(f"SELECT support_bundle,  FROM '{args.parquet_files}/*.parquet' LIMIT 1").df()
+            if 'support_bundle' in df.columns:
+                support_bundle_name = df['support_bundle'].iloc[0]
+                support_bundle_dir = args.parquet_files
+                return support_bundle_name, support_bundle_dir
+    except Exception as e:
+        print(f"Error getting support bundle name: {e}")
+        exit(1)
 
 def getArchiveFiles(logDirectory):
     archievedFiles = []
