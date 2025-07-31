@@ -2,7 +2,7 @@ import os
 import json
 import re
 import datetime
-from patterns_lib import universe_regex_patterns, pg_regex_patterns
+from lib.patterns_lib import universe_regex_patterns, pg_regex_patterns
 from lib.helper_utils import openLogFile
 from lib.log_utils import getTimeFromLog
 from tqdm import tqdm

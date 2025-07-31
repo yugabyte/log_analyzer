@@ -6,19 +6,11 @@ import json
 from collections import defaultdict
 import psycopg2
 from datetime import datetime, timedelta
-from patterns_lib import solutions
+from lib.patterns_lib import solutions
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'uploads'
-
-if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'])
-
-# In-memory storage for uploaded data
-uploaded_data = {}
 
 # Helper to load DB config
-
 def load_db_config():
     with open(os.path.join(os.path.dirname(__file__), '..', 'db_config.json')) as f:
         return json.load(f)
@@ -68,42 +60,6 @@ def index():
         total_pages = 1
     print('DEBUG: reports fetched for index:', reports)
     return render_template('index.html', reports=reports, page=page, total_pages=total_pages)
-
-@app.route('/upload', methods=['POST'])
-def upload():
-    # Accepts JSON payload with keys: universe_name, ticket, json_report
-    try:
-        data = request.get_json()
-        universe_name = data['universe_name']
-        ticket = data.get('ticket', '')
-        json_report = json.dumps(data['json_report'])
-        db_config = load_db_config()
-        conn = psycopg2.connect(
-            dbname=db_config["dbname"],
-            user=db_config["user"],
-            password=db_config["password"],
-            host=db_config["host"],
-            port=db_config["port"]
-        )
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO log_analyzer.reports (universe_name, ticket, json_report, created_at)
-            VALUES (%s, %s, %s, NOW())
-            RETURNING id
-        """, (universe_name, ticket, json_report))
-        new_id = cur.fetchone()[0]
-        conn.commit()
-        cur.close()
-        conn.close()
-        return jsonify({'status': 'success', 'id': new_id})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/data')
-def get_data():
-    if 'data' not in uploaded_data:
-        return jsonify({'error': 'No data uploaded'}), 404
-    return jsonify(uploaded_data['data'])
 
 @app.route('/img/<path:filename>')
 def serve_img(filename):

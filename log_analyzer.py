@@ -1,46 +1,28 @@
-from lib.analyzer_utils import analyzeNodeLogs, analyze_log_file_worker
-from lib.helper_utils import spinner, openLogFile
+from lib.analyzer_utils import analyze_log_file_worker
+from lib.helper_utils import spinner
 from lib.log_utils import (
     getFileMetadata,
     getLogFilesToBuildMetadata,
     getStartAndEndTimes,
-    extractAllTarFiles,
-    extractTarFile,
-    getArchiveFiles,
-    getLogFilesFromCurrentDir,
-    getTimeFromLog,
-    extract_node_info_from_logs,
-    count_tablets_per_tserver,
     get_support_bundle_details,
     collect_report_warnings
 )
-from multiprocessing import Pool, Lock, Manager
+from multiprocessing import Pool
 from colorama import Fore, Style
-from patterns_lib import (
+from lib.patterns_lib import (
     universe_regex_patterns,
     pg_regex_patterns,
 )
 import psycopg2
 from psycopg2.extras import Json
-from collections import deque
 import logging
 import datetime
 import argparse
 import uuid
-import re
 import os
-import tabulate
-import tarfile
-import gzip
 import json
-import sys
-import itertools
-import time
 import threading
-import socket
-import duckdb
-import pandas as pd
-from tqdm import tqdm
+from lib.parquet_lib import analyzeParquetFiles
 
 class ColoredHelpFormatter(argparse.RawTextHelpFormatter):
     def _get_help_string(self, action):
@@ -111,7 +93,6 @@ end_time = datetime.datetime.strptime(args.end_time, "%m%d %H:%M") if args.end_t
 
 reportJSON = {}
 support_bundle_name, support_bundle_dir = get_support_bundle_details(args)
-print(f"Analyzing support bundle: {support_bundle_name} from {support_bundle_dir}")
         
 
 # Set up logging
@@ -143,11 +124,56 @@ if os.path.exists(success_marker_file):
     exit(0)
 
 
-if __name__ == "__main__":
+def postProcess(report_json, support_bundle_name, logger, success_marker_file):
+    try:
+        db_config_path = os.path.join(os.path.dirname(__file__), "db_config.json")
+        with open(db_config_path) as db_config_file:
+            db_config = json.load(db_config_file)
+        conn = psycopg2.connect(
+            dbname=db_config["dbname"],
+            user=db_config["user"],
+            password=db_config["password"],
+            host=db_config["host"],
+            port=db_config["port"]
+        )
+        cur = conn.cursor()
+        random_id = os.urandom(16).hex()
+        cur.execute(
+            """
+            INSERT INTO public.log_analyzer_reports (id, support_bundle_name, json_report, created_at)
+            VALUES (%s, %s, %s, NOW())
+            """,
+            (random_id, support_bundle_name, Json(report_json))
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("")
+        print("")
+        logger.info("👉 Report inserted into public.log_analyzer_reports table.")
+        server_config_path = os.path.join(os.path.dirname(__file__), "server_config.json")
+        with open(server_config_path) as server_config_file:
+            server_config = json.load(server_config_file)
+        host = server_config.get("host", "127.0.0.1")
+        port = server_config.get("port", 5000)
+        report_url = f"http://{host}:{port}/reports/{str(uuid.UUID(random_id))}"
+        logger.info(f"👉 ⌘ + click to open your report at: {report_url}")
+        try:
+            with open(success_marker_file, "w") as f:
+                f.write(report_url + "\n")
+                logger.info("Success marker file created.")
+        except Exception as e:
+            logger.warning(f"Failed to create marker file: {e}")
+    except Exception as e:
+        logger.error(f"👉 Failed to insert report into PostgreSQL: {e}")
 
+if __name__ == "__main__":
     logFilesMetadata = {}
     logFilesMetadataFile = os.path.join(support_bundle_dir, support_bundle_name + '_log_files_metadata.json')
     nodeLogSummaryFile = os.path.join(support_bundle_dir, support_bundle_name + '_node_log_summary.json')
+    logger.info(f"Analyzing support bundle: {support_bundle_name} from {support_bundle_dir}")
+    output_json = None
+    # --- Support bundle analysis ---
     if args.support_bundle:
         if os.path.exists(logFilesMetadataFile):
             logger.info(f"Loading log files metadata from {logFilesMetadataFile}")
@@ -190,132 +216,135 @@ if __name__ == "__main__":
             spinner_thread.join()
             logger.info(f"Log files metadata saved to {logFilesMetadataFile}")
 
-    # --- Filter nodes if --nodes is specified ---
-    if args.nodes:
-        requested_nodes = [n.strip().lower() for n in args.nodes.split(',') if n.strip()]
-        filtered_logFilesMetadata = {}
-        for node_name, node_data in logFilesMetadata.items():
-            if any(req in node_name.lower() for req in requested_nodes):
-                filtered_logFilesMetadata[node_name] = node_data
-        logFilesMetadata = filtered_logFilesMetadata
-        if not logFilesMetadata:
-            logger.error(f"No matching nodes found for --nodes: {args.nodes}")
-            logger.info(f"Available nodes: {list(logFilesMetadata.keys())}")
+        # --- Filter nodes if --nodes is specified ---
+        if args.nodes:
+            requested_nodes = [n.strip().lower() for n in args.nodes.split(',') if n.strip()]
+            filtered_logFilesMetadata = {}
+            for node_name, node_data in logFilesMetadata.items():
+                if any(req in node_name.lower() for req in requested_nodes):
+                    filtered_logFilesMetadata[node_name] = node_data
+            logFilesMetadata = filtered_logFilesMetadata
+            if not logFilesMetadata:
+                logger.error(f"No matching nodes found for --nodes: {args.nodes}")
+                logger.info(f"Available nodes: {list(logFilesMetadata.keys())}")
+                exit(1)
+    
+        # --- Filter log types if --types is specified ---
+        type_map = {
+            'pg': 'postgres',
+            'ts': 'yb-tserver',
+            'ms': 'yb-master',
+            'ybc': 'yb-controller',
+        }
+        if args.types:
+            requested_types = [t.strip().lower() for t in args.types.split(',') if t.strip()]
+            expanded_types = [type_map.get(t, t) for t in requested_types]
+            filtered_logFilesMetadata = {}
+            for node_name, node_data in logFilesMetadata.items():
+                filtered_node_data = {log_type: log_type_data for log_type, log_type_data in node_data.items() if log_type in expanded_types}
+                if filtered_node_data:
+                    filtered_logFilesMetadata[node_name] = filtered_node_data
+            logFilesMetadata = filtered_logFilesMetadata
+            if not logFilesMetadata:
+                logger.error(f"No matching log types found for --types: {args.types}")
+                exit(1)
+        # Get long and short start and end times
+        startTimeLong, endTimeLong, startTimeShort, endTimeShort = getStartAndEndTimes(args)
+        logger.info(f"Analyzing logs from {startTimeShort} to {endTimeShort}")
+        # Prepare tasks for parallel processing
+        tasks = []
+        for idx, (nodeName, nodeData) in enumerate(logFilesMetadata.items()):
+            for logType, logTypeData in nodeData.items():
+                for subType, subTypeData in logTypeData.items():
+                    tasks.append((nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, idx, args.histogram_mode))
+        # Analyze in parallel
+        with Pool(processes=args.numThreads) as pool:
+            results = pool.map(analyze_log_file_worker, tasks)
+        # Build nested result: node -> logType -> logMessages
+        nested_results = {}
+        for result in results:
+            nodeName = result["node"]
+            logType = result["logType"]
+            if nodeName not in nested_results:
+                nested_results[nodeName] = {}
+            if logType not in nested_results[nodeName]:
+                nested_results[nodeName][logType] = {"logMessages": {}}
+            for msg, stats in result["logMessages"].items():
+                nested_results[nodeName][logType]["logMessages"][msg] = stats
+    
+        # Write nested results to a JSON file (remove GFlags from output)
+        output_json = {
+            "nodes": nested_results
+        }
+    
+        # --- Add warnings to the root of the JSON ---
+        warnings = collect_report_warnings(logFilesMetadata, logger) or []
+        # Add custom options warning if --nodes or --types was used
+        custom_opts = []
+        if args.nodes:
+            custom_opts.append(f"--nodes: {args.nodes}")
+        if args.types:
+            custom_opts.append(f"--types: {args.types}")
+        if custom_opts:
+            warnings.append({
+                "message": "This report was generated with custom options. So, the results may not include all logs.",
+                "additional_details": f"Custom options used: {'; '.join(custom_opts)}",
+                "level": "info",
+                "type": "custom_options"
+            })
+        if warnings:
+            output_json["warnings"] = warnings
+    
+        with open(nodeLogSummaryFile, "w") as f:
+            json.dump(output_json, f, indent=2)
+        logger.info(f"Support bundle analysis complete. Output written to {nodeLogSummaryFile}")
+
+    # --- Parquet files analysis ---
+    if args.parquet_files:
+        # Check for unsupported options
+        unsupported_opts = []
+        # Use args.numThreads instead of args.parallel
+        if args.types:
+            unsupported_opts.append("--types")
+        if args.nodes:
+            unsupported_opts.append("--nodes")
+        if hasattr(args, "numThreads") and args.numThreads != 5:  # default is 5
+            unsupported_opts.append("--parallel")
+        if args.skip_tar:
+            unsupported_opts.append("--skip_tar")
+        if args.start_time:
+            unsupported_opts.append("--from_time")
+        if args.end_time:
+            unsupported_opts.append("--to_time")
+        if unsupported_opts:
+            logger.error(f"The following options are not supported with --parquet_files: {', '.join(unsupported_opts)}")
             exit(1)
-
-    # --- Filter log types if --types is specified ---
-    type_map = {
-        'pg': 'postgres',
-        'ts': 'yb-tserver',
-        'ms': 'yb-master',
-        'ybc': 'yb-controller',
-    }
-    if args.types:
-        requested_types = [t.strip().lower() for t in args.types.split(',') if t.strip()]
-        expanded_types = [type_map.get(t, t) for t in requested_types]
-        filtered_logFilesMetadata = {}
-        for node_name, node_data in logFilesMetadata.items():
-            filtered_node_data = {log_type: log_type_data for log_type, log_type_data in node_data.items() if log_type in expanded_types}
-            if filtered_node_data:
-                filtered_logFilesMetadata[node_name] = filtered_node_data
-        logFilesMetadata = filtered_logFilesMetadata
-        if not logFilesMetadata:
-            logger.error(f"No matching log types found for --types: {args.types}")
+        if not os.path.exists(args.parquet_files):
+            logger.error(f"Parquet directory '{args.parquet_files}' does not exist.")
             exit(1)
-    # Get long and short start and end times
-    startTimeLong, endTimeLong, startTimeShort, endTimeShort = getStartAndEndTimes(args)
-    logger.info(f"Analyzing logs from {startTimeShort} to {endTimeShort}")
-    # Prepare tasks for parallel processing
-    tasks = []
-    for idx, (nodeName, nodeData) in enumerate(logFilesMetadata.items()):
-        for logType, logTypeData in nodeData.items():
-            for subType, subTypeData in logTypeData.items():
-                tasks.append((nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, idx, args.histogram_mode))
-    # Analyze in parallel
-    with Pool(processes=args.numThreads) as pool:
-        results = pool.map(analyze_log_file_worker, tasks)
-    # Build nested result: node -> logType -> logMessages
-    nested_results = {}
-    for result in results:
-        nodeName = result["node"]
-        logType = result["logType"]
-        if nodeName not in nested_results:
-            nested_results[nodeName] = {}
-        if logType not in nested_results[nodeName]:
-            nested_results[nodeName][logType] = {"logMessages": {}}
-        for msg, stats in result["logMessages"].items():
-            nested_results[nodeName][logType]["logMessages"][msg] = stats
+        if args.histogram_mode:
+            log_patterns = [p.strip() for p in args.histogram_mode.split(',') if p.strip()]
+        else:
+            log_patterns = list(universe_regex_patterns.values()) + list(pg_regex_patterns.values())
+        nodeLogSummaryFile = os.path.join(support_bundle_dir, support_bundle_name + '_node_log_summary.json')
+        result = analyzeParquetFiles(args.parquet_files, log_patterns, output_path=nodeLogSummaryFile)
+        output_json = {
+            "nodes": result.get("nodes", {}),
+            "universeName": result.get("universeName", "Unknown")
+        }
+        warnings = []
+        if args.histogram_mode:
+            warnings.append({
+                "message": "Histogram mode was used for pattern selection.",
+                "level": "info",
+                "type": "custom_options"
+            })
+        if warnings:
+            output_json["warnings"] = warnings
+        with open(nodeLogSummaryFile, "w") as f:
+            json.dump(output_json, f, indent=2)
+        logger.info(f"Parquet analysis complete. Output written to {nodeLogSummaryFile}")
 
-    # Write nested results to a JSON file (remove GFlags from output)
-    output_json = {
-        "nodes": nested_results
-    }
-
-    # --- Add warnings to the root of the JSON ---
-    warnings = collect_report_warnings(logFilesMetadata, logger) or []
-    # Add custom options warning if --nodes or --types was used
-    custom_opts = []
-    if args.nodes:
-        custom_opts.append(f"--nodes: {args.nodes}")
-    if args.types:
-        custom_opts.append(f"--types: {args.types}")
-    if custom_opts:
-        warnings.append({
-            "message": "This report was generated with custom options. So, the results may not include all logs.",
-            "additional_details": f"Custom options used: {'; '.join(custom_opts)}",
-            "level": "info",
-            "type": "custom_options"
-        })
-    if warnings:
-        output_json["warnings"] = warnings
-
-    with open(nodeLogSummaryFile, "w") as f:
-        json.dump(output_json, f, indent=2)
-
-    # --- Insert report into PostgreSQL ---
-    try:
-        # Read DB config from db_config.json (always from script directory)
-        db_config_path = os.path.join(os.path.dirname(__file__), "db_config.json")
-        with open(db_config_path) as db_config_file:
-            db_config = json.load(db_config_file)
-        conn = psycopg2.connect(
-            dbname=db_config["dbname"],
-            user=db_config["user"],
-            password=db_config["password"],
-            host=db_config["host"],
-            port=db_config["port"]
-        )
-        cur = conn.cursor()
-        with open(nodeLogSummaryFile) as f:
-            report_json = json.load(f)
-
-        random_id = os.urandom(16).hex()  # Generate a random ID
-        cur.execute(
-            """
-            INSERT INTO public.log_analyzer_reports (id, support_bundle_name, json_report, created_at)
-            VALUES (%s, %s, %s, NOW())
-            """,
-            (random_id, support_bundle_name, Json(report_json))
-        )
-        conn.commit()
-        cur.close()
-        conn.close()
-        print("") # A poor workaround to
-        print("") # to avoid mixing of messages and progress bar
-        logger.info("👉 Report inserted into public.log_analyzer_reports table.")
-        server_config_path = os.path.join(os.path.dirname(__file__), "server_config.json")
-        with open(server_config_path) as server_config_file:
-            server_config = json.load(server_config_file)
-        host = server_config.get("host", "127.0.0.1")
-        port = server_config.get("port", 5000)
-        # convert random_id to UUID format
-        logger.info(f"👉 ⌘ + click to open your report at: http://{host}:{port}/reports/{str(uuid.UUID(random_id))}")
-    except Exception as e:
-        logger.error(f"👉 Failed to insert report into PostgreSQL: {e}")
-    # --- Mark analysis as done ---
-    try:
-        with open(success_marker_file, "w") as f:
-            f.write(f"http://{host}:{port}/reports/{str(uuid.UUID(random_id))}\n")
-            logger.info("Success marker file created.")
-    except Exception as e:
-        logger.warning(f"Failed to create marker file: {e}")
+    # --- Insert report into PostgreSQL (once, at the end) ---
+    if output_json is not None:
+        postProcess(output_json, support_bundle_name, logger, success_marker_file)
