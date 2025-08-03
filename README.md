@@ -1,73 +1,310 @@
-# YugabyteDB Log Analyzer
+# Log Analyzer for YugabyteDB - Refactored Version
 
-YugabyteDB Log Analyzer is a tool for uploading, analyzing, and visualizing YugabyteDB log files. It provides a web interface to view reports, histograms, GFlags, and related diagnostic information.
+A modern, maintainable, and efficient log analysis tool for YugabyteDB support bundles. This refactored version follows best practices including proper separation of concerns, comprehensive error handling, type hints, and clean architecture.
 
-## Features
+## 🚀 Features
 
-- Upload YugabyteDB log bundles and generate analysis reports
-- View detailed report data, histograms, and GFlags
-- Search and filter reports by cluster, org, or case ID
-- Explore related reports and Log Details
+- **Support Bundle Analysis**: Extract and analyze YugabyteDB support bundles
+- **Parquet File Analysis**: Process log data stored in Parquet format
+- **Pattern Matching**: Configurable regex patterns for log message analysis
+- **Parallel Processing**: Multi-threaded analysis for improved performance
+- **Web Interface**: Flask-based web server for viewing reports
+- **Database Storage**: PostgreSQL integration for report persistence
+- **Comprehensive Logging**: Structured logging with colorized output
+- **Type Safety**: Full type hints throughout the codebase
 
-## Project Structure
+## 📋 Requirements
 
-- `log_analyzer.py` – Main log analysis logic
-- `patterns_lib.py` – Log pattern matching library
-- `lib/` – Utility modules for log analysis
-- `webserver/app.py` – Flask web server for the UI and API
-- `webserver/static/` – Frontend assets (JS, CSS)
-- `webserver/templates/` – HTML templates
+- Python 3.8+
+- PostgreSQL 12+
+- DuckDB (for Parquet analysis)
 
-## Getting Started
+## 🛠️ Installation
 
-### Prerequisites
-
-- Python 3.10+
-- Flask
-- psycopg2 (for PostgreSQL database)
-
-### Installation
-
-1. Clone the repository:
+1. **Clone the repository**:
    ```bash
-   git clone <repo-url>
+   git clone <repository-url>
    cd log_analyzer
    ```
-2. Install dependencies:
+
+2. **Create a virtual environment**:
    ```bash
-   pip install -r requirements.txt
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-### Running the Web Server
+3. **Install dependencies**:
+   ```bash
+   pip install -r requirements_refactored.txt
+   ```
 
-```bash
-cd webserver
-python app.py
+4. **Set up configuration**:
+   ```bash
+   # Copy example configuration files
+   cp db_config.json.example db_config.json
+   cp server_config.json.example server_config.json
+   
+   # Edit configuration files with your settings
+   nano db_config.json
+   nano server_config.json
+   ```
+
+5. **Set up database**:
+   ```sql
+   -- Run the schema.sql file in your PostgreSQL database
+   psql -d your_database -f schema.sql
+   ```
+
+## 🏗️ Architecture
+
+The refactored codebase follows a clean architecture pattern with clear separation of concerns:
+
+```
+log_analyzer/
+├── config/                 # Configuration management
+│   └── settings.py        # Centralized settings
+├── models/                # Data models
+│   └── log_metadata.py    # Type-safe data structures
+├── services/              # Business logic services
+│   ├── analysis_service.py    # Main analysis orchestration
+│   ├── database_service.py    # Database operations
+│   ├── file_processor.py      # File handling
+│   ├── pattern_matcher.py     # Pattern matching
+│   └── parquet_service.py     # Parquet analysis
+├── utils/                 # Utilities and helpers
+│   ├── exceptions.py      # Custom exceptions
+│   └── logging_config.py  # Logging configuration
+├── webserver/             # Web interface
+│   ├── app_refactored.py  # Refactored Flask app
+│   ├── static/            # Static files
+│   └── templates/         # HTML templates
+├── lib/                   # Legacy library modules
+├── tests/                 # Test suite
+├── log_analyzer_refactored.py  # Main application
+└── requirements_refactored.txt  # Dependencies
 ```
 
-The server will start at `http://localhost:5000`.
+## 🚀 Usage
 
-### Uploading a Report
+### Command Line Interface
 
-You can upload a report via the web UI or using the API:
-
+#### Analyze Support Bundle
 ```bash
-curl -X POST -H "Content-Type: application/json" -d @report.json http://localhost:5000/upload
+# Basic analysis
+python log_analyzer_refactored.py -s support_bundle.tar.gz
+
+# With custom time range
+python log_analyzer_refactored.py -s support_bundle.tar.gz \
+  -t "1231 10:30" -T "1231 23:59"
+
+# With node and log type filters
+python log_analyzer_refactored.py -s support_bundle.tar.gz \
+  -n "n1,n2" --types "pg,ts"
+
+# With custom patterns
+python log_analyzer_refactored.py -s support_bundle.tar.gz \
+  --histogram-mode "error1,error2,error3"
+
+# Parallel processing
+python log_analyzer_refactored.py -s support_bundle.tar.gz \
+  -p 8
 ```
 
-## API Reference
+#### Analyze Parquet Files
+```bash
+# Analyze Parquet directory
+python log_analyzer_refactored.py --parquet_files /path/to/parquet/dir
 
-See [API_ENDPOINTS.md](API_ENDPOINTS.md) for a detailed list of API endpoints and example usage.
+# With custom patterns
+python log_analyzer_refactored.py --parquet_files /path/to/parquet/dir \
+  --histogram-mode "pattern1,pattern2"
+```
 
-## Configuration
+### Web Interface
 
-- `db_config.json` – Database configuration
-- `log_conf.yml` – Log analysis configuration
+1. **Start the web server**:
+   ```bash
+   python webserver/app_refactored.py
+   ```
 
-## License
+2. **Access the web interface**:
+   Open your browser and navigate to `http://localhost:5000`
 
-MIT License
+3. **View reports**:
+   - Browse all reports on the main page
+   - Click on any report to view detailed analysis
+   - Use the search functionality to find specific reports
 
----
+## ⚙️ Configuration
 
-For questions or contributions, please open an issue or pull request.
+### Database Configuration (`db_config.json`)
+```json
+{
+  "host": "localhost",
+  "port": 5432,
+  "dbname": "log_analyzer",
+  "user": "postgres",
+  "password": "your_password"
+}
+```
+
+### Server Configuration (`server_config.json`)
+```json
+{
+  "host": "127.0.0.1",
+  "port": 5000
+}
+```
+
+### Log Configuration (`log_conf.yml`)
+```yaml
+universe:
+  log_messages:
+    - name: "tablet_not_found"
+      pattern: "Tablet.*not found"
+      solution: "Check tablet distribution and replication"
+    - name: "leader_not_ready"
+      pattern: "Leader.*not ready"
+      solution: "Check leader election and consensus"
+
+pg:
+  log_messages:
+    - name: "connection_error"
+      pattern: "connection.*failed"
+      solution: "Check network connectivity and firewall rules"
+```
+
+## 🧪 Testing
+
+Run the test suite:
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=.
+
+# Run specific test file
+pytest tests/test_analysis_service.py
+```
+
+## 🔧 Development
+
+### Code Quality Tools
+
+1. **Format code with Black**:
+   ```bash
+   black .
+   ```
+
+2. **Check code style with flake8**:
+   ```bash
+   flake8 .
+   ```
+
+3. **Type checking with mypy**:
+   ```bash
+   mypy .
+   ```
+
+### Adding New Features
+
+1. **Create new service**:
+   ```python
+   # services/new_service.py
+   from utils.exceptions import AnalysisError
+   
+   class NewService:
+       def __init__(self):
+           pass
+       
+       def process_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+           # Implementation
+           pass
+   ```
+
+2. **Add tests**:
+   ```python
+   # tests/test_new_service.py
+   import pytest
+   from services.new_service import NewService
+   
+   def test_new_service():
+       service = NewService()
+       result = service.process_data({"test": "data"})
+       assert result is not None
+   ```
+
+## 📊 Performance
+
+The refactored version includes several performance improvements:
+
+- **Parallel Processing**: Multi-threaded analysis for large support bundles
+- **Efficient File Handling**: Streaming file processing to reduce memory usage
+- **Database Optimization**: Prepared statements and connection pooling
+- **Caching**: Pattern compilation caching for repeated analysis
+
+## 🔒 Error Handling
+
+The refactored version includes comprehensive error handling:
+
+- **Custom Exceptions**: Domain-specific exception classes
+- **Graceful Degradation**: Continue processing even if some files fail
+- **Detailed Logging**: Structured logging with different levels
+- **User-Friendly Messages**: Clear error messages for end users
+
+## 📈 Monitoring
+
+The application includes built-in monitoring capabilities:
+
+- **Progress Tracking**: Real-time progress bars for long-running operations
+- **Performance Metrics**: Timing information for different analysis phases
+- **Resource Usage**: Memory and CPU usage monitoring
+- **Error Tracking**: Detailed error logs with stack traces
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/new-feature`
+3. Make your changes following the coding standards
+4. Add tests for new functionality
+5. Run the test suite: `pytest`
+6. Submit a pull request
+
+### Coding Standards
+
+- Use type hints throughout
+- Follow PEP 8 style guidelines
+- Write comprehensive docstrings
+- Add tests for new functionality
+- Use meaningful variable and function names
+
+## 📝 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🆘 Support
+
+For support and questions:
+
+1. Check the documentation
+2. Search existing issues
+3. Create a new issue with detailed information
+4. Contact the development team
+
+## 🔄 Migration from Original Version
+
+The refactored version maintains backward compatibility with the original:
+
+1. **Same Command Line Interface**: All original arguments are supported
+2. **Same Output Format**: Reports are generated in the same JSON format
+3. **Same Web Interface**: The web UI remains functionally identical
+4. **Configuration Files**: Existing configuration files work without changes
+
+### Key Improvements
+
+- **Better Error Handling**: More informative error messages
+- **Improved Performance**: Faster processing with parallel execution
+- **Enhanced Logging**: Better visibility into analysis progress
+- **Type Safety**: Reduced bugs through static type checking
+- **Maintainability**: Cleaner code structure for easier maintenance 

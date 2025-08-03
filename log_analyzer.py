@@ -1,30 +1,49 @@
-from lib.analyzer_utils import analyze_log_file_worker
-from lib.helper_utils import spinner
-from lib.log_utils import (
-    getFileMetadata,
-    getLogFilesToBuildMetadata,
-    getStartAndEndTimes,
-    get_support_bundle_details,
-    collect_report_warnings
-)
-from multiprocessing import Pool
-from colorama import Fore, Style
-from lib.patterns_lib import (
-    universe_regex_patterns,
-    pg_regex_patterns,
-)
-import psycopg2
-from psycopg2.extras import Json
-import logging
-import datetime
+#!/usr/bin/env python3
+"""
+Log Analyzer for YugabyteDB Support Bundles
+
+A refactored, maintainable, and efficient log analysis tool that processes
+YugabyteDB support bundles to identify patterns and generate reports.
+
+This version follows best practices including:
+- Proper separation of concerns
+- Type hints throughout
+- Comprehensive error handling
+- Configuration management
+- Structured logging
+- Clean architecture
+"""
+
 import argparse
-import uuid
-import os
-import json
-import threading
-from lib.parquet_lib import analyzeParquetFiles
+import sys
+from pathlib import Path
+from datetime import datetime, timedelta
+from typing import Optional, List
+import logging
+
+from colorama import Fore, Style, init
+
+from config.settings import settings
+from utils.logging_config import setup_logging, get_logger
+from utils.exceptions import (
+    LogAnalyzerError, 
+    ConfigurationError, 
+    ValidationError,
+    AnalysisError
+)
+from models.log_metadata import AnalysisConfig
+from services.analysis_service import AnalysisService
+from services.database_service import DatabaseService
+from services.parquet_service import ParquetAnalysisService
+
+
+# Initialize colorama for cross-platform colored output
+init()
+
 
 class ColoredHelpFormatter(argparse.RawTextHelpFormatter):
+    """Custom argument parser formatter with colored output."""
+    
     def _get_help_string(self, action):
         return Fore.GREEN + super()._get_help_string(action) + Style.RESET_ALL
 
@@ -56,295 +75,428 @@ class ColoredHelpFormatter(argparse.RawTextHelpFormatter):
     def _format_args(self, action, default_metavar):
         return Fore.LIGHTCYAN_EX + super()._format_args(action, default_metavar) + Style.RESET_ALL
 
-# Command line arguments
-parser = argparse.ArgumentParser(description="Log Analyzer for YugabyteDB logs", formatter_class=ColoredHelpFormatter)
-parser.add_argument("-s","--support_bundle", help="Support bundle file name")
-parser.add_argument("--parquet_files", metavar="DIR", help="Directory containing Parquet files to analyze")
-parser.add_argument("--types", metavar="LIST", help="List of log types to analyze \n Example: --types 'ms,ybc' \n Default: --types 'pg,ts,ms'")
-parser.add_argument("-n", "--nodes", metavar="LIST", help="List of nodes to analyze \n Example: --nodes 'n1,n2'")
-parser.add_argument("-o", "--output", metavar="FILE", dest="output_file", help="Output file name")
-parser.add_argument("-p", "--parallel", metavar="N", dest='numThreads', default=5, type=int, help="Run in parallel mode with N threads")
-parser.add_argument("--skip_tar", action="store_true", help="Skip tar file")
-parser.add_argument("-t", "--from_time", metavar= "MMDD HH:MM", dest="start_time", help="Specify start time in quotes")
-parser.add_argument("-T", "--to_time", metavar= "MMDD HH:MM", dest="end_time", help="Specify end time in quotes")
-parser.add_argument("--histogram-mode", dest="histogram_mode", metavar="LIST", help="List of errors to generate histogram \n Example: --histogram-mode 'error1,error2,error3'")
-args = parser.parse_args()
 
-# Validated start and end time format
-if args.start_time:
-    try:
-        datetime.datetime.strptime(args.start_time, "%m%d %H:%M")
-    except ValueError as e:
-        print("Incorrect start time format, should be MMDD HH:MM")
-        exit(1)
-if args.end_time:
-    try:
-        datetime.datetime.strptime(args.end_time, "%m%d %H:%M")
-    except ValueError as e:
-        print("Incorrect end time format, should be MMDD HH:MM")
-        exit(1)
-
-# 7 days ago from today
-seven_days_ago = datetime.datetime.now() - datetime.timedelta(days=7)
-seven_days_ago = seven_days_ago.strftime("%m%d %H:%M")
-# If not start time then set it to today - 7 days in "MMDD HH:MM" format
-start_time = datetime.datetime.strptime(args.start_time, "%m%d %H:%M") if args.start_time else datetime.datetime.strptime(seven_days_ago, "%m%d %H:%M")
-end_time = datetime.datetime.strptime(args.end_time, "%m%d %H:%M") if args.end_time else datetime.datetime.now()
-
-reportJSON = {}
-support_bundle_name, support_bundle_dir = get_support_bundle_details(args)
+class LogAnalyzerApp:
+    """Main application class for log analysis."""
+    
+    def __init__(self):
+        self.logger = get_logger("log_analyzer")
+        self.analysis_service = AnalysisService()
+        self.database_service = DatabaseService()
+        self.parquet_service = ParquetAnalysisService()
+    
+    def setup_argument_parser(self) -> argparse.ArgumentParser:
+        """Set up command line argument parser."""
+        parser = argparse.ArgumentParser(
+            description="Log Analyzer for YugabyteDB logs",
+            formatter_class=ColoredHelpFormatter
+        )
         
-
-# Set up logging
-
-logFile = os.path.join(support_bundle_dir, support_bundle_name + '_analyzer.log')
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s:%(levelname)s:- %(message)s')
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-console_handler.setFormatter(formatter)
-logger.addHandler(console_handler)
-
-file_handler = logging.FileHandler(logFile)
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
-
-# --- Prevent duplicate analysis ---
-success_marker_file = os.path.join(support_bundle_dir, f"{support_bundle_name}.analyzed")
-if os.path.exists(success_marker_file):
-    logger.warning(f"Analysis already completed for support bundle '{support_bundle_name}'. Skipping.")
-    logger.warning(f"Use the link below to view the report:")
-    with open(success_marker_file, "r") as f:
-        report_link = f.read().strip()
-        logger.warning(report_link)
-    logger.warning("If you want to re-analyze the logs, please remove the marker file:")
-    logger.warning(f"{success_marker_file}")
-    exit(0)
-
-
-def postProcess(report_json, support_bundle_name, logger, success_marker_file):
-    try:
-        db_config_path = os.path.join(os.path.dirname(__file__), "db_config.json")
-        with open(db_config_path) as db_config_file:
-            db_config = json.load(db_config_file)
-        conn = psycopg2.connect(
-            dbname=db_config["dbname"],
-            user=db_config["user"],
-            password=db_config["password"],
-            host=db_config["host"],
-            port=db_config["port"]
+        # Input options
+        input_group = parser.add_mutually_exclusive_group(required=True)
+        input_group.add_argument(
+            "-s", "--support_bundle",
+            help="Support bundle file name (.tar.gz or .tgz)"
         )
-        cur = conn.cursor()
-        random_id = os.urandom(16).hex()
-        cur.execute(
-            """
-            INSERT INTO public.log_analyzer_reports (id, support_bundle_name, json_report, created_at)
-            VALUES (%s, %s, %s, NOW())
-            """,
-            (random_id, support_bundle_name, Json(report_json))
+        input_group.add_argument(
+            "--parquet_files",
+            metavar="DIR",
+            help="Directory containing Parquet files to analyze"
         )
-        conn.commit()
-        cur.close()
-        conn.close()
-        print("")
-        print("")
-        logger.info("👉 Report inserted into public.log_analyzer_reports table.")
-        server_config_path = os.path.join(os.path.dirname(__file__), "server_config.json")
-        with open(server_config_path) as server_config_file:
-            server_config = json.load(server_config_file)
-        host = server_config.get("host", "127.0.0.1")
-        port = server_config.get("port", 5000)
-        report_url = f"http://{host}:{port}/reports/{str(uuid.UUID(random_id))}"
-        logger.info(f"👉 ⌘ + click to open your report at: {report_url}")
-        try:
-            with open(success_marker_file, "w") as f:
-                f.write(report_url + "\n")
-                logger.info("Success marker file created.")
-        except Exception as e:
-            logger.warning(f"Failed to create marker file: {e}")
-    except Exception as e:
-        logger.error(f"👉 Failed to insert report into PostgreSQL: {e}")
-
-if __name__ == "__main__":
-    logFilesMetadata = {}
-    logFilesMetadataFile = os.path.join(support_bundle_dir, support_bundle_name + '_log_files_metadata.json')
-    nodeLogSummaryFile = os.path.join(support_bundle_dir, support_bundle_name + '_node_log_summary.json')
-    logger.info(f"Analyzing support bundle: {support_bundle_name} from {support_bundle_dir}")
-    output_json = None
-    # --- Support bundle analysis ---
-    if args.support_bundle:
-        if os.path.exists(logFilesMetadataFile):
-            logger.info(f"Loading log files metadata from {logFilesMetadataFile}")
-            with open(logFilesMetadataFile, 'r') as f:
-                logFilesMetadata = json.load(f)
+        
+        # Analysis options
+        parser.add_argument(
+            "--types",
+            metavar="LIST",
+            help="List of log types to analyze (e.g., 'ms,ybc'). Default: 'pg,ts,ms'"
+        )
+        parser.add_argument(
+            "-n", "--nodes",
+            metavar="LIST",
+            help="List of nodes to analyze (e.g., 'n1,n2')"
+        )
+        parser.add_argument(
+            "-o", "--output",
+            metavar="FILE",
+            dest="output_file",
+            help="Output file name for the report"
+        )
+        parser.add_argument(
+            "-p", "--parallel",
+            metavar="N",
+            dest='num_threads',
+            default=settings.analysis_config.default_parallel_threads,
+            type=int,
+            help=f"Run in parallel mode with N threads (default: {settings.analysis_config.default_parallel_threads})"
+        )
+        parser.add_argument(
+            "--skip_tar",
+            action="store_true",
+            help="Skip tar file extraction (assumes already extracted)"
+        )
+        
+        # Time range options
+        parser.add_argument(
+            "-t", "--from_time",
+            metavar="MMDD HH:MM",
+            dest="start_time",
+            help="Specify start time in quotes (e.g., '1231 10:30')"
+        )
+        parser.add_argument(
+            "-T", "--to_time",
+            metavar="MMDD HH:MM",
+            dest="end_time",
+            help="Specify end time in quotes (e.g., '1231 23:59')"
+        )
+        
+        # Analysis mode options
+        parser.add_argument(
+            "--histogram-mode",
+            dest="histogram_mode",
+            metavar="LIST",
+            help="List of errors to generate histogram (e.g., 'error1,error2,error3')"
+        )
+        
+        return parser
+    
+    def validate_arguments(self, args: argparse.Namespace) -> None:
+        """Validate command line arguments."""
+        # Validate time format
+        if args.start_time:
+            try:
+                datetime.strptime(args.start_time, "%m%d %H:%M")
+            except ValueError:
+                raise ValidationError("Incorrect start time format, should be MMDD HH:MM")
+        
+        if args.end_time:
+            try:
+                datetime.strptime(args.end_time, "%m%d %H:%M")
+            except ValueError:
+                raise ValidationError("Incorrect end time format, should be MMDD HH:MM")
+        
+        # Validate parallel threads
+        if args.num_threads < 1 or args.num_threads > 20:
+            raise ValidationError("Parallel threads must be between 1 and 20")
+        
+        # Validate parquet options
+        if args.parquet_files:
+            unsupported_opts = []
+            if args.types:
+                unsupported_opts.append("--types")
+            if args.nodes:
+                unsupported_opts.append("--nodes")
+            if args.num_threads != settings.analysis_config.default_parallel_threads:
+                unsupported_opts.append("--parallel")
+            if args.skip_tar:
+                unsupported_opts.append("--skip_tar")
+            if args.start_time:
+                unsupported_opts.append("--from_time")
+            if args.end_time:
+                unsupported_opts.append("--to_time")
+            
+            if unsupported_opts:
+                raise ValidationError(
+                    f"The following options are not supported with --parquet_files: {', '.join(unsupported_opts)}"
+                )
+    
+    def parse_time_range(self, args: argparse.Namespace) -> tuple[datetime, datetime]:
+        """Parse and validate time range from arguments."""
+        # Calculate default time range (7 days ago to now)
+        seven_days_ago = datetime.now() - timedelta(days=settings.analysis_config.default_time_range_days)
+        seven_days_ago = seven_days_ago.strftime("%m%d %H:%M")
+        
+        # Parse start time
+        if args.start_time:
+            start_time = datetime.strptime(args.start_time, "%m%d %H:%M")
         else:
-            # Only support_bundle is supported now
-            logFileList = getLogFilesToBuildMetadata(args, logger, logFile)
-            if not logFileList:
-                logger.error("No log files found in the specified support bundle.")
-                exit(1)
-            done = False
+            start_time = datetime.strptime(seven_days_ago, "%m%d %H:%M")
+        
+        # Parse end time
+        if args.end_time:
+            end_time = datetime.strptime(args.end_time, "%m%d %H:%M")
+        else:
+            end_time = datetime.now()
+        
+        return start_time, end_time
     
-            # Start the spinner in a separate thread
-            stop_event = threading.Event()
-            spinner_thread = threading.Thread(target=spinner, args=(stop_event,))
-            spinner_thread.start()
-    
-            # Build the metadata for the log files
-            for logFile in logFileList:
-                metadata = getFileMetadata(logFile, logger)
-                if metadata:
-                    node = metadata["nodeName"]
-                    logType = metadata["logType"]
-                    subType = metadata["subType"]
-                    if node not in logFilesMetadata:
-                        logFilesMetadata[node] = {}
-                    if logType not in logFilesMetadata[node]:
-                        logFilesMetadata[node][logType] = {}
-                    if subType not in logFilesMetadata[node][logType]:
-                        logFilesMetadata[node][logType][subType] = {}
-                    logFilesMetadata[node][logType][subType][logFile] = {
-                        "logStartsAt": str(metadata["logStartsAt"]),
-                        "logEndsAt": str(metadata["logEndsAt"])
-                    }
-            # Save the metadata to a file
-            with open(logFilesMetadataFile, 'w') as f:
-                json.dump(logFilesMetadata, f, indent=4)
-            stop_event.set()
-            spinner_thread.join()
-            logger.info(f"Log files metadata saved to {logFilesMetadataFile}")
-
-        # --- Filter nodes if --nodes is specified ---
+    def create_analysis_config(self, args: argparse.Namespace) -> AnalysisConfig:
+        """Create analysis configuration from arguments."""
+        start_time, end_time = self.parse_time_range(args)
+        
+        # Parse filters
+        node_filter = None
         if args.nodes:
-            requested_nodes = [n.strip().lower() for n in args.nodes.split(',') if n.strip()]
-            filtered_logFilesMetadata = {}
-            for node_name, node_data in logFilesMetadata.items():
-                if any(req in node_name.lower() for req in requested_nodes):
-                    filtered_logFilesMetadata[node_name] = node_data
-            logFilesMetadata = filtered_logFilesMetadata
-            if not logFilesMetadata:
-                logger.error(f"No matching nodes found for --nodes: {args.nodes}")
-                logger.info(f"Available nodes: {list(logFilesMetadata.keys())}")
-                exit(1)
-    
-        # --- Filter log types if --types is specified ---
-        type_map = {
-            'pg': 'postgres',
-            'ts': 'yb-tserver',
-            'ms': 'yb-master',
-            'ybc': 'yb-controller',
-        }
+            node_filter = [n.strip().lower() for n in args.nodes.split(',') if n.strip()]
+        
+        log_type_filter = None
         if args.types:
             requested_types = [t.strip().lower() for t in args.types.split(',') if t.strip()]
-            expanded_types = [type_map.get(t, t) for t in requested_types]
-            filtered_logFilesMetadata = {}
-            for node_name, node_data in logFilesMetadata.items():
-                filtered_node_data = {log_type: log_type_data for log_type, log_type_data in node_data.items() if log_type in expanded_types}
-                if filtered_node_data:
-                    filtered_logFilesMetadata[node_name] = filtered_node_data
-            logFilesMetadata = filtered_logFilesMetadata
-            if not logFilesMetadata:
-                logger.error(f"No matching log types found for --types: {args.types}")
-                exit(1)
-        # Get long and short start and end times
-        startTimeLong, endTimeLong, startTimeShort, endTimeShort = getStartAndEndTimes(args)
-        logger.info(f"Analyzing logs from {startTimeShort} to {endTimeShort}")
-        # Prepare tasks for parallel processing
-        tasks = []
-        for idx, (nodeName, nodeData) in enumerate(logFilesMetadata.items()):
-            for logType, logTypeData in nodeData.items():
-                for subType, subTypeData in logTypeData.items():
-                    tasks.append((nodeName, logType, subType, startTimeLong, endTimeLong, logFilesMetadata, logger, idx, args.histogram_mode))
-        # Analyze in parallel
-        with Pool(processes=args.numThreads) as pool:
-            results = pool.map(analyze_log_file_worker, tasks)
-        # Build nested result: node -> logType -> logMessages
-        nested_results = {}
-        for result in results:
-            nodeName = result["node"]
-            logType = result["logType"]
-            if nodeName not in nested_results:
-                nested_results[nodeName] = {}
-            if logType not in nested_results[nodeName]:
-                nested_results[nodeName][logType] = {"logMessages": {}}
-            for msg, stats in result["logMessages"].items():
-                nested_results[nodeName][logType]["logMessages"][msg] = stats
-    
-        # Write nested results to a JSON file (remove GFlags from output)
-        output_json = {
-            "nodes": nested_results
-        }
-    
-        # --- Add warnings to the root of the JSON ---
-        warnings = collect_report_warnings(logFilesMetadata, logger) or []
-        # Add custom options warning if --nodes or --types was used
-        custom_opts = []
-        if args.nodes:
-            custom_opts.append(f"--nodes: {args.nodes}")
-        if args.types:
-            custom_opts.append(f"--types: {args.types}")
-        if custom_opts:
-            warnings.append({
-                "message": "This report was generated with custom options. So, the results may not include all logs.",
-                "additional_details": f"Custom options used: {'; '.join(custom_opts)}",
-                "level": "info",
-                "type": "custom_options"
-            })
-        if warnings:
-            output_json["warnings"] = warnings
-    
-        with open(nodeLogSummaryFile, "w") as f:
-            json.dump(output_json, f, indent=2)
-        logger.info(f"Support bundle analysis complete. Output written to {nodeLogSummaryFile}")
-
-    # --- Parquet files analysis ---
-    if args.parquet_files:
-        # Check for unsupported options
-        unsupported_opts = []
-        # Use args.numThreads instead of args.parallel
-        if args.types:
-            unsupported_opts.append("--types")
-        if args.nodes:
-            unsupported_opts.append("--nodes")
-        if hasattr(args, "numThreads") and args.numThreads != 5:  # default is 5
-            unsupported_opts.append("--parallel")
-        if args.skip_tar:
-            unsupported_opts.append("--skip_tar")
-        if args.start_time:
-            unsupported_opts.append("--from_time")
-        if args.end_time:
-            unsupported_opts.append("--to_time")
-        if unsupported_opts:
-            logger.error(f"The following options are not supported with --parquet_files: {', '.join(unsupported_opts)}")
-            exit(1)
-        if not os.path.exists(args.parquet_files):
-            logger.error(f"Parquet directory '{args.parquet_files}' does not exist.")
-            exit(1)
+            log_type_filter = [settings.analysis_config.supported_log_types.get(t, t) for t in requested_types]
+        
+        histogram_mode = None
         if args.histogram_mode:
-            log_patterns = [p.strip() for p in args.histogram_mode.split(',') if p.strip()]
+            histogram_mode = [p.strip() for p in args.histogram_mode.split(',') if p.strip()]
+        
+        return AnalysisConfig(
+            start_time=start_time,
+            end_time=end_time,
+            parallel_threads=args.num_threads,
+            histogram_mode=histogram_mode,
+            node_filter=node_filter,
+            log_type_filter=log_type_filter
+        )
+    
+    def analyze_support_bundle(self, args: argparse.Namespace) -> None:
+        """Analyze a support bundle."""
+        bundle_path = Path(args.support_bundle)
+        if not bundle_path.exists():
+            raise ValidationError(f"Support bundle not found: {bundle_path}")
+        
+        # Check if already analyzed
+        bundle_name = bundle_path.stem.replace('.tar', '').replace('.tgz', '')
+        existing_report_id = self.database_service.check_report_exists(bundle_name)
+        
+        if existing_report_id:
+            self.logger.warning(f"Analysis already completed for support bundle '{bundle_name}'.")
+            self.logger.warning(f"Use the link below to view the report:")
+            report_url = f"http://{settings.server.host}:{settings.server.port}/reports/{existing_report_id}"
+            self.logger.warning(report_url)
+            return
+        
+        # Create analysis configuration
+        analysis_config = self.create_analysis_config(args)
+        
+        # Perform analysis
+        self.logger.info(f"Analyzing support bundle: {bundle_name}")
+        self.logger.info(f"Time range: {analysis_config.start_time.strftime('%m%d %H:%M')} to {analysis_config.end_time.strftime('%m%d %H:%M')}")
+        
+        report = self.analysis_service.analyze_support_bundle(
+            bundle_path=bundle_path,
+            analysis_config=analysis_config,
+            skip_extraction=args.skip_tar
+        )
+        
+        # Save report to file if specified
+        if args.output_file:
+            output_path = Path(args.output_file)
+            self.analysis_service.save_report(report, output_path)
+        
+        # Store in database and get report URL
+        try:
+            report_id = self.database_service.store_report(report)
+            
+            # Generate report URL
+            report_url = f"http://{settings.server.host}:{settings.server.port}/reports/{report_id}"
+            
+            self.logger.info("")
+            self.logger.info("")
+            self.logger.info("👉 Report inserted into public.log_analyzer_reports table.")
+            self.logger.info(f"👉 ⌘ + click to open your report at: {report_url}")
+            
+            # Create success marker file
+            marker_file = bundle_path.parent / f"{bundle_name}.analyzed"
+            try:
+                with open(marker_file, "w") as f:
+                    f.write(report_url + "\n")
+                self.logger.info("✅ Success marker file created.")
+            except Exception as e:
+                self.logger.warning(f"Failed to create marker file: {e}")
+                
+        except Exception as e:
+            self.logger.error(f"👉 Failed to insert report into PostgreSQL: {e}")
+            # Still show success for analysis, but warn about database issue
+            self.logger.info("✅ Analysis completed successfully!")
+            self.logger.warning("⚠️  Report could not be stored in database. Check database connection.")
+            return
+        
+        self.logger.info("✅ Analysis completed successfully!")
+        self.logger.info(f"📊 Report available at: {report_url}")
+    
+    def analyze_parquet_files(self, args: argparse.Namespace) -> None:
+        """Analyze Parquet files."""
+        import time
+        parquet_dir = Path(args.parquet_files)
+        if not parquet_dir.exists():
+            raise ValidationError(f"Parquet directory not found: {parquet_dir}")
+        
+        # Get patterns for analysis
+        if args.histogram_mode:
+            patterns = [p.strip() for p in args.histogram_mode.split(',') if p.strip()]
         else:
-            log_patterns = list(universe_regex_patterns.values()) + list(pg_regex_patterns.values())
-        nodeLogSummaryFile = os.path.join(support_bundle_dir, support_bundle_name + '_node_log_summary.json')
-        result = analyzeParquetFiles(args.parquet_files, log_patterns, output_path=nodeLogSummaryFile)
-        output_json = {
-            "nodes": result.get("nodes", {}),
-            "universeName": result.get("universeName", "Unknown")
-        }
-        warnings = []
-        if args.histogram_mode:
-            warnings.append({
-                "message": "Histogram mode was used for pattern selection.",
-                "level": "info",
-                "type": "custom_options"
-            })
-        if warnings:
-            output_json["warnings"] = warnings
-        with open(nodeLogSummaryFile, "w") as f:
-            json.dump(output_json, f, indent=2)
-        logger.info(f"Parquet analysis complete. Output written to {nodeLogSummaryFile}")
+            # Use default patterns from configuration
+            patterns = self.parquet_service.get_default_patterns()
+        
+        # Perform analysis with timing
+        
+        bundle_name = self.parquet_service.get_bundle_name_from_parquet(parquet_dir)
+        self.logger.info(f"🚀 Starting Parquet analysis for: {bundle_name}")
+        
+        existing_report_id = self.database_service.check_report_exists(bundle_name)
+        if existing_report_id:
+            self.logger.warning(f"Analysis already completed for Parquet bundle '{bundle_name}'.")
+            self.logger.warning(f"Use the link below to view the report:")
+            report_url = f"http://{settings.server.host}:{settings.server.port}/reports/{existing_report_id}"
+            self.logger.warning(report_url)
+            return
+        
+        self.logger.info(f"📊 Using {len(patterns)} patterns for analysis")
+        
+        start_analysis = time.time()
+        result = self.parquet_service.analyze_parquet_files(
+            parquet_dir=parquet_dir,
+            patterns=patterns
+        )
+        analysis_time = time.time() - start_analysis
+        
+        # Save results to file
+        start_save = time.time()
+        if args.output_file:
+            output_path = Path(args.output_file)
+        else:
+            output_path = parquet_dir / "node_log_summary.json"
+        
+        self.parquet_service.save_results(result, output_path)
+        save_time = time.time() - start_save
+        
+        # Store in database and generate URL
+        start_db = time.time()
+        try:
+            # Create an AnalysisReport from the Parquet results
+            from models.log_metadata import AnalysisReport, NodeAnalysisResult, LogMessageStats
+            
+            # Convert Parquet results to AnalysisReport format
+            converted_nodes = {}
+            
+            for node_name, node_data in result.get("nodes", {}).items():
+                converted_nodes[node_name] = {}
+                
+                for log_type, log_type_data in node_data.items():
+                    # Create NodeAnalysisResult
+                    node_result = NodeAnalysisResult(
+                        node_name=node_name,
+                        log_type=log_type,
+                        log_messages={}
+                    )
+                    
+                    # Convert log messages
+                    for pattern_name, message_data in log_type_data.get("logMessages", {}).items():
+                        # Create LogMessageStats
+                        log_stats = LogMessageStats(
+                            pattern_name=pattern_name,
+                            start_time=datetime.fromisoformat(message_data["StartTime"].replace("Z", "+00:00")),
+                            end_time=datetime.fromisoformat(message_data["EndTime"].replace("Z", "+00:00")),
+                            count=message_data["count"],
+                            histogram=message_data["histogram"]
+                        )
+                        node_result.log_messages[pattern_name] = log_stats
+                    
+                    converted_nodes[node_name][log_type] = node_result
+            
+            # Use actual bundle name from Parquet data
+            bundle_name = result.get("universeName", parquet_dir.name)
+            
+            report = AnalysisReport(
+                support_bundle_name=bundle_name,  # Use actual bundle name from data
+                nodes=converted_nodes,
+                warnings=[
+                    {
+                        "message": "Parquet file analysis completed",
+                        "level": "info",
+                        "type": "parquet_analysis"
+                    }
+                ],
+                analysis_config={
+                    "parquet_directory": str(parquet_dir),
+                    "patterns_used": patterns,
+                    "analysis_type": "parquet"
+                }
+            )
+            
+            # Store in database
+            report_id = self.database_service.store_report(report)
+            
+            # Generate report URL
+            report_url = f"http://{settings.server.host}:{settings.server.port}/reports/{report_id}"
+            
+            db_time = time.time() - start_db
+            
+            self.logger.info("")
+            self.logger.info("")
+            self.logger.info("👉 Report inserted into public.log_analyzer_reports table.")
+            self.logger.info(f"👉 ⌘ + click to open your report at: {report_url}")
+            
+        except Exception as e:
+            self.logger.error(f"👉 Failed to insert report into PostgreSQL: {e}")
+            self.logger.warning("⚠️  Report could not be stored in database. Check database connection.")
+            db_time = time.time() - start_db
+        
+        total_time = time.time() - start_analysis
+        
+        # Show timing breakdown
+        self.logger.info("")
+        self.logger.info("📈 Performance Summary:")
+        self.logger.info(f"   - Analysis: {analysis_time:.2f}s ({(analysis_time/total_time)*100:.1f}%)")
+        self.logger.info(f"   - File save: {save_time:.2f}s ({(save_time/total_time)*100:.1f}%)")
+        self.logger.info(f"   - Database: {db_time:.2f}s ({(db_time/total_time)*100:.1f}%)")
+        self.logger.info(f"   - Total: {total_time:.2f}s")
+        
+        self.logger.info("✅ Parquet analysis completed successfully!")
+        self.logger.info(f"📊 Results saved to: {output_path}")
+        
+        if 'report_url' in locals():
+            self.logger.info(f"📊 Report available at: {report_url}")
+    
+    def run(self) -> int:
+        """Main application entry point."""
+        try:
+            # Set up argument parser
+            parser = self.setup_argument_parser()
+            args = parser.parse_args()
+            
+            # Validate arguments
+            self.validate_arguments(args)
+            
+            # Set up logging
+            log_file = None
+            if args.support_bundle:
+                bundle_path = Path(args.support_bundle)
+                log_file = bundle_path.parent / f"{bundle_path.stem}_analyzer.log"
+            
+            setup_logging(log_file=log_file)
+            
+            # Run analysis based on input type
+            if args.support_bundle:
+                self.analyze_support_bundle(args)
+            elif args.parquet_files:
+                self.analyze_parquet_files(args)
+            
+            return 0
+            
+        except ValidationError as e:
+            self.logger.error(f"❌ Validation error: {e}")
+            return 1
+        except ConfigurationError as e:
+            self.logger.error(f"❌ Configuration error: {e}")
+            return 1
+        except AnalysisError as e:
+            self.logger.error(f"❌ Analysis error: {e}")
+            return 1
+        except LogAnalyzerError as e:
+            self.logger.error(f"❌ Application error: {e}")
+            return 1
+        except KeyboardInterrupt:
+            self.logger.info("🛑 Analysis interrupted by user")
+            return 1
+        except Exception as e:
+            self.logger.error(f"❌ Unexpected error: {e}")
+            return 1
 
-    # --- Insert report into PostgreSQL (once, at the end) ---
-    if output_json is not None:
-        postProcess(output_json, support_bundle_name, logger, success_marker_file)
+
+def main():
+    """Main entry point."""
+    app = LogAnalyzerApp()
+    sys.exit(app.run())
+
+
+if __name__ == "__main__":
+    main() 
