@@ -177,11 +177,10 @@ class AnalysisService:
         support_bundle_info: SupportBundleInfo, 
         analysis_config: AnalysisConfig
     ) -> Dict[str, Dict[str, NodeAnalysisResult]]:
-        """Analyze logs using parallel processing."""
+        """Analyze logs using parallel processing with a pip-style tqdm progress bar."""
         # Prepare tasks for parallel processing
         tasks = []
         task_id = 0
-        
         for node_name, node_data in support_bundle_info.log_files_metadata.items():
             for log_type, log_type_data in node_data.items():
                 for sub_type, sub_type_data in log_type_data.items():
@@ -191,7 +190,6 @@ class AnalysisService:
                         analysis_config.start_time, 
                         analysis_config.end_time
                     )
-                    
                     if filtered_files:
                         tasks.append((
                             task_id,
@@ -202,44 +200,43 @@ class AnalysisService:
                             analysis_config
                         ))
                         task_id += 1
-        
-        # Process tasks in parallel
+        # Process tasks in parallel with tqdm progress bar
         if tasks:
+            results = []
             with Pool(processes=analysis_config.parallel_threads) as pool:
-                results = pool.map(self._analyze_node_logs_worker, tasks)
-            
+                for result in tqdm(
+                    pool.imap_unordered(self._analyze_node_logs_worker, tasks),
+                    total=len(tasks),
+                    desc="Analyzing logs",
+                    dynamic_ncols=True,
+                    colour="green"
+                ):
+                    results.append(result)
             # Aggregate results
             aggregated_results = {}
             for result in results:
                 if result:
                     node_name = result.node_name
                     log_type = result.log_type
-                    
                     if node_name not in aggregated_results:
                         aggregated_results[node_name] = {}
-                    
                     if log_type not in aggregated_results[node_name]:
                         aggregated_results[node_name][log_type] = result
                     else:
                         # Merge log messages
                         for pattern_name, stats in result.log_messages.items():
                             if pattern_name in aggregated_results[node_name][log_type].log_messages:
-                                # Merge statistics
                                 existing_stats = aggregated_results[node_name][log_type].log_messages[pattern_name]
                                 existing_stats.count += stats.count
                                 existing_stats.start_time = min(existing_stats.start_time, stats.start_time)
                                 existing_stats.end_time = max(existing_stats.end_time, stats.end_time)
-                                
-                                # Merge histogram
                                 for time_key, count in stats.histogram.items():
                                     existing_stats.histogram[time_key] = (
                                         existing_stats.histogram.get(time_key, 0) + count
                                     )
                             else:
                                 aggregated_results[node_name][log_type].log_messages[pattern_name] = stats
-            
             return aggregated_results
-        
         return {}
     
     def _filter_files_by_time(
