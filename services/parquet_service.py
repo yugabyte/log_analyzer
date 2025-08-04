@@ -109,14 +109,18 @@ class ParquetAnalysisService:
         
         try:
             logger.info("🚀 Starting Parquet analysis...")
+            # Extract bundle name
+            bundle_name = self.get_bundle_name_from_parquet(parquet_dir)
             
             # Build DuckDB query
             parquet_path = str(parquet_dir / "*.parquet")
-            pattern_filters = self._build_pattern_filters(patterns)
+            # pattern_filters = self._build_pattern_filters(patterns)
             # Enhanced filtering to remove blank messages and whitespace-only messages
-            where_clause = "node_name IS NOT NULL AND message IS NOT NULL AND message != '' AND TRIM(message) != '' AND (" + " OR ".join(pattern_filters) + ")"
-            
-            bundle_name = self.get_bundle_name_from_parquet(parquet_dir)
+            pattern_filters = []
+            for pattern in patterns:
+                safe_pattern = pattern.replace("'", "''").replace("\\", "\\\\")
+                pattern_filters.append(f"REGEXP_MATCHES(message, '(?i){safe_pattern}')")
+            where_clause = "node_name IS NOT NULL AND (" + " OR ".join(pattern_filters) + ")"
             
             # Main analysis query
             sql = f"""

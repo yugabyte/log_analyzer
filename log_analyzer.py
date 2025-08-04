@@ -157,6 +157,13 @@ class LogAnalyzerApp:
             help="List of errors to generate histogram (e.g., 'error1,error2,error3')"
         )
         
+        # Force option
+        parser.add_argument(
+            "--force",
+            action="store_true",
+            help="Force analysis even if report already exists"
+        )
+        
         return parser
     
     def validate_arguments(self, args: argparse.Namespace) -> None:
@@ -256,11 +263,13 @@ class LogAnalyzerApp:
         bundle_name = bundle_path.stem.replace('.tar', '').replace('.tgz', '')
         existing_report_id = self.database_service.check_report_exists(bundle_name)
         
-        if existing_report_id:
-            self.logger.warning(f"Analysis already completed for support bundle '{bundle_name}'.")
-            self.logger.warning(f"Use the link below to view the report:")
+        if existing_report_id and not args.force:
+            self.logger.warning(f"📊 Analysis already completed for support bundle '{bundle_name}'.")
+            self.logger.warning(f"🔁 Use --force option to re-trigger the analysis forcefully.")
+            self.logger.warning(f"🔗 Use the link below to view the report:")
             report_url = f"http://{settings.server.host}:{settings.server.port}/reports/{existing_report_id}"
             self.logger.warning(report_url)
+            self.logger.info(f"🔁 Use --force option to re-trigger the analysis forcefully.")            
             return
         
         # Create analysis configuration
@@ -332,11 +341,13 @@ class LogAnalyzerApp:
         self.logger.info(f"🚀 Starting Parquet analysis for: {bundle_name}")
         
         existing_report_id = self.database_service.check_report_exists(bundle_name)
-        if existing_report_id:
-            self.logger.warning(f"Analysis already completed for Parquet bundle '{bundle_name}'.")
-            self.logger.warning(f"Use the link below to view the report:")
+        if existing_report_id and not args.force:
+            # If report already exists and --force is not used, skip analysis
+            self.logger.warning(f"📊 Analysis already completed for Parquet bundle '{bundle_name}'.")
+            self.logger.warning(f"🔗 Use the link below to view the report:")
             report_url = f"http://{settings.server.host}:{settings.server.port}/reports/{existing_report_id}"
             self.logger.warning(report_url)
+            self.logger.info(f"🔁 Use --force option to re-trigger the analysis forcefully.")
             return
         
         self.logger.info(f"📊 Using {len(patterns)} patterns for analysis")
