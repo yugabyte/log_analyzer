@@ -10,6 +10,8 @@ from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime
 import logging
 from collections import defaultdict
+from pathlib import Path
+import json
 
 from models.log_metadata import LogMessageStats
 from config.settings import settings
@@ -68,34 +70,38 @@ class PatternMatcher:
         Returns:
             Dictionary of pattern names to compiled patterns
         """
+        # Dynamically select patterns based on config sections
+        # Instead of hardcoded names, use all loaded patterns for the log type
         if log_type == "postgres":
-            return {name: pattern for name, pattern in self.patterns_cache.items() 
-                   if name in self._get_pg_pattern_names()}
+            # Only include patterns loaded from the pg section
+            pg_config = self._pg_pattern_names_from_config()
+            return {name: self.patterns_cache[name] for name in pg_config if name in self.patterns_cache}
         else:
-            return {name: pattern for name, pattern in self.patterns_cache.items() 
-                   if name in self._get_universe_pattern_names()}
-    
-    def _get_pg_pattern_names(self) -> List[str]:
-        """Get PostgreSQL pattern names."""
-        return [
-            "connection_error",
-            "query_timeout",
-            "deadlock_detected",
-            "insufficient_memory",
-            "disk_full",
-            "authentication_failed"
-        ]
-    
-    def _get_universe_pattern_names(self) -> List[str]:
-        """Get universe pattern names."""
-        return [
-            "tablet_not_found",
-            "leader_not_ready",
-            "network_timeout",
-            "consensus_error",
-            "compaction_error",
-            "memory_pressure"
-        ]
+            # All other log types use universe patterns
+            universe_config = self._universe_pattern_names_from_config()
+            return {name: self.patterns_cache[name] for name in universe_config if name in self.patterns_cache}
+
+    def _pg_pattern_names_from_config(self) -> list:
+        # Helper to get all pattern names from pg config
+        try:
+            import yaml
+            config_path = settings.log_conf_path
+            with open(config_path, 'r') as f:
+                config = yaml.safe_load(f)
+            return [msg["name"] for msg in config.get("pg", {}).get("log_messages", [])]
+        except Exception:
+            return []
+
+    def _universe_pattern_names_from_config(self) -> list:
+        # Helper to get all pattern names from universe config
+        try:
+            import yaml
+            config_path = settings.log_conf_path
+            with open(config_path, 'r') as f:
+                config = yaml.safe_load(f)
+            return [msg["name"] for msg in config.get("universe", {}).get("log_messages", [])]
+        except Exception:
+            return []
     
     def match_line(self, line: str, patterns: Dict[str, re.Pattern]) -> Optional[Tuple[str, re.Match]]:
         """
@@ -137,10 +143,12 @@ class PatternMatcher:
             Dictionary of pattern names to LogMessageStats
         """
         from services.file_processor import FileProcessor
-        
+
         file_processor = FileProcessor()
         message_stats: Dict[str, LogMessageStats] = {}
-        
+
+        # Ensure file_path is a Path object
+        file_path = Path(file_path)
         try:
             for line_num, line in enumerate(file_processor.read_log_file(file_path)):
                 # Parse timestamp from line
@@ -236,4 +244,4 @@ class PatternMatcher:
             except re.error as e:
                 logger.warning(f"Invalid regex pattern '{pattern}': {e}")
         
-        return patterns 
+        return patterns

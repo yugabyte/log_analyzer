@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Iterator, Optional, List, Dict, Any
 from datetime import datetime
 import logging
+import json
 
 from utils.exceptions import FileProcessingError, SupportBundleError
 from models.log_metadata import LogFileMetadata, SupportBundleInfo
@@ -25,7 +26,7 @@ class FileProcessor:
     """Service for processing log files and support bundles."""
     
     def __init__(self):
-        self.supported_extensions = {'.log', '.gz', '.txt'}
+        self.supported_logs = {'tserver', 'master', 'postgres'}
         self.archive_extensions = {'.tar.gz', '.tgz'}
     
     def extract_support_bundle(self, bundle_path: Path) -> Path:
@@ -108,7 +109,7 @@ class FileProcessor:
         
         for file_path in directory.rglob("*"):
             if (file_path.is_file() and 
-                file_path.suffix in self.supported_extensions and
+                any(pattern in file_path.name.lower() for pattern in self.supported_logs) and
                 self._is_log_file(file_path)):
                 log_files.append(file_path)
         
@@ -121,10 +122,8 @@ class FileProcessor:
         
         # Check for log file patterns
         log_patterns = [
-            'info', 'warn', 'error', 'fatal', 'postgres',
-            'tserver', 'master', 'controller', 'application'
+            'tserver', 'master', 'controller', 'postgres'
         ]
-        
         return any(pattern in filename for pattern in log_patterns)
     
     def read_log_file(self, file_path: Path) -> Iterator[str]:
@@ -196,9 +195,6 @@ class FileProcessor:
                 timestamp = self._parse_timestamp(line)
                 if timestamp:
                     return timestamp
-                # Only check first 10 lines
-                if line.startswith('I') or line.startswith('W') or line.startswith('E'):
-                    break
         except Exception as e:
             logger.debug(f"Failed to extract start time from {file_path}: {e}")
         
@@ -208,7 +204,7 @@ class FileProcessor:
         """Extract the end time from a log file."""
         try:
             lines = list(self.read_log_file(file_path))
-            for line in reversed(lines[-10:]):  # Check last 10 lines
+            for line in reversed(lines[-20:]):  # Check last 20 lines
                 timestamp = self._parse_timestamp(line)
                 if timestamp:
                     return timestamp
@@ -293,4 +289,4 @@ class FileProcessor:
         elif "application" in file_path.name.lower():
             return "INFO"
         else:
-            return "unknown" 
+            return "unknown"

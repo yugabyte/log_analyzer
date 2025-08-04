@@ -208,7 +208,7 @@ class LogAnalyzerApp:
     
     def parse_time_range(self, args: argparse.Namespace) -> tuple[datetime, datetime]:
         """Parse and validate time range from arguments."""
-        # Calculate default time range (7 days ago to now)
+        # Calculate default time range
         seven_days_ago = datetime.now() - timedelta(days=settings.analysis_config.default_time_range_days)
         seven_days_ago = seven_days_ago.strftime("%m%d %H:%M")
         
@@ -297,11 +297,6 @@ class LogAnalyzerApp:
             # Generate report URL
             report_url = f"http://{settings.server.host}:{settings.server.port}/reports/{report_id}"
             
-            self.logger.info("")
-            self.logger.info("")
-            self.logger.info("👉 Report inserted into public.log_analyzer_reports table.")
-            self.logger.info(f"👉 ⌘ + click to open your report at: {report_url}")
-            
             # Create success marker file
             marker_file = bundle_path.parent / f"{bundle_name}.analyzed"
             try:
@@ -319,7 +314,7 @@ class LogAnalyzerApp:
             return
         
         self.logger.info("✅ Analysis completed successfully!")
-        self.logger.info(f"📊 Report available at: {report_url}")
+        self.logger.info(f"👉 Report available at: {report_url}")
     
     def analyze_parquet_files(self, args: argparse.Namespace) -> None:
         """Analyze Parquet files."""
@@ -431,11 +426,6 @@ class LogAnalyzerApp:
             
             db_time = time.time() - start_db
             
-            self.logger.info("")
-            self.logger.info("")
-            self.logger.info("👉 Report inserted into public.log_analyzer_reports table.")
-            self.logger.info(f"👉 ⌘ + click to open your report at: {report_url}")
-            
         except Exception as e:
             self.logger.error(f"👉 Failed to insert report into PostgreSQL: {e}")
             self.logger.warning("⚠️  Report could not be stored in database. Check database connection.")
@@ -443,19 +433,12 @@ class LogAnalyzerApp:
         
         total_time = time.time() - start_analysis
         
-        # Show timing breakdown
-        self.logger.info("")
-        self.logger.info("📈 Performance Summary:")
-        self.logger.info(f"   - Analysis: {analysis_time:.2f}s ({(analysis_time/total_time)*100:.1f}%)")
-        self.logger.info(f"   - File save: {save_time:.2f}s ({(save_time/total_time)*100:.1f}%)")
-        self.logger.info(f"   - Database: {db_time:.2f}s ({(db_time/total_time)*100:.1f}%)")
-        self.logger.info(f"   - Total: {total_time:.2f}s")
-        
+        self.logger.info(f"🎯 Total execution time: {total_time:.2f} seconds")        
         self.logger.info("✅ Parquet analysis completed successfully!")
         self.logger.info(f"📊 Results saved to: {output_path}")
         
         if 'report_url' in locals():
-            self.logger.info(f"📊 Report available at: {report_url}")
+            self.logger.info(f"👉 Report available at: {report_url}")
     
     def run(self) -> int:
         """Main application entry point."""

@@ -99,7 +99,8 @@ class AnalysisService:
         
         # Extract metadata for each log file
         metadata_by_node = {}
-        
+        metadata_for_json = {}
+
         for log_file in log_files:
             metadata = self.file_processor.get_file_metadata(log_file)
             if not metadata:
@@ -112,14 +113,31 @@ class AnalysisService:
             
             if node_name not in metadata_by_node:
                 metadata_by_node[node_name] = {}
-            
             if log_type not in metadata_by_node[node_name]:
                 metadata_by_node[node_name][log_type] = {}
-            
             if sub_type not in metadata_by_node[node_name][log_type]:
                 metadata_by_node[node_name][log_type][sub_type] = {}
-            
             metadata_by_node[node_name][log_type][sub_type][str(log_file)] = metadata
+
+            # For JSON: only logStartsAt and logEndsAt as strings
+            if node_name not in metadata_for_json:
+                metadata_for_json[node_name] = {}
+            if log_type not in metadata_for_json[node_name]:
+                metadata_for_json[node_name][log_type] = {}
+            if sub_type not in metadata_for_json[node_name][log_type]:
+                metadata_for_json[node_name][log_type][sub_type] = {}
+            metadata_for_json[node_name][log_type][sub_type][str(log_file)] = {
+                "logStartsAt": metadata.start_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "logEndsAt": metadata.end_time.strftime("%Y-%m-%d %H:%M:%S")
+            }
+        
+        # Dump metadata to JSON for debugging (original format)
+        metadata_json_path = extracted_dir / "log_file_metadata.json"
+        with open(metadata_json_path, 'w') as f:
+            json.dump(metadata_for_json, f, indent=2)
+        
+        logger.info(f"Metadata for support bundle '{bundle_name}' written to {metadata_json_path}")
+        print(f"Metadata for support bundle '{bundle_name}' written to {metadata_json_path}")
         
         return SupportBundleInfo(
             name=bundle_name.replace('.tar.gz', '').replace('.tgz', ''),
@@ -379,4 +397,4 @@ class AnalysisService:
             )
             
         except Exception as e:
-            raise AnalysisError(f"Failed to load report: {e}") 
+            raise AnalysisError(f"Failed to load report: {e}")

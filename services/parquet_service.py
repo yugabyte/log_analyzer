@@ -153,7 +153,6 @@ class ParquetAnalysisService:
             }
             
             total_time = time.time() - start_total
-            logger.info(f"🎯 Total execution time: {total_time:.2f} seconds.")
             logger.info(f"📈 Performance breakdown:")
             logger.info(f"   - DuckDB query: {duckdb_time:.2f}s ({(duckdb_time/total_time)*100:.1f}%)")
             logger.info(f"   - Pattern processing: {processing_time:.2f}s ({(processing_time/total_time)*100:.1f}%)")
@@ -292,9 +291,7 @@ class ParquetAnalysisService:
             
             with open(output_path, "w") as f:
                 json.dump(result, f, indent=2)
-            
-            logger.info(f"Results saved to: {output_path}")
-            
+                        
         except Exception as e:
             raise AnalysisError(f"Failed to save results: {e}")
     

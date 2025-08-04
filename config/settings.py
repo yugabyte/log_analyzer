@@ -32,7 +32,7 @@ class ServerConfig:
 class AnalysisConfig:
     """Log analysis configuration settings."""
     default_parallel_threads: int = 5
-    default_time_range_days: int = 7
+    default_time_range_days: int = 30
     max_file_size_mb: int = 100
     supported_log_types: Dict[str, str] = None
     supported_process_types: list = None
@@ -67,7 +67,6 @@ class Settings:
             with open(db_config_path) as f:
                 db_data = json.load(f)
             self.database = DatabaseConfig(**db_data)
-            print(f"✅ Database config loaded from {db_config_path}")
         else:
             # Default database configuration
             self.database = DatabaseConfig(
@@ -87,7 +86,6 @@ class Settings:
             with open(server_config_path) as f:
                 server_data = json.load(f)
             self.server = ServerConfig(**server_data)
-            print(f"✅ Server config loaded from {server_config_path}")
         else:
             # Default server configuration
             self.server = ServerConfig(host="127.0.0.1", port=5000)
