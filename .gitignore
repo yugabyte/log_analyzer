@@ -1,4 +1,5 @@
 db_config.json
+server_config.json
 analyzer.log
 log_files_metadata.json
 node_log_summary.json
