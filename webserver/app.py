@@ -357,10 +357,14 @@ def create_app() -> Flask:
     return web_app.app
 
 
+# Create the Flask app instance for Gunicorn compatibility
+app = create_app()
+
+
 if __name__ == '__main__':
     # Set up logging
     setup_logging()
     
     # Create and run app
     web_app = LogAnalyzerWebApp()
-    web_app.run(debug=True) 
+    web_app.run(debug=True)
