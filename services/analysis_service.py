@@ -102,35 +102,50 @@ class AnalysisService:
         metadata_by_node = {}
         metadata_for_json = {}
 
-        for log_file in log_files:
-            metadata = self.file_processor.get_file_metadata(log_file)
-            if not metadata:
-                continue
-            
-            # Organize by node -> log_type -> sub_type -> file_path -> metadata
-            node_name = metadata.node_name
-            log_type = metadata.log_type
-            sub_type = metadata.sub_type
-            
-            if node_name not in metadata_by_node:
-                metadata_by_node[node_name] = {}
-            if log_type not in metadata_by_node[node_name]:
-                metadata_by_node[node_name][log_type] = {}
-            if sub_type not in metadata_by_node[node_name][log_type]:
-                metadata_by_node[node_name][log_type][sub_type] = {}
-            metadata_by_node[node_name][log_type][sub_type][str(log_file)] = metadata
+        # Extract metadata for each log file with progress bar
+        from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn, TaskProgressColumn
+        total = len(log_files)
+        width = len(str(total))
+        columns = [
+            TextColumn("[cyan]Building logfile metadata..."),
+            BarColumn(),
+            TaskProgressColumn(),
+            TextColumn(f"[{{task.completed:0{width}d}}/{{task.total:0{width}d}}]"),
+            TimeElapsedColumn()
+        ]
+        with Progress(*columns) as progress:
+            task = progress.add_task("metadata", total=total)
+            for log_file in log_files:
+                metadata = self.file_processor.get_file_metadata(log_file)
+                if not metadata:
+                    progress.update(task, advance=1)
+                    continue
+                
+                # Organize by node -> log_type -> sub_type -> file_path -> metadata
+                node_name = metadata.node_name
+                log_type = metadata.log_type
+                sub_type = metadata.sub_type
+                
+                if node_name not in metadata_by_node:
+                    metadata_by_node[node_name] = {}
+                if log_type not in metadata_by_node[node_name]:
+                    metadata_by_node[node_name][log_type] = {}
+                if sub_type not in metadata_by_node[node_name][log_type]:
+                    metadata_by_node[node_name][log_type][sub_type] = {}
+                metadata_by_node[node_name][log_type][sub_type][str(log_file)] = metadata
 
-            # For JSON: only logStartsAt and logEndsAt as strings
-            if node_name not in metadata_for_json:
-                metadata_for_json[node_name] = {}
-            if log_type not in metadata_for_json[node_name]:
-                metadata_for_json[node_name][log_type] = {}
-            if sub_type not in metadata_for_json[node_name][log_type]:
-                metadata_for_json[node_name][log_type][sub_type] = {}
-            metadata_for_json[node_name][log_type][sub_type][str(log_file)] = {
-                "logStartsAt": metadata.start_time.strftime("%Y-%m-%d %H:%M:%S"),
-                "logEndsAt": metadata.end_time.strftime("%Y-%m-%d %H:%M:%S")
-            }
+                # For JSON: only logStartsAt and logEndsAt as strings
+                if node_name not in metadata_for_json:
+                    metadata_for_json[node_name] = {}
+                if log_type not in metadata_for_json[node_name]:
+                    metadata_for_json[node_name][log_type] = {}
+                if sub_type not in metadata_for_json[node_name][log_type]:
+                    metadata_for_json[node_name][log_type][sub_type] = {}
+                metadata_for_json[node_name][log_type][sub_type][str(log_file)] = {
+                    "logStartsAt": metadata.start_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "logEndsAt": metadata.end_time.strftime("%Y-%m-%d %H:%M:%S")
+                }
+                progress.update(task, advance=1)
         
         # Dump metadata to JSON for debugging (original format)
         metadata_json_path = extracted_dir / "log_file_metadata.json"
