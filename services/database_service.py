@@ -418,4 +418,32 @@ class DatabaseService:
                     
         except Exception as e:
             logger.warning(f"Failed to check report existence: {e}")
-            return None 
+            return None
+    
+    def delete_report(self, report_id: str) -> bool:
+        """
+        Delete a report from the database by its UUID.
+        
+        Args:
+            report_id: Report ID (UUID string)
+            
+        Returns:
+            True if a report was deleted, False otherwise
+            
+        Raises:
+            DatabaseError: If deletion fails
+        """
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        DELETE FROM public.log_analyzer_reports WHERE id::text = %s
+                        """,
+                        (report_id,)
+                    )
+                    deleted = cur.rowcount
+                    conn.commit()
+                    return deleted > 0
+        except Exception as e:
+            raise DatabaseError(f"Failed to delete report: {e}")

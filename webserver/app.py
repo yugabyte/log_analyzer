@@ -235,6 +235,22 @@ class LogAnalyzerWebApp:
             except Exception as e:
                 self.logger.error(f"Unexpected error getting latest datetime: {e}")
                 return jsonify({'error': 'Internal server error'}), 500
+        
+        @self.app.route('/api/reports/<uuid>', methods=['DELETE'])
+        def delete_report_api(uuid):
+            """API endpoint to delete a report by UUID."""
+            try:
+                deleted = self.db_service.delete_report(uuid)
+                if deleted:
+                    return jsonify({'success': True}), 200
+                else:
+                    return jsonify({'error': 'Report not found'}), 404
+            except DatabaseError as e:
+                self.logger.error(f"Database error deleting report: {e}")
+                return jsonify({'error': 'Database error'}), 500
+            except Exception as e:
+                self.logger.error(f"Unexpected error deleting report: {e}")
+                return jsonify({'error': 'Internal server error'}), 500
     
     def _setup_error_handlers(self) -> None:
         """Set up error handlers for the application."""
