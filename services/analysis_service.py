@@ -15,7 +15,8 @@ import logging
 import threading
 import time
 
-from tqdm import tqdm
+from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn, TaskProgressColumn
+
 from colorama import Fore, Style
 
 from models.log_metadata import (
@@ -136,8 +137,7 @@ class AnalysisService:
         with open(metadata_json_path, 'w') as f:
             json.dump(metadata_for_json, f, indent=2)
         
-        logger.info(f"Metadata for support bundle '{bundle_name}' written to {metadata_json_path}")
-        print(f"Metadata for support bundle '{bundle_name}' written to {metadata_json_path}")
+        logger.info(f"Metadata written to {metadata_json_path}")
         
         return SupportBundleInfo(
             name=bundle_name.replace('.tar.gz', '').replace('.tgz', ''),
@@ -177,7 +177,7 @@ class AnalysisService:
         support_bundle_info: SupportBundleInfo, 
         analysis_config: AnalysisConfig
     ) -> Dict[str, Dict[str, NodeAnalysisResult]]:
-        """Analyze logs using parallel processing with a pip-style tqdm progress bar."""
+        """Analyze logs using parallel processing with a rich progress bar."""
         # Prepare tasks for parallel processing
         tasks = []
         task_id = 0
@@ -200,18 +200,24 @@ class AnalysisService:
                             analysis_config
                         ))
                         task_id += 1
-        # Process tasks in parallel with tqdm progress bar
+        # Process tasks in parallel with rich progress bar
         if tasks:
             results = []
             with Pool(processes=analysis_config.parallel_threads) as pool:
-                for result in tqdm(
-                    pool.imap_unordered(self._analyze_node_logs_worker, tasks),
-                    total=len(tasks),
-                    desc="Analyzing logs",
-                    dynamic_ncols=True,
-                    colour="green"
-                ):
-                    results.append(result)
+                total = len(tasks)
+                width = len(str(total))
+                columns = [
+                    TextColumn("[cyan]Analyzing support bundle...."),
+                    BarColumn(),
+                    TaskProgressColumn(),
+                    TextColumn(f"[{{task.completed:0{width}d}}/{{task.total:0{width}d}}]"),
+                    TimeElapsedColumn()
+                ]
+                with Progress(*columns) as progress:
+                    task_id_progress = progress.add_task("parse", total=total)
+                    for result in pool.imap_unordered(self._analyze_node_logs_worker, tasks):
+                        results.append(result)
+                        progress.update(task_id_progress, advance=1)
             # Aggregate results
             aggregated_results = {}
             for result in results:

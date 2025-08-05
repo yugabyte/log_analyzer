@@ -17,6 +17,7 @@ import json
 from utils.exceptions import FileProcessingError, SupportBundleError
 from models.log_metadata import LogFileMetadata, SupportBundleInfo
 from config.settings import settings
+from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn, TaskProgressColumn
 
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ class FileProcessor:
     
     def extract_support_bundle(self, bundle_path: Path) -> Path:
         """
-        Extract a support bundle archive.
+        Extract a support bundle archive with a progress bar.
         
         Args:
             bundle_path: Path to the support bundle archive
@@ -44,20 +45,29 @@ class FileProcessor:
         """
         if not bundle_path.exists():
             raise SupportBundleError(f"Support bundle not found: {bundle_path}")
-        
         if not self._is_support_bundle(bundle_path):
             raise SupportBundleError(f"Invalid support bundle format: {bundle_path}")
-        
         try:
             extracted_dir = bundle_path.parent / bundle_path.stem.replace('.tar', '').replace('.tgz', '')
-            
-            # Extract the main archive
+            # Extract the main archive with progress bar
             with tarfile.open(bundle_path, "r:gz") as tar:
-                tar.extractall(bundle_path.parent)
-            
-            # Extract nested archives
+                members = tar.getmembers()
+                total = len(members)
+                width = len(str(total))
+                columns = [
+                    TextColumn("[cyan]Extracting support bundle..."),
+                    BarColumn(),
+                    TaskProgressColumn(),
+                    TextColumn(f"[{{task.completed:0{width}d}}/{{task.total:0{width}d}}]"),
+                    TimeElapsedColumn()
+                ]
+                with Progress(*columns) as progress:
+                    task = progress.add_task("extract", total=total)
+                    for idx, member in enumerate(members, 1):
+                        tar.extract(member, bundle_path.parent)
+                        progress.update(task, advance=1)
+            # Extract nested archives (no progress bar for simplicity)
             self._extract_nested_archives(extracted_dir)
-            
             logger.info(f"Successfully extracted support bundle to: {extracted_dir}")
             return extracted_dir
             
@@ -122,7 +132,7 @@ class FileProcessor:
         
         # Check for log file patterns
         log_patterns = [
-            'tserver', 'master', 'controller', 'postgres'
+            'log'
         ]
         return any(pattern in filename for pattern in log_patterns)
     
