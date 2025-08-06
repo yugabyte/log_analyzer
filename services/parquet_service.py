@@ -247,11 +247,11 @@ class ParquetAnalysisService:
                         for t in times:
                             if isinstance(t, datetime):
                                 minute = t.replace(second=0, microsecond=0)
-                                minute_str = minute.strftime('%Y-%m-%dT%H:%M:%00Z')
+                                minute_str = minute.strftime('%Y-%m-%dT%H:%M:00Z')
                             else:
                                 dt = datetime.strptime(str(t)[:19], "%Y-%m-%d %H:%M:%S")
                                 minute = dt.replace(second=0, microsecond=0)
-                                minute_str = minute.strftime('%Y-%m-%dT%H:%M:%00Z')
+                                minute_str = minute.strftime('%Y-%m-%dT%H:%M:00Z')
                             histogram[minute_str] += 1
                         
                         # Format times for output
