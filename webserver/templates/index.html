@@ -258,11 +258,24 @@
         <h3>How to Run Log Analyzer</h3>
         <ol class="mb-1-5em">
           <li>
-            Run Log Analyzer<br /><code
-              >log_analyzer.py -s yb-support-bundle-test-universe-20250101000000.tar.gz</code
+            Run against support bundle <br /><code
+              >log_analyzer.py -s yb-support-bundle-test-universe-20250101000000_logs.tar.gz</code
+            >
+          </li>
+          <li>
+            Run against parquet file <br /><code
+              >log_analyzer.py --parquet_files parquet_files/yb-support-bundle-test-universe-20250101000000_logs</code
             >
           </li>
         </ol>
+        <h3>How to delete a report</h3>
+        <p>
+          To delete a report, run the following command:
+          <code>
+            <br/>
+            curl -X DELETE http://your-api-/api/reports/{report_uuid}
+          </code>
+        </p>
         <div class="help-modal-tip">
           <b>Need more help? Drop a message to </b>
           <a href="https://yugabyte.slack.com/archives/D02TSRPK9SA" target="_blank"
