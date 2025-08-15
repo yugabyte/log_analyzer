@@ -297,6 +297,9 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     if (allBucketTimes.length === 0) {
       histogramDiv.innerHTML = "<em>No histogram data available.</em>";
+      // Also clear dashboards grid
+      const dashboardsGrid = document.getElementById("log-message-dashboards");
+      if (dashboardsGrid) dashboardsGrid.innerHTML = "";
       return;
     }
     // Parse ISO strings to Date objects
@@ -371,7 +374,7 @@ document.addEventListener("DOMContentLoaded", function () {
         categoryPercentage: 0.8,
       })
     );
-    // Chart.js config
+    // Chart.js config for main histogram
     const chartConfig = {
       type: "bar",
       data: {
@@ -383,26 +386,20 @@ document.addEventListener("DOMContentLoaded", function () {
         maintainAspectRatio: false,
         plugins: {
           legend: {
-            position: "bottom", // Move legend to bottom
+            position: "bottom",
             labels: {
               font: { size: 15, family: "Inter, Arial, sans-serif" },
               boxWidth: 18,
               padding: 18,
             },
-            align: "start", // Align legend to start
+            align: "start",
           },
-          title: {
-            display: false,
-            text: "Log Message Histogram",
-            font: { size: 22, family: "Inter, Arial, sans-serif" },
-            color: "#172447",
-          },
+          title: { display: false },
           tooltip: {
             mode: "index",
             intersect: false,
             callbacks: {
               label: function (context) {
-                // Only show labels with non-zero and defined values
                 if (
                   !context.parsed ||
                   context.parsed.y == null ||
@@ -414,21 +411,11 @@ document.addEventListener("DOMContentLoaded", function () {
             },
           },
           zoom: {
-            pan: {
-              enabled: true,
-              mode: "x",
-            },
+            pan: { enabled: true, mode: "x" },
             zoom: {
-              wheel: {
-                enabled: true,
-              },
-              pinch: {
-                enabled: true,
-              },
-              drag: {
-                enabled: true,
-                modifierKey: null,
-              },
+              wheel: { enabled: true },
+              pinch: { enabled: true },
+              drag: { enabled: true, modifierKey: null },
               mode: "x",
             },
             limits: {
@@ -443,17 +430,13 @@ document.addEventListener("DOMContentLoaded", function () {
             ticks: {
               color: "#4a5568",
               font: { size: 13 },
-              // Show only a few ticks for readability
               callback: function (val, idx, ticks) {
-                // Show first, last, and every Nth tick
-                const N = Math.ceil(ticks.length / 8); // Show ~8 ticks max
+                const N = Math.ceil(ticks.length / 8);
                 if (idx === 0 || idx === ticks.length - 1 || idx % N === 0) {
-                  // If bucket is ISO datetime, show only time or short date
                   const dt = this.getLabelForValue(val);
                   if (dt.length > 16 && dt.includes("T")) {
-                    // Format as 'HH:MM' or 'MM-DD HH:MM'
-                    const date = dt.slice(5, 10); // MM-DD
-                    const time = dt.slice(11, 16); // HH:MM
+                    const date = dt.slice(5, 10);
+                    const time = dt.slice(11, 16);
                     return `${date} ${time}`;
                   }
                   return dt;
@@ -464,7 +447,7 @@ document.addEventListener("DOMContentLoaded", function () {
               minRotation: 0,
               autoSkip: false,
             },
-            grid: { color: "#e2e8f0", display: false }, // Hide grid lines
+            grid: { color: "#e2e8f0", display: false },
           },
           y: {
             title: {
@@ -474,7 +457,7 @@ document.addEventListener("DOMContentLoaded", function () {
               font: { size: 16 },
             },
             ticks: { color: "#4a5568", font: { size: 13 } },
-            grid: { color: "#e2e8f0", display: false }, // Hide grid lines
+            grid: { color: "#e2e8f0", display: false },
             type: histogramScale === "log" ? "logarithmic" : "linear",
             beginAtZero: true,
           },
@@ -484,6 +467,371 @@ document.addEventListener("DOMContentLoaded", function () {
     // Render Chart.js
     const chartInstance = new Chart(canvas, chartConfig);
     window.histogramChartInstance = chartInstance;
+
+    // --- Grafana-like dashboards for each log message ---
+    const dashboardsGrid = document.getElementById("log-message-dashboards");
+    if (!dashboardsGrid) return;
+    dashboardsGrid.innerHTML = "";
+    // For each log message, collect per-node histogram data
+    const nodeList = Object.keys(jsonData.nodes);
+    const nodeColors = {};
+    nodeList.forEach((n, i) => {
+      nodeColors[n] = diverseColors[i % diverseColors.length];
+    });
+    Object.keys(messageBuckets).forEach((msg, msgIdx) => {
+      // For this message, collect per-node histogram
+      let perNodeBuckets = {};
+      nodeList.forEach((node) => {
+        perNodeBuckets[node] = {};
+      });
+      // Fill per-node buckets
+      Object.entries(jsonData.nodes).forEach(([node, nodeData]) => {
+        Object.entries(nodeData).forEach(([logType, logTypeData]) => {
+          Object.entries(logTypeData.logMessages || {}).forEach(
+            ([m, msgStats]) => {
+              if (m !== msg) return;
+              Object.entries(msgStats.histogram || {}).forEach(
+                ([bucket, count]) => {
+                  perNodeBuckets[node][bucket] =
+                    (perNodeBuckets[node][bucket] || 0) + count;
+                }
+              );
+            }
+          );
+        });
+      });
+      // Fill missing buckets with zero
+      nodeList.forEach((node) => {
+        allBuckets.forEach((b) => {
+          if (!(b in perNodeBuckets[node])) perNodeBuckets[node][b] = 0;
+        });
+      });
+      // Dashboard card
+      const card = document.createElement("div");
+      card.className = "dashboard-card";
+      // Title
+      const title = document.createElement("div");
+      title.className = "dashboard-title";
+      title.textContent = msg;
+      card.appendChild(title);
+      // Chart canvas
+      const chartDiv = document.createElement("div");
+      chartDiv.className = "dashboard-canvas";
+      const chartCanvas = document.createElement("canvas");
+      chartCanvas.height = 234;
+      chartCanvas.width = 510;
+      chartDiv.appendChild(chartCanvas);
+      card.appendChild(chartDiv);
+      // Popup button
+      const popupBtn = document.createElement("button");
+      popupBtn.className = "dashboard-popup-btn";
+      popupBtn.title = "Open larger view";
+      popupBtn.innerHTML =
+        '<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3.5" y="3.5" width="15" height="15" rx="3.5" stroke="currentColor" stroke-width="2"/><path d="M7 7H15V15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+      popupBtn.onclick = function (e) {
+        e.stopPropagation();
+        openDashboardPopup(msg, perNodeBuckets, allBuckets, nodeColors);
+      };
+      card.appendChild(popupBtn);
+      // --- Dashboard popup modal logic ---
+      function openDashboardPopup(msg, perNodeBuckets, allBuckets, nodeColors) {
+        // Remove any existing popup
+        let oldPopup = document.getElementById("dashboard-popup-overlay");
+        if (oldPopup) oldPopup.remove();
+        // Create overlay
+        const overlay = document.createElement("div");
+        overlay.className = "dashboard-popup-overlay";
+        overlay.id = "dashboard-popup-overlay";
+        // Modal
+        const modal = document.createElement("div");
+        modal.className = "dashboard-popup-modal";
+        // Close button
+        const closeBtn = document.createElement("button");
+        closeBtn.className = "dashboard-popup-close";
+        closeBtn.innerHTML = "&times;";
+        closeBtn.onclick = function () {
+          overlay.remove();
+        };
+        modal.appendChild(closeBtn);
+        // Title
+        const title = document.createElement("div");
+        title.className = "dashboard-popup-title";
+        title.textContent = msg;
+        modal.appendChild(title);
+        // Chart canvas
+        const chartDiv = document.createElement("div");
+        chartDiv.className = "dashboard-popup-canvas";
+        const chartCanvas = document.createElement("canvas");
+        chartCanvas.height = 510;
+        chartCanvas.width = 1350;
+        chartDiv.appendChild(chartCanvas);
+        modal.appendChild(chartDiv);
+        // Legend
+        const nodeList = Object.keys(perNodeBuckets);
+        let activeNodes = new Set(nodeList);
+        const legend = document.createElement("div");
+        legend.className = "dashboard-popup-legend";
+        nodeList.forEach((node) => {
+          const label = document.createElement("span");
+          label.className = "dashboard-popup-legend-label active";
+          // Bullet
+          const bullet = document.createElement("span");
+          bullet.className = "legend-bullet";
+          bullet.style.background = nodeColors[node];
+          label.appendChild(bullet);
+          // Text
+          const text = document.createElement("span");
+          text.textContent = node;
+          label.appendChild(text);
+          label.style.color = nodeColors[node];
+          label.onclick = function () {
+            if (activeNodes.has(node)) {
+              activeNodes.delete(node);
+              label.classList.remove("active");
+              label.classList.add("inactive");
+              label.style.color = "#b0b0b0";
+            } else {
+              activeNodes.add(node);
+              label.classList.add("active");
+              label.classList.remove("inactive");
+              label.style.color = nodeColors[node];
+            }
+            renderPopupChart();
+          };
+          legend.appendChild(label);
+        });
+        modal.appendChild(legend);
+        // Render chart
+        let chartInstance = null;
+        function renderPopupChart() {
+          if (chartInstance) chartInstance.destroy();
+          const datasets = nodeList
+            .filter((node) => activeNodes.has(node))
+            .map((node) => ({
+              label: node,
+              data: allBuckets.map((b) => perNodeBuckets[node][b] || 0),
+              backgroundColor: nodeColors[node],
+              borderColor: nodeColors[node],
+              borderWidth: 2,
+              fill: false,
+              pointRadius: 2.5,
+              tension: 0.2,
+            }));
+          chartInstance = new Chart(chartCanvas, {
+            type: "line",
+            data: {
+              labels: allBuckets,
+              datasets: datasets,
+            },
+            options: {
+              responsive: false,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                title: { display: false },
+                tooltip: {
+                  mode: "index",
+                  intersect: false,
+                  callbacks: {
+                    label: function (context) {
+                      if (
+                        !context.parsed ||
+                        context.parsed.y == null ||
+                        context.parsed.y === 0
+                      )
+                        return "";
+                      return `${context.dataset.label}: ${context.parsed.y}`;
+                    },
+                  },
+                },
+              },
+              scales: {
+                x: {
+                  title: { display: false },
+                  ticks: {
+                    color: "#4a5568",
+                    font: { size: 13 },
+                    callback: function (val, idx, ticks) {
+                      const N = Math.ceil(ticks.length / 10);
+                      if (
+                        idx === 0 ||
+                        idx === ticks.length - 1 ||
+                        idx % N === 0
+                      ) {
+                        const dt = this.getLabelForValue(val);
+                        if (dt.length > 16 && dt.includes("T")) {
+                          const date = dt.slice(5, 10);
+                          const time = dt.slice(11, 16);
+                          return `${date} ${time}`;
+                        }
+                        return dt;
+                      }
+                      return "";
+                    },
+                    maxRotation: 0,
+                    minRotation: 0,
+                    autoSkip: false,
+                  },
+                  grid: { color: "#e2e8f0", display: false },
+                },
+                y: {
+                  title: {
+                    display: true,
+                    text: "Count",
+                    color: "#4a5568",
+                    font: { size: 15 },
+                  },
+                  ticks: { color: "#4a5568", font: { size: 13 } },
+                  grid: { color: "#e2e8f0", display: false },
+                  type: histogramScale === "log" ? "logarithmic" : "linear",
+                  beginAtZero: true,
+                },
+              },
+            },
+          });
+        }
+        renderPopupChart();
+        // Overlay click closes popup (except modal itself)
+        overlay.onclick = function (e) {
+          if (e.target === overlay) overlay.remove();
+        };
+        // Keyboard Esc closes popup
+        document.addEventListener("keydown", function escListener(e) {
+          if (e.key === "Escape") {
+            overlay.remove();
+            document.removeEventListener("keydown", escListener);
+          }
+        });
+        // Add to body
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+      }
+      // Legend (node labels) - moved below chart
+      const legend = document.createElement("div");
+      legend.className = "dashboard-legend";
+      let activeNodes = new Set(nodeList);
+      nodeList.forEach((node) => {
+        const label = document.createElement("span");
+        label.className = "dashboard-legend-label active";
+        // Add colored bullet
+        const bullet = document.createElement("span");
+        bullet.className = "legend-bullet";
+        bullet.style.background = nodeColors[node];
+        label.appendChild(bullet);
+        // Add node name
+        const text = document.createElement("span");
+        text.textContent = node;
+        label.appendChild(text);
+        label.style.color = nodeColors[node];
+        label.onclick = function () {
+          if (activeNodes.has(node)) {
+            activeNodes.delete(node);
+            label.classList.remove("active");
+            label.classList.add("inactive");
+            label.style.color = "#b0b0b0";
+          } else {
+            activeNodes.add(node);
+            label.classList.add("active");
+            label.classList.remove("inactive");
+            label.style.color = nodeColors[node];
+          }
+          renderChart();
+        };
+        legend.appendChild(label);
+      });
+      card.appendChild(legend);
+      dashboardsGrid.appendChild(card);
+      // Render chart function
+      let chartInstance = null;
+      function renderChart() {
+        if (chartInstance) chartInstance.destroy();
+        const datasets = nodeList
+          .filter((node) => activeNodes.has(node))
+          .map((node) => ({
+            label: node,
+            data: allBuckets.map((b) => perNodeBuckets[node][b] || 0),
+            backgroundColor: nodeColors[node],
+            borderColor: nodeColors[node],
+            borderWidth: 2,
+            fill: false,
+            pointRadius: 1.5,
+            tension: 0.2,
+          }));
+        chartInstance = new Chart(chartCanvas, {
+          type: "line",
+          data: {
+            labels: allBuckets,
+            datasets: datasets,
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              title: { display: false },
+              tooltip: {
+                mode: "index",
+                intersect: false,
+                callbacks: {
+                  label: function (context) {
+                    if (
+                      !context.parsed ||
+                      context.parsed.y == null ||
+                      context.parsed.y === 0
+                    )
+                      return "";
+                    return `${context.dataset.label}: ${context.parsed.y}`;
+                  },
+                },
+              },
+            },
+            scales: {
+              x: {
+                title: { display: false },
+                ticks: {
+                  color: "#4a5568",
+                  font: { size: 11 },
+                  callback: function (val, idx, ticks) {
+                    const N = Math.ceil(ticks.length / 6);
+                    if (
+                      idx === 0 ||
+                      idx === ticks.length - 1 ||
+                      idx % N === 0
+                    ) {
+                      const dt = this.getLabelForValue(val);
+                      if (dt.length > 16 && dt.includes("T")) {
+                        const date = dt.slice(5, 10);
+                        const time = dt.slice(11, 16);
+                        return `${date} ${time}`;
+                      }
+                      return dt;
+                    }
+                    return "";
+                  },
+                  maxRotation: 0,
+                  minRotation: 0,
+                  autoSkip: false,
+                },
+                grid: { color: "#e2e8f0", display: false },
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: "Count",
+                  color: "#4a5568",
+                  font: { size: 13 },
+                },
+                ticks: { color: "#4a5568", font: { size: 11 } },
+                grid: { color: "#e2e8f0", display: false },
+                type: histogramScale === "log" ? "logarithmic" : "linear",
+                beginAtZero: true,
+              },
+            },
+          },
+        });
+      }
+      renderChart();
+    });
   }
 
   window.addEventListener("resize", function () {

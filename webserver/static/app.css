@@ -1,3 +1,201 @@
+/* Dashboard popup modal for larger view */
+.dashboard-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(23, 36, 71, 0.18);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dashboard-popup-modal {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 32px rgba(23, 36, 71, 0.18);
+  padding: 2.2em 2.5em 2em 2.5em;
+  min-width: 1050px;
+  max-width: 98vw;
+  min-height: 720px;
+  max-height: 96vh;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  position: relative;
+}
+.dashboard-popup-close {
+  position: absolute;
+  top: 18px;
+  right: 24px;
+  font-size: 2.1em;
+  color: #888;
+  background: none;
+  border: none;
+  cursor: pointer;
+  z-index: 2;
+  transition: color 0.15s;
+}
+.dashboard-popup-close:hover {
+  color: #e74c3c;
+}
+.dashboard-popup-title {
+  font-size: 1.18em;
+  font-weight: 700;
+  color: #172447;
+  margin-bottom: 1.1em;
+  margin-top: 0.2em;
+  text-align: left;
+}
+.dashboard-popup-canvas {
+  flex: 1;
+  min-height: 510px;
+  max-height: 90vh;
+  margin-bottom: 1.2em;
+}
+.dashboard-popup-legend {
+  margin-top: 0.7em;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2em;
+  align-items: center;
+}
+.dashboard-popup-legend-label {
+  cursor: pointer;
+  font-size: 1.05em;
+  font-weight: 500;
+  color: #172447;
+  margin-bottom: 2px;
+  margin-right: 18px;
+  background: none !important;
+  border: none !important;
+  border-radius: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  transition: color 0.15s;
+  opacity: 1;
+}
+.dashboard-popup-legend-label .legend-bullet {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border-radius: 50%;
+  margin-right: 0.3em;
+  vertical-align: middle;
+}
+.dashboard-popup-legend-label.active,
+.dashboard-popup-legend-label:hover {
+  color: #36a2eb;
+  text-decoration: underline;
+  opacity: 1;
+}
+.dashboard-popup-legend-label.inactive {
+  color: #b0b0b0 !important;
+  opacity: 0.7;
+  text-decoration: line-through;
+}
+.dashboard-card .dashboard-popup-btn {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  background: none;
+  border: none;
+  color: #36a2eb;
+  font-size: 1.3em;
+  cursor: pointer;
+  z-index: 2;
+  padding: 0.1em 0.3em;
+  transition: color 0.15s;
+}
+.dashboard-card .dashboard-popup-btn:hover {
+  color: #172447;
+}
+/* Dashboard grid for per-log-message charts */
+/* Dashboard grid for per-log-message charts */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(555px, 1fr));
+  gap: 28px;
+  margin-top: 2.5em;
+  margin-bottom: 2em;
+}
+.dashboard-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 1px 8px rgba(23, 36, 71, 0.06);
+  padding: 1.2em 1em 1em 1em;
+  min-width: 510px;
+  max-width: 630px;
+  height: 442px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  position: relative;
+}
+.dashboard-card .dashboard-title {
+  font-size: 1.08em;
+  font-weight: 600;
+  color: #172447;
+  margin-bottom: 0.5em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dashboard-card .dashboard-canvas {
+  flex: 1;
+  min-height: 234px;
+  max-height: 290px;
+  margin-bottom: 0.3em;
+}
+.dashboard-card .dashboard-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2em;
+  margin-top: 0.2em;
+  margin-bottom: 0.1em;
+  justify-content: flex-start;
+  align-items: center;
+}
+.dashboard-card .dashboard-legend-label {
+  cursor: pointer;
+  font-size: 0.97em;
+  font-weight: 500;
+  color: #172447;
+  margin-bottom: 2px;
+  margin-right: 18px;
+  background: none !important;
+  border: none !important;
+  border-radius: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  transition: color 0.15s;
+  opacity: 1;
+}
+.dashboard-card .dashboard-legend-label .legend-bullet {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  border-radius: 50%;
+  margin-right: 0.3em;
+  vertical-align: middle;
+}
+.dashboard-card .dashboard-legend-label.active,
+.dashboard-card .dashboard-legend-label:hover {
+  color: #36a2eb;
+  text-decoration: underline;
+  opacity: 1;
+}
+.dashboard-card .dashboard-legend-label.inactive {
+  color: #b0b0b0 !important;
+  opacity: 0.7;
+  text-decoration: line-through;
+}
 /* YugabyteDB Log Analyzer Styles */
 :root {
   --yuga-navy: #172447;
