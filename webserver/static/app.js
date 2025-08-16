@@ -413,7 +413,7 @@ document.addEventListener("DOMContentLoaded", function () {
           zoom: {
             pan: { enabled: true, mode: "x" },
             zoom: {
-              wheel: { enabled: true },
+              wheel: { enabled: false },
               pinch: { enabled: true },
               drag: { enabled: true, modifierKey: null },
               mode: "x",
@@ -647,7 +647,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 zoom: {
                   pan: { enabled: true, mode: "x" },
                   zoom: {
-                    wheel: { enabled: true },
+                    wheel: { enabled: false },
                     pinch: { enabled: true },
                     drag: { enabled: true, modifierKey: null },
                     mode: "x",
@@ -805,7 +805,7 @@ document.addEventListener("DOMContentLoaded", function () {
               zoom: {
                 pan: { enabled: true, mode: "x" },
                 zoom: {
-                  wheel: { enabled: true },
+                  wheel: { enabled: false },
                   pinch: { enabled: true },
                   drag: { enabled: true, modifierKey: null },
                   mode: "x",
