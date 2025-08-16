@@ -644,6 +644,19 @@ document.addEventListener("DOMContentLoaded", function () {
                     },
                   },
                 },
+                zoom: {
+                  pan: { enabled: true, mode: "x" },
+                  zoom: {
+                    wheel: { enabled: true },
+                    pinch: { enabled: true },
+                    drag: { enabled: true, modifierKey: null },
+                    mode: "x",
+                  },
+                  limits: {
+                    x: { min: 0, max: allBuckets.length - 1 },
+                    y: { min: 0 },
+                  },
+                },
               },
               scales: {
                 x: {
@@ -689,6 +702,11 @@ document.addEventListener("DOMContentLoaded", function () {
               },
             },
           });
+          // Double-click to reset zoom
+          chartCanvas.ondblclick = function () {
+            if (chartInstance && chartInstance.resetZoom)
+              chartInstance.resetZoom();
+          };
         }
         renderPopupChart();
         // Overlay click closes popup (except modal itself)
@@ -784,6 +802,19 @@ document.addEventListener("DOMContentLoaded", function () {
                   },
                 },
               },
+              zoom: {
+                pan: { enabled: true, mode: "x" },
+                zoom: {
+                  wheel: { enabled: true },
+                  pinch: { enabled: true },
+                  drag: { enabled: true, modifierKey: null },
+                  mode: "x",
+                },
+                limits: {
+                  x: { min: 0, max: allBuckets.length - 1 },
+                  y: { min: 0 },
+                },
+              },
             },
             scales: {
               x: {
@@ -829,6 +860,11 @@ document.addEventListener("DOMContentLoaded", function () {
             },
           },
         });
+        // Double-click to reset zoom
+        chartCanvas.ondblclick = function () {
+          if (chartInstance && chartInstance.resetZoom)
+            chartInstance.resetZoom();
+        };
       }
       renderChart();
     });
