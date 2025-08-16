@@ -723,6 +723,10 @@ document.addEventListener("DOMContentLoaded", function () {
         // Add to body
         overlay.appendChild(modal);
         document.body.appendChild(overlay);
+        // Ensure popup is visible in viewport
+        setTimeout(() => {
+          overlay.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 0);
       }
       // Legend (node labels) - moved below chart
       const legend = document.createElement("div");
