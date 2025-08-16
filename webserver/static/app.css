@@ -168,26 +168,26 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.2em;
-  margin-top: 0.2em;
-  margin-bottom: 0.1em;
-  justify-content: flex-start;
+  margin-top: 1em;
+  margin-bottom: 0.2em;
+  justify-content: center;
   align-items: center;
 }
 .dashboard-card .dashboard-legend-label {
   cursor: pointer;
-  font-size: 0.97em;
+  font-size: 0.9em;
   font-weight: 500;
   color: #172447;
-  margin-bottom: 2px;
-  margin-right: 18px;
+  margin-bottom: 0;
+  margin-right: 0;
   background: none !important;
   border: none !important;
   border-radius: 0;
   padding: 0;
   display: inline-flex;
   align-items: center;
-  gap: 0.5em;
-  transition: color 0.15s;
+  gap: 0.7em;
+  transition: color 0.15s, background 0.15s;
   opacity: 1;
 }
 .dashboard-card .dashboard-legend-label .legend-bullet {
@@ -201,13 +201,15 @@
 .dashboard-card .dashboard-legend-label.active,
 .dashboard-card .dashboard-legend-label:hover {
   color: #36a2eb;
-  text-decoration: underline;
+  background: #e9f1fb;
   opacity: 1;
+  text-decoration: none;
 }
 .dashboard-card .dashboard-legend-label.inactive {
   color: #b0b0b0 !important;
   opacity: 0.7;
-  text-decoration: line-through;
+  background: #f5f6fa;
+  text-decoration: none;
 }
 /* YugabyteDB Log Analyzer Styles */
 :root {
