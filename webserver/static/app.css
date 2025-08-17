@@ -1,59 +1,38 @@
-/* Apple Glass Design: Dashboard popup modal for larger view */
 .dashboard-popup-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(240, 245, 255, 0.32);
-  backdrop-filter: blur(8px) saturate(1.2);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: none;
   z-index: 10000;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .dashboard-popup-modal {
-  background: rgba(255,255,255,0.65);
+  background: #fff;
   border-radius: 22px;
-  box-shadow: 0 8px 40px 0 rgba(23,36,71,0.10), 0 1.5px 8px rgba(23,36,71,0.04);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   padding: 2.2em 2.5em 2em 2.5em;
   min-width: 1050px;
   min-height: 510px;
+  max-width: 95vw;
   max-height: 90vh;
   margin-bottom: 1.2em;
   border: 1.5px solid rgba(200,210,230,0.18);
-  backdrop-filter: blur(24px) saturate(1.5);
-  -webkit-backdrop-filter: blur(24px) saturate(1.5);
-  box-shadow: 0 8px 40px 0 rgba(23,36,71,0.10), 0 1.5px 8px rgba(23,36,71,0.04), 0 0.5px 0.5px 0 rgba(255,255,255,0.18) inset;
+  position: relative;
   overflow-x: auto;
-}
-.dashboard-popup-close {
-  position: absolute;
-  top: 18px;
-  right: 24px;
-  font-size: 2.1em;
-  color: #b0b0b0;
-  background: rgba(255,255,255,0.4);
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  z-index: 2;
-  transition: color 0.15s, background 0.18s;
-  box-shadow: 0 1px 4px rgba(23,36,71,0.07);
-  backdrop-filter: blur(8px);
-}
-/* ...existing code... */
-  min-height: 510px;
-  max-height: 90vh;
-  margin-bottom: 1.2em;
 }
 .dashboard-popup-legend {
   margin-top: 0.7em;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.2em;
+  gap: 1.2em;
   align-items: center;
 }
+
 .dashboard-popup-legend-label {
 #histogram {
   width: 100%;
@@ -73,13 +52,16 @@
   gap: 0.5em;
   transition: color 0.15s;
   opacity: 1;
+  margin-top: 1.2em;
+  cursor: pointer;
 }
 .dashboard-popup-legend-label .legend-bullet {
   display: inline-block;
-  width: 1em;
-  height: 1em;
+  width: 0.7em;
+  height: 0.7em;
   border-radius: 50%;
   margin-right: 0.3em;
+  margin-left: 0.6em;
   vertical-align: middle;
 }
 .dashboard-popup-legend-label.active,
@@ -196,7 +178,8 @@
   width: 0.85em;
   height: 0.85em;
   border-radius: 50%;
-  margin-right: 0.3em;
+  margin-right: 0.2em;
+  margin-left: 0.8em;
   vertical-align: middle;
 }
 .dashboard-card .dashboard-legend-label.active,

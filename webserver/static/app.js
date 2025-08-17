@@ -545,14 +545,6 @@ document.addEventListener("DOMContentLoaded", function () {
         // Modal
         const modal = document.createElement("div");
         modal.className = "dashboard-popup-modal";
-        // Close button
-        const closeBtn = document.createElement("button");
-        closeBtn.className = "dashboard-popup-close";
-        closeBtn.innerHTML = "&times;";
-        closeBtn.onclick = function () {
-          overlay.remove();
-        };
-        modal.appendChild(closeBtn);
         // Title
         const title = document.createElement("div");
         title.className = "dashboard-popup-title";
