@@ -42,23 +42,17 @@
         <table class="modern-reports-table">
           <thead>
             <tr>
+              <th>Case</th>
               <th>Bundle Name</th>
-              <th>UUID</th>
               <th>Cluster</th>
               <th>Org</th>
               <th>Created</th>
-              <th>Case</th>
               <th>View</th>
             </tr>
           </thead>
           <tbody>
             {% for report in reports %}
             <tr>
-              <td>{{ report.support_bundle_name }}</td>
-              <td style="font-family: monospace">{{ report.id }}</td>
-              <td>{{ report.universe_name }}</td>
-              <td>{{ report.organization_name }}</td>
-              <td>{{ report.created_at }}</td>
               <td>
                 {% if report.case_id %}<a
                   class="modern-case-link"
@@ -67,6 +61,10 @@
                   >{{ report.case_id }}</a
                 >{% else %}-{% endif %}
               </td>
+              <td>{{ report.support_bundle_name }}</td>
+              <td>{{ report.universe_name }}</td>
+              <td>{{ report.organization_name }}</td>
+              <td>{{ report.created_at }}</td>
               <td>
                 <a
                   class="modern-view-btn"
@@ -111,22 +109,20 @@
           return;
         }
         let html = `<table class='modern-reports-table'><thead><tr>
+          <th>Case</th>
           <th>Bundle Name</th>
-          <th>UUID</th>
           <th>Cluster</th>
           <th>Org</th>
           <th>Created</th>
-          <th>Case</th>
-          <th>Action to View</th>
+          <th>View</th>
         </tr></thead><tbody>`;
         for (const report of reports) {
           html += `<tr>
+            <td>${report.case_id ? `<a class='modern-case-link' href='https://yugabyte.zzendesk.com/agent/tickets/${report.case_id}' target='_blank'>${report.case_id}</a>` : '-'}</td>
             <td>${report.support_bundle_name}</td>
-            <td style='font-family:monospace;'>${report.id}</td>
             <td>${report.universe_name}</td>
             <td>${report.organization_name}</td>
             <td>${report.created_at}</td>
-            <td>${report.case_id ? `<a class='modern-case-link' href='https://yugabyte.zzendesk.com/agent/tickets/${report.case_id}' target='_blank'>${report.case_id}</a>` : '-'}</td>
             <td><a class='modern-view-btn' href='/reports/${report.id}' title='View Report'><svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='none' viewBox='0 0 20 20' style='vertical-align:middle;'><path fill='currentColor' d='M10 4c-5 0-8 5.5-8 6s3 6 8 6 8-5.5 8-6-3-6-8-6zm0 10c-3.9 0-6.6-3.7-7.3-5C3.4 7.7 6.1 4 10 4s6.6 3.7 7.3 5c-.7 1.3-3.4 5-7.3 5zm0-8a3 3 0 100 6 3 3 0 000-6zm0 5a2 2 0 110-4 2 2 0 010 4z'/></svg></a></td>
           </tr>`;
         }
@@ -258,11 +254,24 @@
         <h3>How to Run Log Analyzer</h3>
         <ol class="mb-1-5em">
           <li>
-            Run Log Analyzer<br /><code
-              >log_analyzer.py -s yb-support-bundle-test-universe-20250101000000.tar.gz</code
+            Run against support bundle <br /><code
+              >log_analyzer.py -s yb-support-bundle-test-universe-20250101000000_logs.tar.gz</code
+            >
+          </li>
+          <li>
+            Run against parquet file <br /><code
+              >log_analyzer.py --parquet_files parquet_files/yb-support-bundle-test-universe-20250101000000_logs</code
             >
           </li>
         </ol>
+        <h3>How to delete a report</h3>
+        <p>
+          To delete a report, run the following command:
+          <code>
+            <br/>
+            curl -X DELETE http://{server}:{port}/api/reports/{report_uuid}
+          </code>
+        </p>
         <div class="help-modal-tip">
           <b>Need more help? Drop a message to </b>
           <a href="https://yugabyte.slack.com/archives/D02TSRPK9SA" target="_blank"

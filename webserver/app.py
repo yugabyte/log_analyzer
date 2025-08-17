@@ -1,214 +1,288 @@
+"""
+Refactored Flask web server for Log Analyzer.
+
+This module provides a clean, maintainable web interface for viewing
+log analysis reports with proper error handling and type hints.
+"""
+
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory
-import json
-from collections import defaultdict
-import psycopg2
+from pathlib import Path
+from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
-from patterns_lib import solutions
+import logging
 
-app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'uploads'
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory
+from werkzeug.exceptions import NotFound, BadRequest
 
-if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'])
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# In-memory storage for uploaded data
-uploaded_data = {}
+from config.settings import settings
+from services.database_service import DatabaseService
+from utils.logging_config import setup_logging, get_logger
+from utils.exceptions import DatabaseError
 
-# Helper to load DB config
 
-def load_db_config():
-    with open(os.path.join(os.path.dirname(__file__), '..', 'db_config.json')) as f:
-        return json.load(f)
-
-@app.route('/')
-def index():
-    # Fetch paginated reports from DB
-    page = int(request.args.get('page', 1))
-    per_page = 10
-    offset = (page - 1) * per_page
-    try:
-        db_config = load_db_config()
-        conn = psycopg2.connect(
-            dbname=db_config["dbname"],
-            user=db_config["user"],
-            password=db_config["password"],
-            host=db_config["host"],
-            port=db_config["port"]
-        )
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT COUNT(*) FROM public.log_analyzer_reports
-        """)
-        total_reports = cur.fetchone()[0]
-        total_pages = (total_reports + per_page - 1) // per_page
-        cur.execute("""
-            SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.case_id, r.created_at
-            FROM public.log_analyzer_reports r
-            LEFT JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
-            ORDER BY r.created_at DESC LIMIT %s OFFSET %s
-        """, (per_page, offset))
-        reports = [
-            {
-                'id': str(row[0]),
-                'support_bundle_name': row[1],
-                'universe_name': row[2] or '',
-                'organization_name': row[3] or '',
-                'case_id': row[4],
-                'created_at': row[5].strftime('%Y-%m-%d %H:%M')
-            }
-            for row in cur.fetchall()
-        ]
-        cur.close()
-        conn.close()
-    except Exception as e:
-        reports = []
-        total_pages = 1
-    print('DEBUG: reports fetched for index:', reports)
-    return render_template('index.html', reports=reports, page=page, total_pages=total_pages)
-
-@app.route('/upload', methods=['POST'])
-def upload():
-    # Accepts JSON payload with keys: universe_name, ticket, json_report
-    try:
-        data = request.get_json()
-        universe_name = data['universe_name']
-        ticket = data.get('ticket', '')
-        json_report = json.dumps(data['json_report'])
-        db_config = load_db_config()
-        conn = psycopg2.connect(
-            dbname=db_config["dbname"],
-            user=db_config["user"],
-            password=db_config["password"],
-            host=db_config["host"],
-            port=db_config["port"]
-        )
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO log_analyzer.reports (universe_name, ticket, json_report, created_at)
-            VALUES (%s, %s, %s, NOW())
-            RETURNING id
-        """, (universe_name, ticket, json_report))
-        new_id = cur.fetchone()[0]
-        conn.commit()
-        cur.close()
-        conn.close()
-        return jsonify({'status': 'success', 'id': new_id})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/data')
-def get_data():
-    if 'data' not in uploaded_data:
-        return jsonify({'error': 'No data uploaded'}), 404
-    return jsonify(uploaded_data['data'])
-
-@app.route('/img/<path:filename>')
-def serve_img(filename):
-    return send_from_directory(os.path.join(app.root_path, 'img'), filename)
-
-@app.route('/reports/<uuid>')
-def report_page(uuid):
-    # Inject solutions as a JS object for the frontend
-    return render_template('reports.html', report_uuid=uuid, log_solutions_map=solutions)
-
-@app.route('/reports/<int:report_id>')
-def report_json(report_id):
-    # Return the report in JSON format from DB
-    try:
-        db_config = load_db_config()
-        conn = psycopg2.connect(
-            dbname=db_config["dbname"],
-            user=db_config["user"],
-            password=db_config["password"],
-            host=db_config["host"],
-            port=db_config["port"]
-        )
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT json_report FROM log_analyzer.reports WHERE id = %s
-        """, (report_id,))
-        row = cur.fetchone()
-        cur.close()
-        conn.close()
-        if row:
-            return jsonify(row[0])
-        else:
-            return jsonify({'error': 'Report not found'}), 404
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# Keep the old /reports/<uuid> JSON API as /api/reports/<uuid>
-@app.route('/api/reports/<uuid>')
-def get_report_api(uuid):
-    try:
-        db_config = load_db_config()
-        conn = psycopg2.connect(
-            dbname=db_config["dbname"],
-            user=db_config["user"],
-            password=db_config["password"],
-            host=db_config["host"],
-            port=db_config["port"]
-        )
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT json_report FROM public.log_analyzer_reports WHERE id::text = %s
-        """, (str(uuid),))
-        row = cur.fetchone()
-        cur.close()
-        conn.close()
-        if row:
-            return jsonify(row[0])
-        else:
-            return jsonify({'error': 'Report not found'}), 404
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/histogram/<report_id>')
-def histogram_api(report_id):
-    """
-    Query params:
-      - interval: int (minutes, one of 1,5,15,30,60)
-      - start: ISO8601 string (inclusive)
-      - end: ISO8601 string (inclusive)
-    """
-    interval = int(request.args.get('interval', 1))
-    start = request.args.get('start')
-    end = request.args.get('end')
-    try:
-        db_config = load_db_config()
-        conn = psycopg2.connect(
-            dbname=db_config["dbname"],
-            user=db_config["user"],
-            password=db_config["password"],
-            host=db_config["host"],
-            port=db_config["port"]
-        )
-        cur = conn.cursor()
-        # Try both int and str for report_id
-        try:
-            cur.execute("""
-                SELECT json_report FROM public.log_analyzer_reports WHERE id::text = %s
-            """, (str(report_id),))
-        except Exception:
-            cur.execute("""
-                SELECT json_report FROM public.log_analyzer_reports WHERE id = %s
-            """, (report_id,))
-        row = cur.fetchone()
-        cur.close()
-        conn.close()
-        if not row:
-            return jsonify({'error': 'Report not found'}), 404
-        data = row[0]
-        if isinstance(data, str):
-            data = json.loads(data)
-        # Filter and aggregate histogram
-        def parse_time(s):
+class LogAnalyzerWebApp:
+    """Main web application class."""
+    
+    def __init__(self):
+        self.app = Flask(__name__)
+        self.db_service = DatabaseService()
+        self.logger = get_logger("web_app")
+        
+        # Configure Flask
+        self.app.config['SECRET_KEY'] = 'your-secret-key-here'
+        self.app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+        
+        # Register routes
+        self._register_routes()
+        
+        # Set up error handlers
+        self._setup_error_handlers()
+    
+    def _register_routes(self) -> None:
+        """Register all application routes."""
+        
+        @self.app.route('/')
+        def index():
+            """Main page showing list of reports."""
+            try:
+                page = int(request.args.get('page', 1))
+                per_page = 10
+                
+                reports_data = self.db_service.get_reports_list(
+                    page=page,
+                    per_page=per_page
+                )
+                
+                return render_template(
+                    'index.html',
+                    reports=reports_data['reports'],
+                    page=reports_data['page'],
+                    total_pages=reports_data['total_pages']
+                )
+                
+            except DatabaseError as e:
+                self.logger.error(f"Database error in index: {e}")
+                return render_template('index.html', reports=[], page=1, total_pages=1)
+            except Exception as e:
+                self.logger.error(f"Unexpected error in index: {e}")
+                return render_template('index.html', reports=[], page=1, total_pages=1)
+        
+        @self.app.route('/img/<path:filename>')
+        def serve_img(filename):
+            """Serve static images."""
+            return send_from_directory(
+                Path(self.app.root_path) / 'img', 
+                filename
+            )
+        
+        @self.app.route('/reports/<uuid>')
+        def report_page(uuid):
+            """Report viewing page."""
+            try:
+                # Load solutions for frontend
+                from lib.patterns_lib import solutions
+                return render_template(
+                    'reports.html', 
+                    report_uuid=uuid, 
+                    log_solutions_map=solutions
+                )
+            except Exception as e:
+                self.logger.error(f"Error loading report page: {e}")
+                raise NotFound("Report page not found")
+        
+        @self.app.route('/api/reports/<uuid>')
+        def get_report_api(uuid):
+            """API endpoint to get report data."""
+            try:
+                report_data = self.db_service.get_report(uuid)
+                if report_data:
+                    return jsonify(report_data)
+                else:
+                    return jsonify({'error': 'Report not found'}), 404
+                    
+            except DatabaseError as e:
+                self.logger.error(f"Database error getting report: {e}")
+                return jsonify({'error': 'Database error'}), 500
+            except Exception as e:
+                self.logger.error(f"Unexpected error getting report: {e}")
+                return jsonify({'error': 'Internal server error'}), 500
+        
+        @self.app.route('/api/histogram/<report_id>')
+        def histogram_api(report_id):
+            """API endpoint for histogram data with filtering."""
+            try:
+                # Get query parameters
+                interval = int(request.args.get('interval', 1))
+                start = request.args.get('start')
+                end = request.args.get('end')
+                
+                # Validate interval
+                if interval not in [1, 5, 15, 30, 60]:
+                    raise BadRequest("Invalid interval value")
+                
+                # Get report data
+                report_data = self.db_service.get_report(report_id)
+                if not report_data:
+                    return jsonify({'error': 'Report not found'}), 404
+                
+                # Filter and aggregate histogram data
+                filtered_data = self._filter_histogram_data(
+                    report_data, start, end, interval
+                )
+                
+                return jsonify(filtered_data)
+                
+            except BadRequest as e:
+                return jsonify({'error': str(e)}), 400
+            except DatabaseError as e:
+                self.logger.error(f"Database error in histogram API: {e}")
+                return jsonify({'error': 'Database error'}), 500
+            except Exception as e:
+                self.logger.error(f"Unexpected error in histogram API: {e}")
+                return jsonify({'error': 'Internal server error'}), 500
+        
+        @self.app.route('/api/gflags/<uuid>')
+        def gflags_api(uuid):
+            """API endpoint for GFlags data."""
+            try:
+                gflags_data = self.db_service.get_gflags(uuid)
+                return jsonify(gflags_data)
+                
+            except DatabaseError as e:
+                self.logger.error(f"Database error getting GFlags: {e}")
+                return jsonify({'error': 'Database error'}), 500
+            except Exception as e:
+                self.logger.error(f"Unexpected error getting GFlags: {e}")
+                return jsonify({'error': 'Internal server error'}), 500
+        
+        @self.app.route('/api/related_reports/<uuid>')
+        def related_reports_api(uuid):
+            """API endpoint for related reports."""
+            try:
+                related_data = self.db_service.get_related_reports(uuid)
+                return jsonify(related_data)
+                
+            except DatabaseError as e:
+                self.logger.error(f"Database error getting related reports: {e}")
+                return jsonify({'error': 'Database error'}), 500
+            except Exception as e:
+                self.logger.error(f"Unexpected error getting related reports: {e}")
+                return jsonify({'error': 'Internal server error'}), 500
+        
+        @self.app.route('/api/search_reports')
+        def search_reports():
+            """API endpoint for searching reports."""
+            try:
+                query = request.args.get('q', '').strip()
+                page = int(request.args.get('page', 1))
+                per_page = int(request.args.get('per_page', 10))
+                
+                if not query:
+                    return jsonify({
+                        "reports": [], 
+                        "page": 1, 
+                        "total_pages": 1
+                    })
+                
+                search_results = self.db_service.get_reports_list(
+                    page=page,
+                    per_page=per_page,
+                    search_query=query
+                )
+                
+                return jsonify(search_results)
+                
+            except DatabaseError as e:
+                self.logger.error(f"Database error in search: {e}")
+                return jsonify({'error': 'Database error'}), 500
+            except Exception as e:
+                self.logger.error(f"Unexpected error in search: {e}")
+                return jsonify({'error': 'Internal server error'}), 500
+        
+        @self.app.route('/api/node_info/<uuid>')
+        def node_info_api(uuid):
+            """API endpoint for node information."""
+            try:
+                node_data = self.db_service.get_node_info(uuid)
+                return jsonify(node_data)
+                
+            except DatabaseError as e:
+                self.logger.error(f"Database error getting node info: {e}")
+                return jsonify({'error': 'Database error'}), 500
+            except Exception as e:
+                self.logger.error(f"Unexpected error getting node info: {e}")
+                return jsonify({'error': 'Internal server error'}), 500
+        
+        @self.app.route('/api/histogram_latest_datetime/<report_id>')
+        def histogram_latest_datetime_api(report_id):
+            """API endpoint for latest datetime in histogram."""
+            try:
+                report_data = self.db_service.get_report(report_id)
+                if not report_data:
+                    return jsonify({'error': 'Report not found'}), 404
+                
+                latest_datetime = self._get_latest_histogram_datetime(report_data)
+                
+                return jsonify({'latest_datetime': latest_datetime})
+                
+            except DatabaseError as e:
+                self.logger.error(f"Database error getting latest datetime: {e}")
+                return jsonify({'error': 'Database error'}), 500
+            except Exception as e:
+                self.logger.error(f"Unexpected error getting latest datetime: {e}")
+                return jsonify({'error': 'Internal server error'}), 500
+        
+        @self.app.route('/api/reports/<uuid>', methods=['DELETE'])
+        def delete_report_api(uuid):
+            """API endpoint to delete a report by UUID."""
+            try:
+                deleted = self.db_service.delete_report(uuid)
+                if deleted:
+                    return jsonify({'success': True}), 200
+                else:
+                    return jsonify({'error': 'Report not found'}), 404
+            except DatabaseError as e:
+                self.logger.error(f"Database error deleting report: {e}")
+                return jsonify({'error': 'Database error'}), 500
+            except Exception as e:
+                self.logger.error(f"Unexpected error deleting report: {e}")
+                return jsonify({'error': 'Internal server error'}), 500
+    
+    def _setup_error_handlers(self) -> None:
+        """Set up error handlers for the application."""
+        
+        @self.app.errorhandler(404)
+        def not_found(error):
+            return render_template('404.html'), 404
+        
+        @self.app.errorhandler(500)
+        def internal_error(error):
+            self.logger.error(f"Internal server error: {error}")
+            return render_template('500.html'), 500
+        
+        @self.app.errorhandler(BadRequest)
+        def bad_request(error):
+            return jsonify({'error': str(error)}), 400
+    
+    def _filter_histogram_data(
+        self, 
+        data: Dict[str, Any], 
+        start: Optional[str], 
+        end: Optional[str], 
+        interval: int
+    ) -> Dict[str, Any]:
+        """Filter and aggregate histogram data."""
+        
+        def parse_time(s: str) -> datetime:
             return datetime.strptime(s, '%Y-%m-%dT%H:%M:%SZ')
-        def format_time(dt):
+        
+        def format_time(dt: datetime) -> str:
             return dt.strftime('%Y-%m-%dT%H:%M:00Z')
+        
         # If no start/end provided, compute last 7 days from latest bucket
         if not start or not end:
             all_bucket_times = []
@@ -217,14 +291,17 @@ def histogram_api(report_id):
                     for msg, msg_stats in proc_data.get('logMessages', {}).items():
                         hist = msg_stats.get('histogram', {})
                         all_bucket_times.extend(hist.keys())
+            
             if all_bucket_times:
                 all_dates = [parse_time(b) for b in all_bucket_times]
                 max_date = max(all_dates)
                 min_date = max_date - timedelta(days=7)
+                
                 if not start:
                     start_dt = min_date
                 else:
                     start_dt = parse_time(start)
+                
                 if not end:
                     end_dt = max_date
                 else:
@@ -235,16 +312,20 @@ def histogram_api(report_id):
         else:
             start_dt = parse_time(start)
             end_dt = parse_time(end)
+        
+        # Filter and aggregate data
         for node, node_data in data.get('nodes', {}).items():
             for proc, proc_data in node_data.items():
                 for msg, msg_stats in proc_data.get('logMessages', {}).items():
                     hist = msg_stats.get('histogram', {})
+                    
                     # Filter by time range
                     filtered = {}
                     for k, v in hist.items():
                         t = parse_time(k)
                         if (not start_dt or t >= start_dt) and (not end_dt or t <= end_dt):
                             filtered[k] = v
+                    
                     # Aggregate by interval
                     if interval > 1:
                         agg = {}
@@ -257,284 +338,49 @@ def histogram_api(report_id):
                         msg_stats['histogram'] = agg
                     else:
                         msg_stats['histogram'] = filtered
-        return jsonify(data)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/gflags/<uuid>')
-def gflags_api(uuid):
-    try:
-        db_config = load_db_config()
-        conn = psycopg2.connect(
-            dbname=db_config["dbname"],
-            user=db_config["user"],
-            password=db_config["password"],
-            host=db_config["host"],
-            port=db_config["port"]
-        )
-        cur = conn.cursor()
-        # Get support_bundle_name for this report
-        cur.execute("SELECT support_bundle_name FROM public.log_analyzer_reports WHERE id::text = %s", (str(uuid),))
-        row = cur.fetchone()
-        if not row:
-            cur.close()
-            conn.close()
-            return jsonify({'error': 'Report not found'}), 404
-        support_bundle_name = row[0]
-        # Query GFlags for this support_bundle, grouped by server_type and gflag
-        cur.execute("""
-            SELECT server_type, gflag, value
-            FROM public.support_bundle_gflags
-            WHERE support_bundle = %s
-        """, (support_bundle_name,))
-        gflags = {}
-        for server_type, gflag, value in cur.fetchall():
-            if server_type not in gflags:
-                gflags[server_type] = {}
-            gflags[server_type][gflag] = value
-        cur.close()
-        conn.close()
-        return jsonify(gflags)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/related_reports/<uuid>')
-def related_reports_api(uuid):
-    try:
-        db_config = load_db_config()
-        conn = psycopg2.connect(
-            dbname=db_config["dbname"],
-            user=db_config["user"],
-            password=db_config["password"],
-            host=db_config["host"],
-            port=db_config["port"]
-        )
-        cur = conn.cursor()
-        # Get support_bundle_name for this report
-        cur.execute("SELECT support_bundle_name FROM public.log_analyzer_reports WHERE id::text = %s", (str(uuid),))
-        row = cur.fetchone()
-        if not row:
-            cur.close()
-            conn.close()
-            return jsonify({'error': 'Report not found'}), 404
-        support_bundle_name = row[0]
-        # Get cluster_uuid and organization for this report
-        cur.execute("""
-            SELECT h.cluster_uuid, h.organization
-            FROM public.support_bundle_header h
-            WHERE h.support_bundle = %s
-        """, (support_bundle_name,))
-        row = cur.fetchone()
-        if not row:
-            cur.close()
-            conn.close()
-            return jsonify({'same_cluster': [], 'same_org': []})
-        cluster_uuid, organization = row
-        # Find all reports for the same cluster (excluding current)
-        cur.execute("""
-            SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.cluster_uuid, h.case_id, r.created_at
-            FROM public.log_analyzer_reports r
-            JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
-            WHERE h.cluster_uuid = %s
-              AND r.id::text != %s
-            ORDER BY r.created_at DESC LIMIT 20
-        """, (str(cluster_uuid), str(uuid)))
-        same_cluster = [
-            {
-                'id': str(r[0]),
-                'support_bundle_name': r[1],
-                'cluster_name': r[2],
-                'organization': r[3],
-                'cluster_uuid': str(r[4]),
-                'case_id': r[5],
-                'created_at': r[6].strftime('%Y-%m-%d %H:%M')
-            }
-            for r in cur.fetchall()
-        ]
-        # Find all reports for the same organization, but NOT in the same cluster (excluding current)
-        cur.execute("""
-            SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.cluster_uuid, h.case_id, r.created_at
-            FROM public.log_analyzer_reports r
-            JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
-            WHERE h.organization = %s
-              AND h.cluster_uuid != %s
-              AND r.id::text != %s
-            ORDER BY r.created_at DESC LIMIT 20
-        """, (organization, str(cluster_uuid), str(uuid)))
-        same_org = [
-            {
-                'id': str(r[0]),
-                'support_bundle_name': r[1],
-                'cluster_name': r[2],
-                'organization': r[3],
-                'cluster_uuid': str(r[4]),
-                'case_id': r[5],
-                'created_at': r[6].strftime('%Y-%m-%d %H:%M')
-            }
-            for r in cur.fetchall()
-        ]
-        cur.close()
-        conn.close()
-        return jsonify({'same_cluster': same_cluster, 'same_org': same_org})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/search_reports')
-def search_reports():
-    query = request.args.get('q', '').strip()
-    page = int(request.args.get('page', 1))
-    per_page = int(request.args.get('per_page', 10))
-    offset = (page - 1) * per_page
-    if not query:
-        return jsonify({"reports": [], "page": 1, "total_pages": 1})
-    try:
-        db_config = load_db_config()
-        conn = psycopg2.connect(
-            dbname=db_config["dbname"],
-            user=db_config["user"],
-            password=db_config["password"],
-            host=db_config["host"],
-            port=db_config["port"]
-        )
-        cur = conn.cursor()
-        # Count total matching
-        cur.execute("""
-            SELECT COUNT(*)
-            FROM public.log_analyzer_reports r
-            LEFT JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
-            WHERE r.id::text ILIKE %s
-               OR r.support_bundle_name ILIKE %s
-               OR h.cluster_name ILIKE %s
-               OR h.organization ILIKE %s
-               OR h.case_id::text ILIKE %s
-        """, tuple(['%' + query + '%'] * 5))
-        total_reports = cur.fetchone()[0]
-        total_pages = (total_reports + per_page - 1) // per_page if total_reports else 1
-        # Fetch paginated results
-        cur.execute("""
-            SELECT r.id, r.support_bundle_name, h.cluster_name, h.organization, h.case_id, r.created_at
-            FROM public.log_analyzer_reports r
-            LEFT JOIN public.support_bundle_header h ON r.support_bundle_name = h.support_bundle
-            WHERE r.id::text ILIKE %s
-               OR r.support_bundle_name ILIKE %s
-               OR h.cluster_name ILIKE %s
-               OR h.organization ILIKE %s
-               OR h.case_id::text ILIKE %s
-            ORDER BY r.created_at DESC LIMIT %s OFFSET %s
-        """, tuple(['%' + query + '%'] * 5) + (per_page, offset))
-        reports = [
-            {
-                'id': str(row[0]),
-                'support_bundle_name': row[1],
-                'universe_name': row[2] or '',
-                'organization_name': row[3] or '',
-                'case_id': row[4],
-                'created_at': row[5].strftime('%Y-%m-%d %H:%M')
-            }
-            for row in cur.fetchall()
-        ]
-        cur.close()
-        conn.close()
-        return jsonify({
-            "reports": reports,
-            "page": page,
-            "total_pages": total_pages
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/node_info/<uuid>')
-def node_info_api(uuid):
-    """
-    Returns node info for the given report UUID, as a flat list of nodes.
-    """
-    try:
-        db_config = load_db_config()
-        conn = psycopg2.connect(
-            dbname=db_config["dbname"],
-            user=db_config["user"],
-            password=db_config["password"],
-            host=db_config["host"],
-            port=db_config["port"]
-        )
-        cur = conn.cursor()
-        # Get support_bundle_name for this report
-        cur.execute("SELECT support_bundle_name FROM public.log_analyzer_reports WHERE id::text = %s", (str(uuid),))
-        row = cur.fetchone()
-        if not row:
-            cur.close()
-            conn.close()
-            return jsonify({'error': 'Report not found'}), 404
-        support_bundle_name = row[0]
-        # Query node info from the new view
-        cur.execute("""
-            SELECT node_name, state, is_master, is_tserver, cloud || '.' || region || '.' || az as placement, num_cores, mem_size_gb, volume_size_gb
-            FROM public.view_support_bundle_yba_metadata_cluster_summary
-            WHERE support_bundle = %s
-        """, (support_bundle_name,))
-        nodes = []
-        for r in cur.fetchall():
-            nodes.append({
-                'node_name': r[0],
-                'state': r[1],
-                'is_master': r[2],
-                'is_tserver': r[3],
-                'placement': r[4],
-                'num_cores': r[5],
-                'mem_size_gb': float(r[6]) if r[6] is not None else None,
-                'volume_size_gb': float(r[7]) if r[7] is not None else None
-            })
-        cur.close()
-        conn.close()
-        return jsonify({'nodes': nodes})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/histogram_latest_datetime/<report_id>')
-def histogram_latest_datetime_api(report_id):
-    """
-    Returns the latest datetime available in the histogram data for the given report.
-    """
-    try:
-        db_config = load_db_config()
-        conn = psycopg2.connect(
-            dbname=db_config["dbname"],
-            user=db_config["user"],
-            password=db_config["password"],
-            host=db_config["host"],
-            port=db_config["port"]
-        )
-        cur = conn.cursor()
-        try:
-            cur.execute("""
-                SELECT json_report FROM public.log_analyzer_reports WHERE id::text = %s
-            """, (str(report_id),))
-        except Exception:
-            cur.execute("""
-                SELECT json_report FROM public.log_analyzer_reports WHERE id = %s
-            """, (report_id,))
-        row = cur.fetchone()
-        cur.close()
-        conn.close()
-        if not row:
-            return jsonify({'error': 'Report not found'}), 404
-        data = row[0]
-        if isinstance(data, str):
-            data = json.loads(data)
+        
+        return data
+    
+    def _get_latest_histogram_datetime(self, data: Dict[str, Any]) -> Optional[str]:
+        """Get the latest datetime from histogram data."""
         all_bucket_times = []
+        
         for node, node_data in data.get('nodes', {}).items():
             for proc, proc_data in node_data.items():
                 for msg, msg_stats in proc_data.get('logMessages', {}).items():
                     hist = msg_stats.get('histogram', {})
                     all_bucket_times.extend(hist.keys())
+        
         if not all_bucket_times:
-            return jsonify({'latest_datetime': None})
-        from datetime import datetime
+            return None
+        
         all_dates = [datetime.strptime(b, '%Y-%m-%dT%H:%M:%SZ') for b in all_bucket_times]
         max_date = max(all_dates)
-        return jsonify({'latest_datetime': max_date.strftime('%Y-%m-%dT%H:%M:%SZ')})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return max_date.strftime('%Y-%m-%dT%H:%M:%SZ')
+    
+    def run(self, debug: bool = False, host: str = None, port: int = None) -> None:
+        """Run the Flask application."""
+        host = host or settings.server.host
+        port = port or settings.server.port
+        
+        self.logger.info(f"Starting web server on {host}:{port}")
+        self.app.run(debug=debug, host=host, port=port)
+
+
+def create_app() -> Flask:
+    """Factory function to create Flask app."""
+    web_app = LogAnalyzerWebApp()
+    return web_app.app
+
+
+# Create the Flask app instance for Gunicorn compatibility
+app = create_app()
+
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Set up logging
+    setup_logging()
+    
+    # Create and run app
+    web_app = LogAnalyzerWebApp()
+    web_app.run(debug=True)
