@@ -1,6 +1,6 @@
-# Log Analyzer for YugabyteDB - Refactored Version
+# Log Analyzer for YugabyteDB
 
-A modern, maintainable, and efficient log analysis tool for YugabyteDB support bundles. This refactored version follows best practices including proper separation of concerns, comprehensive error handling, type hints, and clean architecture.
+A modern, maintainable, and efficient log analysis tool for YugabyteDB support bundles. This version follows best practices including proper separation of concerns, comprehensive error handling, type hints, and clean architecture.
 
 ## 🚀 Features
 
@@ -35,7 +35,7 @@ A modern, maintainable, and efficient log analysis tool for YugabyteDB support b
 
 3. **Install dependencies**:
    ```bash
-   pip install -r requirements_refactored.txt
+   pip install -r requirements.txt
    ```
 
 4. **Set up configuration**:
@@ -57,7 +57,7 @@ A modern, maintainable, and efficient log analysis tool for YugabyteDB support b
 
 ## 🏗️ Architecture
 
-The refactored codebase follows a clean architecture pattern with clear separation of concerns:
+The codebase follows a clean architecture pattern with clear separation of concerns:
 
 ```
 log_analyzer/
@@ -75,13 +75,13 @@ log_analyzer/
 │   ├── exceptions.py      # Custom exceptions
 │   └── logging_config.py  # Logging configuration
 ├── webserver/             # Web interface
-│   ├── app_refactored.py  # Refactored Flask app
+│   ├── app.py             # Flask app
 │   ├── static/            # Static files
 │   └── templates/         # HTML templates
 ├── lib/                   # Legacy library modules
 ├── tests/                 # Test suite
-├── log_analyzer_refactored.py  # Main application
-└── requirements_refactored.txt  # Dependencies
+├── log_analyzer.py        # Main application
+└── requirements.txt       # Dependencies
 ```
 
 ## 🚀 Usage
@@ -91,43 +91,59 @@ log_analyzer/
 #### Analyze Support Bundle
 ```bash
 # Basic analysis
-python log_analyzer_refactored.py -s support_bundle.tar.gz
+python log_analyzer.py -s support_bundle.tar.gz
 
 # With custom time range
-python log_analyzer_refactored.py -s support_bundle.tar.gz \
+python log_analyzer.py -s support_bundle.tar.gz \
   -t "1231 10:30" -T "1231 23:59"
 
 # With node and log type filters
-python log_analyzer_refactored.py -s support_bundle.tar.gz \
+python log_analyzer.py -s support_bundle.tar.gz \
   -n "n1,n2" --types "pg,ts"
 
 # With custom patterns
-python log_analyzer_refactored.py -s support_bundle.tar.gz \
+python log_analyzer.py -s support_bundle.tar.gz \
   --histogram-mode "error1,error2,error3"
 
 # Parallel processing
-python log_analyzer_refactored.py -s support_bundle.tar.gz \
+python log_analyzer.py -s support_bundle.tar.gz \
   -p 8
 ```
 
 #### Analyze Parquet Files
 ```bash
 # Analyze Parquet directory
-python log_analyzer_refactored.py --parquet_files /path/to/parquet/dir
+python log_analyzer.py --parquet_files /path/to/parquet/dir
 
 # With custom patterns
-python log_analyzer_refactored.py --parquet_files /path/to/parquet/dir \
-  --histogram-mode "pattern1,pattern2"
+python log_analyzer.py --parquet_files /path/to/parquet/dir \
+  --histogram-mode "error1,error2,error3"
+
+# Parallel processing
+python log_analyzer.py --parquet_files /path/to/parquet/dir \
+  -p 8
 ```
 
 ### Web Interface
 
 1. **Start the web server**:
+```bash
+   python webserver/app.py
+```
+
+2. **Access the web interface**:
+   Open your browser and navigate to `http://localhost:5000`
+
+3. **View reports**:
+   - Browse all reports on the main page
+   - Click on any report to view detailed analysis
    ```bash
-   python webserver/app_refactored.py
+   python webserver/app.py
    ```
 
 2. **Access the web interface**:
+```bash
+   python webserver/app.py
    Open your browser and navigate to `http://localhost:5000`
 
 3. **View reports**:
@@ -190,23 +206,6 @@ pytest tests/test_analysis_service.py
 
 ## 🔧 Development
 
-### Code Quality Tools
-
-1. **Format code with Black**:
-   ```bash
-   black .
-   ```
-
-2. **Check code style with flake8**:
-   ```bash
-   flake8 .
-   ```
-
-3. **Type checking with mypy**:
-   ```bash
-   mypy .
-   ```
-
 ### Adding New Features
 
 1. **Create new service**:
@@ -237,7 +236,7 @@ pytest tests/test_analysis_service.py
 
 ## 📊 Performance
 
-The refactored version includes several performance improvements:
+The version includes several performance improvements:
 
 - **Parallel Processing**: Multi-threaded analysis for large support bundles
 - **Efficient File Handling**: Streaming file processing to reduce memory usage
@@ -246,7 +245,7 @@ The refactored version includes several performance improvements:
 
 ## 🔒 Error Handling
 
-The refactored version includes comprehensive error handling:
+The version includes comprehensive error handling:
 
 - **Custom Exceptions**: Domain-specific exception classes
 - **Graceful Degradation**: Continue processing even if some files fail
@@ -279,22 +278,9 @@ The application includes built-in monitoring capabilities:
 - Add tests for new functionality
 - Use meaningful variable and function names
 
-## 📝 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🆘 Support
-
-For support and questions:
-
-1. Check the documentation
-2. Search existing issues
-3. Create a new issue with detailed information
-4. Contact the development team
-
 ## 🔄 Migration from Original Version
 
-The refactored version maintains backward compatibility with the original:
+The version maintains backward compatibility with the original:
 
 1. **Same Command Line Interface**: All original arguments are supported
 2. **Same Output Format**: Reports are generated in the same JSON format
