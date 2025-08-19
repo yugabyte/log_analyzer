@@ -1289,7 +1289,6 @@ document.addEventListener("DOMContentLoaded", function () {
             "<em style='margin-left:18px;'>No other reports for this organization.</em>";
         } else {
           html += `<table style='margin:18px 0 0 0;'><thead><tr>
-            <th>UUID</th>
             <th>Support Bundle Name</th>
             <th>Cluster Name</th>
             <th>Case ID</th>
@@ -1298,7 +1297,6 @@ document.addEventListener("DOMContentLoaded", function () {
           </tr></thead><tbody>`;
           sameOrg.forEach((r) => {
             html += `<tr>
-              <td>${r.id}</td>
               <td>${r.support_bundle_name}</td>
               <td>${r.cluster_name || ""}</td
               <td>${
