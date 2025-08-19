@@ -1253,22 +1253,16 @@ document.addEventListener("DOMContentLoaded", function () {
             "<em style='margin-left:18px;'>No other reports for this cluster.</em>";
         } else {
           html += `<table style='margin:18px 0 0 0;'><thead><tr>
-            <th>UUID</th>
             <th>Support Bundle Name</th>
-            <th>Cluster Name</th>
             <th>Organization</th>
-            <th>Cluster UUID</th>
             <th>Case ID</th>
             <th>Created At</th>
             <th>View</th>
           </tr></thead><tbody>`;
           sameCluster.forEach((r) => {
             html += `<tr>
-              <td>${r.id}</td>
               <td>${r.support_bundle_name}</td>
-              <td>${r.cluster_name || ""}</td>
               <td>${r.organization || ""}</td>
-              <td>${r.cluster_uuid || ""}</td>
               <td>${
                 r.case_id
                   ? `<a href='https://yugabyte.zendesk.com/agent/tickets/${r.case_id}' target='_blank'>${r.case_id}</a>`
@@ -1298,8 +1292,6 @@ document.addEventListener("DOMContentLoaded", function () {
             <th>UUID</th>
             <th>Support Bundle Name</th>
             <th>Cluster Name</th>
-            <th>Organization</th>
-            <th>Cluster UUID</th>
             <th>Case ID</th>
             <th>Created At</th>
             <th>View</th>
@@ -1309,8 +1301,6 @@ document.addEventListener("DOMContentLoaded", function () {
               <td>${r.id}</td>
               <td>${r.support_bundle_name}</td>
               <td>${r.cluster_name || ""}</td
-              <td>${r.organization || ""}</td>
-              <td>${r.cluster_uuid || ""}</td>
               <td>${
                 r.case_id
                   ? `<a href='https://yugabyte.zendesk.com/agent/tickets/${r.case_id}' target='_blank'>${r.case_id}</a>`
