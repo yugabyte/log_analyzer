@@ -1298,7 +1298,7 @@ document.addEventListener("DOMContentLoaded", function () {
           sameOrg.forEach((r) => {
             html += `<tr>
               <td>${r.support_bundle_name}</td>
-              <td>${r.cluster_name || ""}</td
+              <td>${r.cluster_name || ""}</td>
               <td>${
                 r.case_id
                   ? `<a href='https://yugabyte.zendesk.com/agent/tickets/${r.case_id}' target='_blank'>${r.case_id}</a>`
