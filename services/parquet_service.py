@@ -178,71 +178,73 @@ class ParquetAnalysisService:
         rows: List[tuple], 
         patterns: List[str]
     ) -> Dict[str, Dict[str, Dict[str, Any]]]:
-        """Process query results and build node-based statistics."""
+        """Process query results and build node-based statistics with a progress bar."""
         import time
-        
+        from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn
+
         node_proc_pat = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
-        
+
         # Filter out empty patterns to prevent blank message matches
         valid_patterns = [pattern for pattern in patterns if pattern and pattern.strip()]
-        
+
         # Use actual pattern names instead of generic pattern_X names
-        # This ensures the UI shows descriptive names like "Soft memory limit exceeded"
         pattern_name_map = {pattern: pattern for pattern in valid_patterns}
-        
+
         logger.info("🔄 Processing rows for pattern matching...")
-        
+
         # Track pattern matching timing
         start_pattern_matching = time.time()
         pattern_matches = 0
         total_rows = len(rows)
         blank_messages_skipped = 0
-        
-        for idx, (node_name, log_type, timestamp, message) in enumerate(rows):
-            if idx % 10000 == 0 and idx > 0:
-                logger.info(f"📊 Processed {idx}/{total_rows} rows for pattern matching...")
-            
-            # Enhanced filtering for blank messages
-            if not message or message.strip() == "" or message.isspace():
-                blank_messages_skipped += 1
-                continue
-            
-            # Match patterns
-            for pattern in valid_patterns:
-                if re.search(pattern, message):
-                    # Use the actual pattern name, not a generic one
-                    pattern_name = pattern_name_map.get(pattern, pattern)
-                    node_proc_pat[node_name][log_type][pattern_name].append(timestamp)
-                    pattern_matches += 1
-                    break  # Only match first pattern
-        
+
+        with Progress(
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            "[progress.percentage]{task.percentage:>3.0f}%",
+            "{task.completed}/{task.total}",
+            TimeElapsedColumn(),
+            TimeRemainingColumn(),
+            transient=True,
+        ) as progress:
+            task = progress.add_task("Processing rows", total=total_rows)
+            for idx, (node_name, log_type, timestamp, message) in enumerate(rows):
+                if idx % 1000 == 0 and idx > 0:
+                    progress.update(task, advance=1000)
+                # Enhanced filtering for blank messages
+                if not message or message.strip() == "" or message.isspace():
+                    blank_messages_skipped += 1
+                    continue
+                # Match patterns
+                for pattern in valid_patterns:
+                    if re.search(pattern, message):
+                        pattern_name = pattern_name_map.get(pattern, pattern)
+                        node_proc_pat[node_name][log_type][pattern_name].append(timestamp)
+                        pattern_matches += 1
+                        break  # Only match first pattern
+            # Advance any remaining
+            progress.update(task, completed=total_rows)
+
         pattern_matching_time = time.time() - start_pattern_matching
-        # Removed detailed timing logs as requested
-        
         # Log blank message count for debugging
         if blank_messages_skipped > 0:
             logger.info(f"⚠️  Skipped {blank_messages_skipped} blank/empty messages during processing")
-        
+
         # Build final results
         start_building_results = time.time()
         result = {}
-        
+
         for node_name in node_proc_pat:
             result[node_name] = {}
-            
             for proc in self.process_types:
                 log_messages = {}
                 proc_data = node_proc_pat[node_name].get(proc, {})
-                
                 for pattern_name, timestamps in proc_data.items():
                     if timestamps:
-                        # Calculate statistics
                         times = sorted(timestamps)
                         start_time = times[0]
                         end_time = times[-1]
                         total_count = len(times)
-                        
-                        # Build histogram
                         histogram = defaultdict(int)
                         for t in times:
                             if isinstance(t, datetime):
@@ -253,26 +255,22 @@ class ParquetAnalysisService:
                                 minute = dt.replace(second=0, microsecond=0)
                                 minute_str = minute.strftime('%Y-%m-%dT%H:%M:00Z')
                             histogram[minute_str] += 1
-                        
-                        # Format times for output
                         def iso(dt):
                             if isinstance(dt, datetime):
                                 return dt.strftime('%Y-%m-%dT%H:%M:%SZ')
                             else:
                                 return str(dt)[:19].replace(' ', 'T') + 'Z'
-                        
                         log_messages[pattern_name] = {
                             "StartTime": iso(start_time),
                             "EndTime": iso(end_time),
                             "count": total_count,
                             "histogram": dict(histogram)
                         }
-                
                 result[node_name][proc] = {"logMessages": log_messages}
-        
+
         building_results_time = time.time() - start_building_results
         logger.info(f"📊 Results building completed in {building_results_time:.2f} seconds.")
-        
+
         return result
     
     def save_results(self, result: Dict[str, Any], output_path: Path) -> None:
