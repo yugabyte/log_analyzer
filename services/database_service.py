@@ -100,20 +100,43 @@ class DatabaseService:
         try:
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
+                    # Fetch report JSON along with header metadata when available
                     cur.execute(
                         """
-                        SELECT json_report FROM public.log_analyzer_reports 
-                        WHERE id::text = %s
+                        SELECT r.json_report,
+                               r.support_bundle_name,
+                               h.cluster_name,
+                               h.organization,
+                               h.case_id
+                        FROM public.log_analyzer_reports r
+                        LEFT JOIN public.support_bundle_header h
+                          ON r.support_bundle_name = h.support_bundle
+                        WHERE r.id::text = %s
                         """,
                         (report_id,)
                     )
                     row = cur.fetchone()
-                    
-                    if row:
-                        return row[0]
-                    else:
+                    if not row:
                         return None
-                        
+                    base: Dict[str, Any] = row[0]
+                    # Safeguard in case json is None
+                    if base is None:
+                        base = {}
+                    support_bundle_name = row[1]
+                    cluster_name = row[2]
+                    organization = row[3]
+                    case_id = row[4]
+                    # Augment response with helpful top-level fields for UI
+                    base.setdefault('support_bundle_name', support_bundle_name)
+                    if cluster_name:
+                        base.setdefault('cluster_name', cluster_name)
+                        base.setdefault('universe_name', cluster_name)
+                    if organization:
+                        base.setdefault('organization', organization)
+                        base.setdefault('organization_name', organization)
+                    if case_id is not None:
+                        base.setdefault('case_id', case_id)
+                    return base
         except Exception as e:
             raise DatabaseError(f"Failed to retrieve report: {e}")
     

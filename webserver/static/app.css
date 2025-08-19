@@ -951,3 +951,132 @@ tr:nth-child(even) td {
   color: var(--modern-accent);
   border: 1.5px solid var(--modern-border);
 }
+
+.modern-case-link {
+  color: var(--modern-accent2);
+  text-decoration: underline;
+}
+.modern-case-link:hover {
+  text-decoration: none;
+}
+.modern-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 32px;
+  border-radius: 8px;
+  color: #fff;
+  background: var(--modern-accent2);
+  border: none;
+  cursor: pointer;
+  transition: background 0.18s, transform 0.08s ease-in-out;
+}
+.modern-view-btn:hover {
+  background: #2746a0;
+}
+.modern-view-btn:active {
+  transform: scale(0.98);
+}
+/* Toolbar and button styles */
+.report-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1em;
+  margin-bottom: 1em;
+}
+.report-toolbar-left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6em 1em;
+}
+.report-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  padding: 0.5em 0.9em;
+  border-radius: 10px;
+  border: 1.2px solid var(--modern-border);
+  background: #f5f6fa;
+  color: var(--modern-accent);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, border-color 0.18s, transform 0.08s;
+}
+.btn:hover {
+  background: #e9f1fb;
+  color: var(--modern-accent2);
+}
+.btn:active {
+  transform: scale(0.98);
+}
+.btn-primary {
+  background: var(--modern-accent2);
+  color: #fff;
+  border-color: var(--modern-accent2);
+}
+.btn-primary:hover {
+  background: #2746a0;
+  border-color: #2746a0;
+}
+.btn-secondary {
+  background: #fff;
+  color: var(--modern-accent);
+}
+.btn-danger {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+.btn-danger:hover {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+.btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+/* Report metadata strip */
+.report-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6em 1em;
+  align-items: center;
+  background: rgba(245, 246, 250, 0.7);
+  border: 1.2px solid var(--modern-border);
+  border-radius: 10px;
+  padding: 0.6em 0.9em;
+  margin-bottom: 1em;
+}
+.report-meta-item {
+  color: var(--modern-accent);
+  font-size: 0.98em;
+}
+.report-meta-item b {
+  color: var(--yuga-dark-gray);
+  margin-right: 0.25em;
+}
+/* Inline variant for toolbar */
+.report-meta-inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4em 0.8em;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+.report-meta-dot {
+  color: #c0c6d4;
+  margin: 0 0.2em;
+}

@@ -118,7 +118,7 @@
         </tr></thead><tbody>`;
         for (const report of reports) {
           html += `<tr>
-            <td>${report.case_id ? `<a class='modern-case-link' href='https://yugabyte.zzendesk.com/agent/tickets/${report.case_id}' target='_blank'>${report.case_id}</a>` : '-'}</td>
+            <td>${report.case_id ? `<a class='modern-case-link' href='https://yugabyte.zendesk.com/agent/tickets/${report.case_id}' target='_blank'>${report.case_id}</a>` : '-'}</td>
             <td>${report.support_bundle_name}</td>
             <td>${report.universe_name}</td>
             <td>${report.organization_name}</td>
@@ -199,7 +199,9 @@
       };
       clearSearchBtn.onclick = function() {
         searchBox.value = '';
-        window.location.reload();
+        lastQuery = '';
+        updateUrlParams({ q: null, page: 1 });
+        window.location = '/';
       };
       searchBox.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') searchBtn.onclick();
