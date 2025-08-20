@@ -249,9 +249,39 @@ document.addEventListener("DOMContentLoaded", function () {
         .map((t) => `<option value="${t}">${t}</option>`)
         .join("");
     nodeSelect.onchange = logTypeSelect.onchange = renderHistogram;
+    // Update toolbar metadata using the already-fetched histogram payload
+    updateReportMeta();
     renderHistogram();
     renderTables();
     renderWarningsTab();
+    renderAnalysisConfig();
+  }
+
+  // Populate report metadata 
+  function updateReportMeta() {
+    if (!jsonData) return;
+    const inline = document.getElementById("report-meta-inline");
+    const block = document.getElementById("report-meta");
+    if (!inline && !block) return;
+    const cluster = jsonData.universe_name || jsonData.cluster_name || "";
+    const org = jsonData.organization_name || jsonData.organization || jsonData.org || "";
+    const caseId = jsonData.case_id || jsonData.ticket || "";
+    const parts = [];
+    if (cluster) parts.push(`<span class='report-meta-item'><b>Cluster:</b>${cluster}</span>`);
+    if (org) parts.push(`<span class='report-meta-item'><b>Org:</b>${org}</span>`);
+    if (caseId) {
+      const link = `https://yugabyte.zendesk.com/agent/tickets/${caseId}`;
+      parts.push(
+        `<span class='report-meta-item'><b>Ticket:</b><a class='modern-case-link' href='${link}' target='_blank' rel='noopener'>${caseId}</a></span>`
+      );
+    }
+    if (parts.length) {
+      if (inline) inline.innerHTML = parts.join(`<span class='report-meta-dot'>&bull;</span>`);
+      if (block) {
+        block.innerHTML = parts.join("");
+        block.style.display = "none";
+      }
+    }
   }
 
   if (toggleScaleBtnChart) {
@@ -953,6 +983,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (tabId === "table-tab" && jsonData) renderTables();
       if (tabId === "gflags-tab" && jsonData) renderGFlags();
       if (tabId === "nodeinfo-tab" && jsonData) renderNodeInfo();
+      if (tabId === "config-tab" && jsonData) renderAnalysisConfig();
       if (tabId === "logsolutions-tab" && jsonData) renderLogSolutions();
       if (tabId === "related-tab") renderRelatedReports();
     });
@@ -1060,6 +1091,23 @@ document.addEventListener("DOMContentLoaded", function () {
       .catch(() => {
         gflagsDiv.innerHTML = "<em>Failed to load GFlags data.</em>";
       });
+  }
+
+  function renderAnalysisConfig() {
+    const cfgDiv = document.getElementById("analysis-config");
+    if (!cfgDiv) return;
+    if (!jsonData || !jsonData.analysis_config) {
+      cfgDiv.innerHTML = "<em>No analysis configuration found.</em>";
+      return;
+    }
+    const cfg = jsonData.analysis_config;
+    const escapeHtml = (s) =>
+      String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    const pretty = escapeHtml(JSON.stringify(cfg, null, 2));
+    cfgDiv.innerHTML = `<pre style=\"background:#f7f8fa;border:1px solid var(--yuga-border);border-radius:8px;padding:12px;overflow:auto;max-height:480px;margin:0;\">${pretty}</pre>`;
   }
 
   function renderNodeInfo() {

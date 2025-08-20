@@ -62,7 +62,9 @@
         <button class="tab-btn" data-tab="warnings-tab" style="display: none">
           Warnings
         </button>
+        <button class="tab-btn" data-tab="config-tab">Analyzer Config</button>
         <button class="tab-btn" data-tab="related-tab">Related Reports</button>
+
       </div>
       <div id="tab-panels">
         <div id="histogram-tab" class="tab-panel" style="display: block">
@@ -144,6 +146,7 @@
         <div id="table-tab" class="tab-panel"><div id="tables"></div></div>
         <div id="gflags-tab" class="tab-panel"><div id="gflags"></div></div>
         <div id="nodeinfo-tab" class="tab-panel"><div id="nodeinfo"></div></div>
+        <div id="config-tab" class="tab-panel"><div id="analysis-config"></div></div>
         <div id="logsolutions-tab" class="tab-panel">
           <div id="logsolutions"></div>
         </div>
@@ -151,6 +154,8 @@
         <div id="related-tab" class="tab-panel">
           <div id="related-reports"></div>
         </div>
+        <div id="config-tab" class="tab-panel"><div id="analysis-config"></div></div>
+
       </div>
     </div>
     <!-- Floating Help Button -->
@@ -294,33 +299,6 @@
         }
       };
 
-      // Fetch and render report meta (cluster, org, ticket)
-      (async function renderReportMeta() {
-        try {
-          const resp = await fetch(`/api/reports/${window.report_uuid}`);
-          const data = await resp.json();
-          if (!data || data.error) return;
-          const cluster = data.universe_name || data.cluster_name || '';
-          const org = data.organization_name || data.org || '';
-          const caseId = data.case_id || data.ticket || '';
-          const meta = [];
-          if (cluster) meta.push(`<span class='report-meta-item'><b>Cluster:</b>${cluster}</span>`);
-          if (org) meta.push(`<span class='report-meta-item'><b>Org:</b>${org}</span>`);
-          if (caseId) {
-            const link = `https://yugabyte.zendesk.com/agent/tickets/${caseId}`;
-            meta.push(`<span class='report-meta-item'><b>Ticket:</b><a class='modern-case-link' href='${link}' target='_blank' rel='noopener'>${caseId}</a></span>`);
-          }
-          if (meta.length) {
-            const inline = document.getElementById('report-meta-inline');
-            inline.innerHTML = meta.join(`<span class='report-meta-dot'>&bull;</span>`);
-            const block = document.getElementById('report-meta');
-            block.innerHTML = meta.join('');
-            block.style.display = 'none';
-          }
-        } catch(e) {
-          // ignore rendering meta on failure
-        }
-      })();
     </script>
   </body>
 </html>
