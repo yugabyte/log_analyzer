@@ -95,12 +95,10 @@ document.addEventListener("DOMContentLoaded", function () {
     if (endTimePicker && endTimePicker.value)
       params.set("end", toApiIso(endTimePicker.value));
     else params.delete("end");
-    if (nodeSelect && nodeSelect.value)
-      params.set("node", nodeSelect.value);
+    if (nodeSelect && nodeSelect.value) params.set("node", nodeSelect.value);
     if (logTypeSelect && logTypeSelect.value)
       params.set("type", logTypeSelect.value);
-    if (histogramScale)
-      params.set("scale", histogramScale);
+    if (histogramScale) params.set("scale", histogramScale);
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", newUrl);
   }
@@ -120,7 +118,10 @@ document.addEventListener("DOMContentLoaded", function () {
     if (params.scale === "log" || params.scale === "normal") {
       histogramScale = params.scale;
       if (toggleScaleBtnChart) {
-        toggleScaleBtnChart.classList.toggle("active", histogramScale === "log");
+        toggleScaleBtnChart.classList.toggle(
+          "active",
+          histogramScale === "log"
+        );
         const label = toggleScaleBtnChart.querySelector(".toggle-label");
         if (label)
           label.textContent =
@@ -330,16 +331,26 @@ document.addEventListener("DOMContentLoaded", function () {
         .join("");
     // Apply pre-selections from URL if available
     if (preselectNode) {
-      const hasNode = Array.from(nodeSelect.options).some((o) => o.value === preselectNode);
+      const hasNode = Array.from(nodeSelect.options).some(
+        (o) => o.value === preselectNode
+      );
       if (hasNode) nodeSelect.value = preselectNode;
     }
     if (preselectType) {
-      const hasType = Array.from(logTypeSelect.options).some((o) => o.value === preselectType);
+      const hasType = Array.from(logTypeSelect.options).some(
+        (o) => o.value === preselectType
+      );
       if (hasType) logTypeSelect.value = preselectType;
     }
     // Change handlers should update URL and re-render
-    nodeSelect.onchange = function () { updateUrlWithFilters(); renderHistogram(); };
-    logTypeSelect.onchange = function () { updateUrlWithFilters(); renderHistogram(); };
+    nodeSelect.onchange = function () {
+      updateUrlWithFilters();
+      renderHistogram();
+    };
+    logTypeSelect.onchange = function () {
+      updateUrlWithFilters();
+      renderHistogram();
+    };
     // Update toolbar metadata using the already-fetched histogram payload
     updateReportMeta();
     renderHistogram();
@@ -348,18 +359,23 @@ document.addEventListener("DOMContentLoaded", function () {
     renderAnalysisConfig();
   }
 
-  // Populate report metadata 
+  // Populate report metadata
   function updateReportMeta() {
     if (!jsonData) return;
     const inline = document.getElementById("report-meta-inline");
     const block = document.getElementById("report-meta");
     if (!inline && !block) return;
     const cluster = jsonData.universe_name || jsonData.cluster_name || "";
-    const org = jsonData.organization_name || jsonData.organization || jsonData.org || "";
+    const org =
+      jsonData.organization_name || jsonData.organization || jsonData.org || "";
     const caseId = jsonData.case_id || jsonData.ticket || "";
     const parts = [];
-    if (cluster) parts.push(`<span class='report-meta-item'><b>Cluster:</b>${cluster}</span>`);
-    if (org) parts.push(`<span class='report-meta-item'><b>Org:</b>${org}</span>`);
+    if (cluster)
+      parts.push(
+        `<span class='report-meta-item'><b>Cluster:</b>${cluster}</span>`
+      );
+    if (org)
+      parts.push(`<span class='report-meta-item'><b>Org:</b>${org}</span>`);
     if (caseId) {
       const link = `https://yugabyte.zendesk.com/agent/tickets/${caseId}`;
       parts.push(
@@ -367,7 +383,10 @@ document.addEventListener("DOMContentLoaded", function () {
       );
     }
     if (parts.length) {
-      if (inline) inline.innerHTML = parts.join(`<span class='report-meta-dot'>&bull;</span>`);
+      if (inline)
+        inline.innerHTML = parts.join(
+          `<span class='report-meta-dot'>&bull;</span>`
+        );
       if (block) {
         block.innerHTML = parts.join("");
         block.style.display = "none";
