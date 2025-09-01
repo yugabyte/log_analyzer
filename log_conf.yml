@@ -69,23 +69,6 @@ universe:
       solution: |
         This means that the failure of the leader is detected. More info to be added
 
-    - name: "Can't advance the committed index across term boundaries until operations from the current term are replicated"
-      pattern: "Can't advance the committed index across term boundaries until operations from the current term are replicated"
-      solution: |
-        This means that the leader is not able to advance the committed index across term boundaries until operations from the current term are replicated.
-
-        **NOTE**
-        - If this message is not observed frequently, then we can ignore this message. We should only be concerned if this message is observed continuously and when tablet replication is stuck.
-
-        **KB Article**: [Can't advance the committed index across term boundaries...](https://support.yugabyte.com/hc/en-us/articles/15642214673293-Can-t-advance-the-committed-index-across-term-boundaries-until-operations-from-the-current-term-are-replicated)
-        **Zendesk Tickets**:
-        - [7872](https://yugabyte.zendesk.com/agent/tickets/7872)
-            - Customer observed high latency on YCQL API calls but latency on yb-tserver was normal.
-            - Latency was high on YCQL API calls because leadership was not stable and found that leader was unable to advance the committed index across term boundaries as it was not able to replicate the NoOp to followers.
-        - [6137](https://yugabyte.zendesk.com/agent/tickets/6137)
-            - Customers backup was failing with "Timed our waiting for snapshot" error.
-            - Snapshot was failing because of the same reason as above.
-
     - name: "Could not locate the leader master"
       pattern: "Could not locate the leader master"
       solution: |
