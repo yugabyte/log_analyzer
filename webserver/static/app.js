@@ -12,13 +12,15 @@ document.addEventListener("DOMContentLoaded", function () {
   let jsonData = null;
   let currentReportId = null;
   let histogramScale = "normal"; // 'normal' or 'log'
+  // URL-preselected filters to be applied after data loads
+  let preselectNode = null;
+  let preselectType = null;
+  let hasRangeParams = false;
 
   // Auto-load report if report_uuid is present in the template context
   const reportUuidFromTemplate = window.report_uuid || null;
   if (reportUuidFromTemplate) {
     currentReportId = reportUuidFromTemplate;
-    // Instead of fetching /api/reports, fetch histogram with default interval and no range
-    fetchAndRenderHistogram();
   }
 
   // Helper to get ISO string for API from datetime-local input
@@ -35,7 +37,51 @@ document.addEventListener("DOMContentLoaded", function () {
       interval: params.get("interval"),
       start: params.get("start"),
       end: params.get("end"),
+      node: params.get("node"),
+      type: params.get("type"),
+      scale: params.get("scale"),
     };
+  }
+
+  // Ensure a 'Custom range' option exists
+  function ensureCustomOption() {
+    if (!quickRangeSelect) return;
+    const hasCustom = Array.from(quickRangeSelect.options).some(
+      (o) => o.value === "custom"
+    );
+    if (!hasCustom) {
+      const opt = document.createElement("option");
+      opt.value = "custom";
+      opt.textContent = "Custom range";
+      quickRangeSelect.appendChild(opt);
+    }
+  }
+
+  function computeInclusiveDays(startDate, endDate) {
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+    // Round to nearest whole day and add 1 to be inclusive
+    const diff = Math.round((endDate - startDate) / MS_PER_DAY) + 1;
+    return diff;
+  }
+
+  function setQuickRangeFromRange(startIso, endIso) {
+    if (!quickRangeSelect || !startIso || !endIso) return;
+    const startDate = new Date(startIso);
+    const endDate = new Date(endIso);
+    if (isNaN(startDate) || isNaN(endDate)) return;
+    const diffMs = endDate - startDate;
+    const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+    const days = computeInclusiveDays(startDate, endDate);
+    if (diffHours === 12) {
+      quickRangeSelect.value = "12h";
+    } else if (diffHours === 24) {
+      quickRangeSelect.value = "1d";
+    } else if ([3, 7, 15, 30].includes(days)) {
+      quickRangeSelect.value = String(days);
+    } else {
+      ensureCustomOption();
+      quickRangeSelect.value = "custom";
+    }
   }
 
   // Helper to update URL with current filter state
@@ -49,12 +95,16 @@ document.addEventListener("DOMContentLoaded", function () {
     if (endTimePicker && endTimePicker.value)
       params.set("end", toApiIso(endTimePicker.value));
     else params.delete("end");
+    if (nodeSelect && nodeSelect.value) params.set("node", nodeSelect.value);
+    if (logTypeSelect && logTypeSelect.value)
+      params.set("type", logTypeSelect.value);
+    if (histogramScale) params.set("scale", histogramScale);
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", newUrl);
   }
 
-  // On page load, set controls from URL if present
-  document.addEventListener("DOMContentLoaded", function () {
+  // On initial load, set controls from URL if present
+  (function applyUrlParamsOnLoad() {
     const params = getQueryParams();
     if (intervalSelect && params.interval)
       intervalSelect.value = params.interval;
@@ -62,7 +112,27 @@ document.addEventListener("DOMContentLoaded", function () {
       startTimePicker.value = params.start.slice(0, 16);
     if (endTimePicker && params.end)
       endTimePicker.value = params.end.slice(0, 16);
-  });
+    preselectNode = params.node || null;
+    preselectType = params.type || null;
+    hasRangeParams = !!(params.start || params.end);
+    if (params.scale === "log" || params.scale === "normal") {
+      histogramScale = params.scale;
+      if (toggleScaleBtnChart) {
+        toggleScaleBtnChart.classList.toggle(
+          "active",
+          histogramScale === "log"
+        );
+        const label = toggleScaleBtnChart.querySelector(".toggle-label");
+        if (label)
+          label.textContent =
+            histogramScale === "log" ? "Normal Scale" : "Log Scale";
+      }
+    }
+    // Reflect quick range in UI if start/end present in URL
+    if (hasRangeParams && params.start && params.end) {
+      setQuickRangeFromRange(params.start, params.end);
+    }
+  })();
 
   // Update fetchAndRenderHistogram to update URL
   function fetchAndRenderHistogram() {
@@ -76,6 +146,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const interval = intervalSelect ? parseInt(intervalSelect.value) : 60;
     const start = toApiIso(startTimePicker ? startTimePicker.value : null);
     const end = toApiIso(endTimePicker ? endTimePicker.value : null);
+    // Update quick range UI to match explicit range if present
+    if (start && end) setQuickRangeFromRange(start, end);
     let url = `/api/histogram/${currentReportId}?interval=${interval}`;
     if (start) url += `&start=${encodeURIComponent(start)}`;
     if (end) url += `&end=${encodeURIComponent(end)}`;
@@ -94,9 +166,15 @@ document.addEventListener("DOMContentLoaded", function () {
     intervalSelect.onchange = fetchAndRenderHistogram;
   }
 
-  // Optionally, auto-load histogram on page load
-  if (intervalSelect && startTimePicker && endTimePicker) {
-    fetchAndRenderHistogram();
+  // Initial load: apply URL params or defaults and fetch
+  if (currentReportId) {
+    if (quickRangeSelect && !hasRangeParams) {
+      // Default to last 3 days if no explicit range provided
+      quickRangeSelect.value = "3";
+      handleQuickRangeChange();
+    } else {
+      fetchAndRenderHistogram();
+    }
   }
 
   // Helper to fetch the latest datetime from the backend
@@ -119,18 +197,29 @@ document.addEventListener("DOMContentLoaded", function () {
       fetchAndRenderHistogram();
       return;
     }
-    const days = parseInt(val);
-    const latest = await fetchLatestDatetime();
+    if (val === "custom") {
+      // Do not change pickers; they already represent the custom selection
+      fetchAndRenderHistogram();
+      return;
+    }
+    let latest = await fetchLatestDatetime();
     if (!latest) {
       startTimePicker.value = "";
       endTimePicker.value = "";
       fetchAndRenderHistogram();
       return;
     }
-    // Set end to latest, start to latest - days
-    const end = new Date(latest);
-    const start = new Date(latest);
-    start.setDate(start.getDate() - days + 1); // inclusive
+    let start, end;
+    end = new Date(latest);
+    start = new Date(latest);
+    if (val === "1d") {
+      start.setHours(start.getHours() - 24);
+    } else if (val === "12h") {
+      start.setHours(start.getHours() - 12);
+    } else {
+      const days = parseInt(val);
+      start.setDate(start.getDate() - days + 1); // inclusive
+    }
     // Format as yyyy-MM-ddTHH:mm for datetime-local
     function toLocal(dt) {
       const pad = (n) => n.toString().padStart(2, "0");
@@ -154,14 +243,6 @@ document.addEventListener("DOMContentLoaded", function () {
   if (quickRangeSelect) {
     quickRangeSelect.onchange = handleQuickRangeChange;
   }
-
-  // On initial load, set quick range to Last 7 days and trigger change
-  document.addEventListener("DOMContentLoaded", function () {
-    if (quickRangeSelect) {
-      quickRangeSelect.value = "7";
-      handleQuickRangeChange();
-    }
-  });
 
   function renderWarningsTab() {
     const warningsTabBtn = document.querySelector(
@@ -224,7 +305,7 @@ document.addEventListener("DOMContentLoaded", function () {
             });
           // Expand this one
           content.style.display = "block";
-          arrow.innerHTML = "&#9660;";
+          arrow.innerHTML = "&#9660";
         }
       };
     });
@@ -248,7 +329,28 @@ document.addEventListener("DOMContentLoaded", function () {
       Array.from(logTypes)
         .map((t) => `<option value="${t}">${t}</option>`)
         .join("");
-    nodeSelect.onchange = logTypeSelect.onchange = renderHistogram;
+    // Apply pre-selections from URL if available
+    if (preselectNode) {
+      const hasNode = Array.from(nodeSelect.options).some(
+        (o) => o.value === preselectNode
+      );
+      if (hasNode) nodeSelect.value = preselectNode;
+    }
+    if (preselectType) {
+      const hasType = Array.from(logTypeSelect.options).some(
+        (o) => o.value === preselectType
+      );
+      if (hasType) logTypeSelect.value = preselectType;
+    }
+    // Change handlers should update URL and re-render
+    nodeSelect.onchange = function () {
+      updateUrlWithFilters();
+      renderHistogram();
+    };
+    logTypeSelect.onchange = function () {
+      updateUrlWithFilters();
+      renderHistogram();
+    };
     // Update toolbar metadata using the already-fetched histogram payload
     updateReportMeta();
     renderHistogram();
@@ -257,18 +359,23 @@ document.addEventListener("DOMContentLoaded", function () {
     renderAnalysisConfig();
   }
 
-  // Populate report metadata 
+  // Populate report metadata
   function updateReportMeta() {
     if (!jsonData) return;
     const inline = document.getElementById("report-meta-inline");
     const block = document.getElementById("report-meta");
     if (!inline && !block) return;
     const cluster = jsonData.universe_name || jsonData.cluster_name || "";
-    const org = jsonData.organization_name || jsonData.organization || jsonData.org || "";
+    const org =
+      jsonData.organization_name || jsonData.organization || jsonData.org || "";
     const caseId = jsonData.case_id || jsonData.ticket || "";
     const parts = [];
-    if (cluster) parts.push(`<span class='report-meta-item'><b>Cluster:</b>${cluster}</span>`);
-    if (org) parts.push(`<span class='report-meta-item'><b>Org:</b>${org}</span>`);
+    if (cluster)
+      parts.push(
+        `<span class='report-meta-item'><b>Cluster:</b>${cluster}</span>`
+      );
+    if (org)
+      parts.push(`<span class='report-meta-item'><b>Org:</b>${org}</span>`);
     if (caseId) {
       const link = `https://yugabyte.zendesk.com/agent/tickets/${caseId}`;
       parts.push(
@@ -276,7 +383,10 @@ document.addEventListener("DOMContentLoaded", function () {
       );
     }
     if (parts.length) {
-      if (inline) inline.innerHTML = parts.join(`<span class='report-meta-dot'>&bull;</span>`);
+      if (inline)
+        inline.innerHTML = parts.join(
+          `<span class='report-meta-dot'>&bull;</span>`
+        );
       if (block) {
         block.innerHTML = parts.join("");
         block.style.display = "none";
@@ -293,6 +403,7 @@ document.addEventListener("DOMContentLoaded", function () {
         label.textContent =
           histogramScale === "log" ? "Normal Scale" : "Log Scale";
       }
+      updateUrlWithFilters();
       renderHistogram();
     };
   }
@@ -916,14 +1027,16 @@ document.addEventListener("DOMContentLoaded", function () {
           "<th class='first-occ-col'>First Occurrence</th>" +
           "<th class='last-occ-col'>Last Occurrence</th>" +
           "<th class='count-col'>Count</th></tr>";
-        Object.entries(logMessages).forEach(([msg, stats]) => {
-          nodeHtml +=
+        Object.entries(logMessages).forEach(([$msg, stats]) => {
+          const msg = $msg;
+          let row =
             `<tr>` +
             `<td class='log-msg-col'>${msg}</td>` +
             `<td class='first-occ-col'>${stats.StartTime || ""}</td>` +
             `<td class='last-occ-col'>${stats.EndTime || ""}</td>` +
             `<td class='count-col'>${stats.count || 0}</td>` +
             `</tr>`;
+          nodeHtml += row;
         });
         nodeHtml += "</table>";
       });
@@ -1220,13 +1333,7 @@ document.addEventListener("DOMContentLoaded", function () {
           solutionsMap[msg] ||
           "<em>No solution available for this log message.</em>";
         const solutionHtml = converter.makeHtml(solutionMd);
-        html += `<div class=\"log-solution-collapsible\" style=\"margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fafbfc;\">
-          <div class=\"log-solution-header\" data-idx=\"${idx}\" style=\"cursor:pointer; display:flex; align-items:center; padding: 12px 18px; font-weight:600; font-size:1.08em; color:#172447; border-radius:6px 6px 0 0; background:#f1f3f7; transition:background 0.2s;\">
-            <span class=\"arrow\" style=\"margin-right:10px; font-size:1.2em; color:#888;\">&#9654;</span>
-            <span>${msg}</span>
-          </div>
-          <div class=\"log-solution-body\" style=\"display:none; padding: 18px; background: #fff; border-radius:0 0 6px 6px; border-top:1px solid #e2e8f0;\">${solutionHtml}</div>
-        </div>`;
+        html += `<div class=\"log-solution-collapsible\" style=\"margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fafbfc;\">\n          <div class=\"log-solution-header\" data-idx=\"${idx}\" style=\"cursor:pointer; display:flex; align-items:center; padding: 12px 18px; font-weight:600; font-size:1.08em; color:#172447; border-radius:6px 6px 0 0; background:#f1f3f7; transition:background 0.2s;\">\n            <span class=\"arrow\" style=\"margin-right:10px; font-size:1.2em; color:#888;\">&#9654;</span>\n            <span>${msg}</span>\n          </div>\n          <div class=\"log-solution-body\" style=\"display:none; padding: 18px; background: #fff; border-radius:0 0 6px 6px; border-top:1px solid #e2e8f0;\">${solutionHtml}</div>\n        </div>`;
         idx++;
       });
       html += "</div>";

@@ -209,14 +209,14 @@ class LogAnalyzerApp:
     def parse_time_range(self, args: argparse.Namespace) -> tuple[datetime, datetime]:
         """Parse and validate time range from arguments."""
         # Calculate default time range
-        seven_days_ago = datetime.now() - timedelta(days=settings.analysis_config.default_time_range_days)
-        seven_days_ago = seven_days_ago.strftime("%m%d %H:%M")
-        
+        default_start_time = datetime.now() - timedelta(days=settings.analysis_config.default_time_range_days)
+        default_start_time = default_start_time.strftime("%m%d %H:%M")
+
         # Parse start time
         if args.start_time:
             start_time = datetime.strptime(args.start_time, "%m%d %H:%M")
         else:
-            start_time = datetime.strptime(seven_days_ago, "%m%d %H:%M")
+            start_time = datetime.strptime(default_start_time, "%m%d %H:%M")
         
         # Parse end time
         if args.end_time:
@@ -277,7 +277,7 @@ class LogAnalyzerApp:
         
         # Perform analysis
         self.logger.info(f"Analyzing support bundle: {bundle_name}")
-        self.logger.info(f"Time range: {analysis_config.start_time.strftime('%m%d %H:%M')} to {analysis_config.end_time.strftime('%m%d %H:%M')}")
+        # self.logger.info(f"Time range: {analysis_config.start_time.strftime('%m%d %H:%M')} to {analysis_config.end_time.strftime('%m%d %H:%M')}")
         
         report = self.analysis_service.analyze_support_bundle(
             bundle_path=bundle_path,
