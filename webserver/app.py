@@ -159,6 +159,86 @@ class LogAnalyzerWebApp:
                 self.logger.error(f"Unexpected error getting GFlags: {e}")
                 return jsonify({'error': 'Internal server error'}), 500
         
+        @self.app.route('/api/gflags_diff/<cluster_name>/<organization>')
+        def gflags_diff_api(cluster_name, organization):
+            """API endpoint for GFlags diff for last 5 support bundles of a universe."""
+            try:
+                # Get last 5 support bundles for this cluster/org
+                with self.db_service.get_connection() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            """
+                            SELECT support_bundle, "timestamp", cluster_uuid
+                            FROM public.support_bundle_header
+                            WHERE cluster_name = %s AND organization = %s
+                            ORDER BY "timestamp" DESC LIMIT 5
+                            """,
+                            (cluster_name, organization)
+                        )
+                        bundles = cur.fetchall()
+                        if not bundles:
+                            return jsonify({'error': 'No support bundles found'}), 404
+
+                        bundle_names = [b[0] for b in bundles]  # newest to oldest
+                        bundle_timestamps = [b[1].isoformat() for b in bundles]
+                        cluster_uuid = bundles[0][2]  # Get cluster_uuid from first result
+
+                        # Fetch all GFlags for these bundles
+                        cur.execute(
+                            """
+                            SELECT support_bundle, node_name, server_type, gflag, value
+                            FROM public.support_bundle_gflags
+                            WHERE support_bundle = ANY(%s)
+                            ORDER BY support_bundle, node_name, server_type, gflag
+                            """,
+                            (bundle_names,)
+                        )
+                        rows = cur.fetchall()
+
+                # Organize: {bundle: {node: {role: {flag: value}}}}
+                bundle_gflags = {}
+                for bundle, node, role, flag, value in rows:
+                    bundle_gflags.setdefault(bundle, {}).setdefault(node, {}).setdefault(role, {})[flag] = value
+
+                # For each node/role, build a list of gflags per bundle
+                node_role_keys = set()
+                for bundle in bundle_names:
+                    for node in bundle_gflags.get(bundle, {}):
+                        for role in bundle_gflags[bundle][node]:
+                            node_role_keys.add((node, role))
+
+                # For each node/role, for each bundle, get gflags dict
+                diffs = {}
+                for node, role in sorted(node_role_keys):
+                    diffs.setdefault(node, {})[role] = []
+                    prev = None
+                    for i, bundle in enumerate(bundle_names):
+                        gflags = bundle_gflags.get(bundle, {}).get(node, {}).get(role, {})
+                        # Compare to previous
+                        if prev is None:
+                            change = { 'type': 'initial', 'gflags': gflags }
+                        else:
+                            change = self._compare_gflags(prev, gflags)
+                        diffs[node][role].append({
+                            'bundle': bundle,
+                            'timestamp': bundle_timestamps[i],
+                            'change': change,
+                            'gflags': gflags
+                        })
+                        prev = gflags
+
+                return jsonify({
+                    'universe': cluster_uuid,
+                    'organization': organization,
+                    'bundles': [
+                        {'name': b, 'timestamp': t} for b, t in zip(bundle_names, bundle_timestamps)
+                    ],
+                    'diffs': diffs
+                })
+            except Exception as e:
+                self.logger.error(f"Error in gflags_diff_api: {e}")
+                return jsonify({'error': 'Internal server error'}), 500
+        
         @self.app.route('/api/related_reports/<uuid>')
         def related_reports_api(uuid):
             """API endpoint for related reports."""
@@ -357,6 +437,37 @@ class LogAnalyzerWebApp:
         all_dates = [datetime.strptime(b, '%Y-%m-%dT%H:%M:%SZ') for b in all_bucket_times]
         max_date = max(all_dates)
         return max_date.strftime('%Y-%m-%dT%H:%M:%SZ')
+    
+    def _compare_gflags(self, prev: Dict[str, Any], curr: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Compare two gflags dicts. Return dict with added, removed, modified.
+        Handles all value types as string for comparison.
+        """
+        added = {}
+        removed = {}
+        modified = {}
+        prev_keys = set(prev.keys())
+        curr_keys = set(curr.keys())
+        
+        # Added flags
+        for k in curr_keys - prev_keys:
+            added[k] = curr[k]
+        
+        # Removed flags
+        for k in prev_keys - curr_keys:
+            removed[k] = prev[k]
+        
+        # Modified flags
+        for k in prev_keys & curr_keys:
+            if str(prev[k]) != str(curr[k]):
+                modified[k] = {'old': prev[k], 'new': curr[k]}
+        
+        return {
+            'type': 'diff',
+            'added': added,
+            'removed': removed,
+            'modified': modified
+        }
     
     def run(self, debug: bool = False, host: str = None, port: int = None) -> None:
         """Run the Flask application."""

@@ -57,6 +57,7 @@
         </button>
         <button class="tab-btn" data-tab="table-tab">Table View</button>
         <button class="tab-btn" data-tab="gflags-tab">GFlags</button>
+        <button class="tab-btn" data-tab="gflags-diff-tab">GFlags Diff</button>
         <button class="tab-btn" data-tab="nodeinfo-tab">Node Info</button>
         <button class="tab-btn" data-tab="logsolutions-tab">Log Details</button>
         <button class="tab-btn" data-tab="warnings-tab" style="display: none">
@@ -147,6 +148,17 @@
         </div>
         <div id="table-tab" class="tab-panel"><div id="tables"></div></div>
         <div id="gflags-tab" class="tab-panel"><div id="gflags"></div></div>
+        <div id="gflags-diff-tab" class="tab-panel">
+          <div id="gflags-diff">
+            <div id="gflags-diff-header" class="gflags-diff-header">
+              <h3>GFlags Changes Across Support Bundles</h3>
+              <p class="gflags-diff-description">View GFlags changes across the last 5 support bundles for this universe, displayed in GitHub-style diff format.</p>
+            </div>
+            <div id="gflags-diff-content" class="gflags-diff-content">
+              <div class="loading-spinner">Loading GFlags diff...</div>
+            </div>
+          </div>
+        </div>
         <div id="nodeinfo-tab" class="tab-panel"><div id="nodeinfo"></div></div>
         <div id="config-tab" class="tab-panel"><div id="analysis-config"></div></div>
         <div id="logsolutions-tab" class="tab-panel">
