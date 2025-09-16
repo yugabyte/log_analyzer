@@ -1630,7 +1630,7 @@ document.addEventListener("DOMContentLoaded", function () {
           
           // Commit header with bundle info
           html += `<div class="diff-commit-header">`;
-          html += `<div><span class="diff-commit-sha">${bundle.split('-').pop() || bundle.slice(-8)}</span></div>`;
+          html += `<div><span class="diff-commit-sha">${bundle}</span></div>`;
           html += `<div class="diff-commit-date">${formatTimestamp(timestamp)}</div>`;
           html += `</div>`;
           

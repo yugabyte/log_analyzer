@@ -1202,9 +1202,14 @@ tr:nth-child(even) td {
   background: rgba(235, 238, 242, 0.8);
   padding: 0.2em 0.5em;
   border-radius: 4px;
-  font-size: 0.85em;
+  font-size: 0.8em;
   color: var(--modern-accent);
   font-weight: 600;
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
 }
 
 .diff-commit-date {
