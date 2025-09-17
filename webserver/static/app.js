@@ -1636,12 +1636,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     let html = "";
 
-    // Add universe info header
-    html += `<div class="diff-universe-info" style="margin-bottom: 1.5em; padding: 1em; background: rgba(248, 250, 252, 0.9); border-radius: 8px; border: 1px solid #e1e8ed;">`;
-    html += `<strong>Universe:</strong> ${diffData.universe} <span style="margin-left: 1em;"><strong>Organization:</strong> ${diffData.organization}</span>`;
-    html += `<div style="margin-top: 0.5em; font-size: 0.9em; color: #586069;">Analyzing ${diffData.bundles.length} support bundles (newest to oldest)</div>`;
-    html += `</div>`;
-
     // Process each node
     Object.entries(diffData.diffs).forEach(([nodeName, nodeRoles]) => {
       // Calculate node-level summary
