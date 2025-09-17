@@ -152,7 +152,20 @@
           <div id="gflags-diff">
             <div id="gflags-diff-header" class="gflags-diff-header">
               <h3>GFlags Changes Across Support Bundles</h3>
-              <p class="gflags-diff-description">View GFlags changes across the last 5 support bundles for this universe, displayed in GitHub-style diff format.</p>
+              <p class="gflags-diff-description">View GFlags changes from support bundles collected in the last <span id="gflags-days-label">90</span> days for this universe.</p>
+              <div class="gflags-days-select-container" style="margin-top: 0.5em;">
+                <label for="gflags-days-select">Show changes from last </label>
+                <select id="gflags-days-select" style="min-width: 70px;">
+                  <option value="7">7 days</option>
+                  <option value="15">15 days</option>
+                  <option value="30">30 days</option>
+                  <option value="60">60 days</option>
+                  <option value="90" selected>90 days</option>
+                  <option value="180">180 days</option>
+                  <option value="365">365 days</option>
+                </select>
+                <span>support bundles</span>
+              </div>
             </div>
             <div id="gflags-diff-content" class="gflags-diff-content">
               <div class="loading-spinner">Loading GFlags diff...</div>

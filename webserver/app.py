@@ -161,19 +161,50 @@ class LogAnalyzerWebApp:
         
         @self.app.route('/api/gflags_diff/<cluster_name>/<organization>')
         def gflags_diff_api(cluster_name, organization):
-            """API endpoint for GFlags diff for last 5 support bundles of a universe."""
+            """API endpoint for GFlags diff from support bundles of a universe."""
             try:
-                # Get last 5 support bundles for this cluster/org
+                # Get 'days' from query param, default 90
+                days = request.args.get('days', default=90, type=int)
+                bundle_name = request.args.get('bundle')
                 with self.db_service.get_connection() as conn:
                     with conn.cursor() as cur:
+                        # If bundle_name is provided, get its timestamp, else use latest
+                        if bundle_name:
+                            cur.execute(
+                                """
+                                SELECT "timestamp" FROM public.support_bundle_header
+                                WHERE support_bundle = %s AND cluster_name = %s AND organization = %s
+                                """,
+                                (bundle_name, cluster_name, organization)
+                            )
+                            ts_row = cur.fetchone()
+                            if not ts_row or not ts_row[0]:
+                                return jsonify({'error': 'Support bundle not found'}), 404
+                            ref_ts = ts_row[0]
+                        else:
+                            cur.execute(
+                                """
+                                SELECT MAX("timestamp") FROM public.support_bundle_header
+                                WHERE cluster_name = %s AND organization = %s
+                                """,
+                                (cluster_name, organization)
+                            )
+                            max_ts_row = cur.fetchone()
+                            if not max_ts_row or not max_ts_row[0]:
+                                return jsonify({'error': 'No support bundles found'}), 404
+                            ref_ts = max_ts_row[0]
+
+                        # Get all bundles in the last N days from the reference bundle
                         cur.execute(
                             """
                             SELECT support_bundle, "timestamp", cluster_uuid
                             FROM public.support_bundle_header
                             WHERE cluster_name = %s AND organization = %s
-                            ORDER BY "timestamp" DESC LIMIT 5
+                              AND "timestamp" >= %s::timestamp - INTERVAL '%s days'
+                              AND "timestamp" <= %s::timestamp
+                            ORDER BY "timestamp" DESC
                             """,
-                            (cluster_name, organization)
+                            (cluster_name, organization, ref_ts, days, ref_ts)
                         )
                         bundles = cur.fetchall()
                         if not bundles:
