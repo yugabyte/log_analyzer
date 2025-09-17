@@ -1636,6 +1636,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     let html = "";
 
+    // Add universe info header
+    html += `<div style="margin-top: 0.5em; font-size: 0.9em; color: #586069;">Analyzing ${diffData.bundles.length} support bundles (newest to oldest)</div>`;
     // Process each node
     Object.entries(diffData.diffs).forEach(([nodeName, nodeRoles]) => {
       // Calculate node-level summary
