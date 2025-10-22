@@ -102,12 +102,6 @@ class LogAnalyzerApp:
             metavar="DIR",
             help="Directory containing Parquet files to analyze"
         )
-        # --tablet_report is only required for direct tablet report analysis, not with -s
-        parser.add_argument(
-            "--tablet_report",
-            metavar="DIR",
-            help="Directory containing extracted TabletReport files to analyze (optional, auto-detected with -s)"
-        )
         parser.add_argument(
             "--types",
             metavar="LIST",
@@ -476,8 +470,6 @@ class LogAnalyzerApp:
             setup_logging(log_file=log_file)
             
             # Run analysis based on input type
-            from services.tablet_report_service import TabletReportService
-            tablet_report_service = TabletReportService()
             if args.support_bundle:
                 # Analyze support bundle and get report_id
                 bundle_path = Path(args.support_bundle)
@@ -487,6 +479,11 @@ class LogAnalyzerApp:
                 force = getattr(args, 'force', False)
                 if existing_report_id and not force:
                     report_id = existing_report_id
+                    self.logger.warning(f"📊 Analysis already completed for support bundle '{bundle_name}'.")
+                    self.logger.warning(f"🔁 Use --force option to re-trigger the analysis forcefully")
+                    self.logger.warning(f"🔗 Use the link below to view the report:")
+                    report_url = f"http://{settings.server.host}:{settings.server.port}/reports/{existing_report_id}"
+                    self.logger.warning(report_url)
                 else:
                     analysis_config = self.create_analysis_config(args)
                     report = self.analysis_service.analyze_support_bundle(
@@ -499,58 +496,16 @@ class LogAnalyzerApp:
                         self.analysis_service.save_report(report, output_path)
                     try:
                         report_id = self.database_service.store_report(report)
+                        self.logger.info("✅ Analysis completed successfully!")
+                        self.logger.info(f"👉 Report available at: http://{settings.server.host}:{settings.server.port}/reports/{report_id}")
+                        self.logger.info(f"📊 Results saved to: {output_path}")
                     except Exception as e:
                         self.logger.error(f"👉 Failed to insert report into PostgreSQL: {e}")
                         self.logger.info("✅ Analysis completed successfully!")
                         self.logger.warning("⚠️  Report could not be stored in database. Check database connection.")
                         return 1
-                # After support bundle analysis, auto-detect TabletReport dir and process if present
-                extracted_dir = bundle_path.parent / bundle_name
-                tablet_dir = extracted_dir / "YBA" / "TabletReport"
-                if tablet_dir.exists():
-                    self.logger.info(f"🚀 Starting Tablet Report analysis for: {tablet_dir}")
-                    try:
-                        parsed = tablet_report_service.parse(tablet_dir)
-                        tablet_report_service.insert_to_db(report_id, parsed)
-                        self.logger.info(f"✅ Tablet report data inserted into database with report_id: {report_id}")
-                    except Exception as e:
-                        self.logger.error(f"❌ Tablet report analysis failed: {e}")
-                        return 1
-                else:
-                    self.logger.info(f"No TabletReport directory found at {tablet_dir}, skipping tablet report analysis.")
             elif args.parquet_files:
                 self.analyze_parquet_files(args)
-                # If --tablet_report is provided, run tablet report analysis on it
-                if args.tablet_report:
-                    tablet_dir = Path(args.tablet_report)
-                    if not tablet_dir.exists():
-                        self.logger.error(f"Tablet report directory not found: {tablet_dir}")
-                        return 1
-                    self.logger.info(f"🚀 Starting Tablet Report analysis for: {tablet_dir}")
-                    try:
-                        parsed = tablet_report_service.parse(tablet_dir)
-                        import uuid
-                        report_id = str(uuid.uuid4())
-                        tablet_report_service.insert_to_db(report_id, parsed)
-                        self.logger.info(f"✅ Tablet report data inserted into database with report_id: {report_id}")
-                    except Exception as e:
-                        self.logger.error(f"❌ Tablet report analysis failed: {e}")
-                        return 1
-            elif args.tablet_report:
-                tablet_dir = Path(args.tablet_report)
-                if not tablet_dir.exists():
-                    self.logger.error(f"Tablet report directory not found: {tablet_dir}")
-                    return 1
-                self.logger.info(f"🚀 Starting Tablet Report analysis for: {tablet_dir}")
-                try:
-                    parsed = tablet_report_service.parse(tablet_dir)
-                    import uuid
-                    report_id = str(uuid.uuid4())
-                    tablet_report_service.insert_to_db(report_id, parsed)
-                    self.logger.info(f"✅ Tablet report data inserted into database with report_id: {report_id}")
-                except Exception as e:
-                    self.logger.error(f"❌ Tablet report analysis failed: {e}")
-                    return 1
             return 0
             
         except ValidationError as e:
