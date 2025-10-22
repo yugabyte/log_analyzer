@@ -380,20 +380,22 @@ class LogAnalyzerWebApp:
             return jsonify({'error': str(error)}), 400
     
     def _filter_histogram_data(
-        self, 
-        data: Dict[str, Any], 
-        start: Optional[str], 
-        end: Optional[str], 
+        self,
+        data: Dict[str, Any],
+        start: Optional[str],
+        end: Optional[str],
         interval: int
     ) -> Dict[str, Any]:
-        """Filter and aggregate histogram data."""
-        
-        def parse_time(s: str) -> datetime:
-            return datetime.strptime(s, '%Y-%m-%dT%H:%M:%SZ')
-        
+        """Filter and aggregate histogram data, robust to null/invalid keys."""
+        def parse_time(s: str) -> Optional[datetime]:
+            if not s or s == 'null':
+                return None
+            try:
+                return datetime.strptime(s, '%Y-%m-%dT%H:%M:%SZ')
+            except Exception:
+                return None
         def format_time(dt: datetime) -> str:
             return dt.strftime('%Y-%m-%dT%H:%M:00Z')
-        
         # If no start/end provided, compute last 7 days from latest bucket
         if not start or not end:
             all_bucket_times = []
@@ -401,18 +403,16 @@ class LogAnalyzerWebApp:
                 for proc, proc_data in node_data.items():
                     for msg, msg_stats in proc_data.get('logMessages', {}).items():
                         hist = msg_stats.get('histogram', {})
-                        all_bucket_times.extend(hist.keys())
-            
-            if all_bucket_times:
-                all_dates = [parse_time(b) for b in all_bucket_times]
-                max_date = max(all_dates)
+                        all_bucket_times.extend([k for k in hist.keys() if k and k != 'null'])
+            valid_dates = [parse_time(b) for b in all_bucket_times]
+            valid_dates = [d for d in valid_dates if d]
+            if valid_dates:
+                max_date = max(valid_dates)
                 min_date = max_date - timedelta(days=7)
-                
                 if not start:
                     start_dt = min_date
                 else:
                     start_dt = parse_time(start)
-                
                 if not end:
                     end_dt = max_date
                 else:
@@ -423,25 +423,24 @@ class LogAnalyzerWebApp:
         else:
             start_dt = parse_time(start)
             end_dt = parse_time(end)
-        
         # Filter and aggregate data
         for node, node_data in data.get('nodes', {}).items():
             for proc, proc_data in node_data.items():
                 for msg, msg_stats in proc_data.get('logMessages', {}).items():
                     hist = msg_stats.get('histogram', {})
-                    
                     # Filter by time range
                     filtered = {}
                     for k, v in hist.items():
                         t = parse_time(k)
-                        if (not start_dt or t >= start_dt) and (not end_dt or t <= end_dt):
+                        if t and (not start_dt or t >= start_dt) and (not end_dt or t <= end_dt):
                             filtered[k] = v
-                    
                     # Aggregate by interval
                     if interval > 1:
                         agg = {}
                         for k, v in filtered.items():
                             t = parse_time(k)
+                            if not t:
+                                continue
                             bucket_minute = (t.minute // interval) * interval
                             bucket = t.replace(minute=bucket_minute, second=0, microsecond=0)
                             bucket_key = format_time(bucket)
@@ -449,24 +448,25 @@ class LogAnalyzerWebApp:
                         msg_stats['histogram'] = agg
                     else:
                         msg_stats['histogram'] = filtered
-        
         return data
     
     def _get_latest_histogram_datetime(self, data: Dict[str, Any]) -> Optional[str]:
-        """Get the latest datetime from histogram data."""
+        """Get the latest datetime from histogram data, robust to null/invalid keys."""
         all_bucket_times = []
-        
         for node, node_data in data.get('nodes', {}).items():
             for proc, proc_data in node_data.items():
                 for msg, msg_stats in proc_data.get('logMessages', {}).items():
                     hist = msg_stats.get('histogram', {})
-                    all_bucket_times.extend(hist.keys())
-        
-        if not all_bucket_times:
+                    all_bucket_times.extend([k for k in hist.keys() if k and k != 'null'])
+        valid_dates = []
+        for b in all_bucket_times:
+            try:
+                valid_dates.append(datetime.strptime(b, '%Y-%m-%dT%H:%M:%SZ'))
+            except Exception:
+                continue
+        if not valid_dates:
             return None
-        
-        all_dates = [datetime.strptime(b, '%Y-%m-%dT%H:%M:%SZ') for b in all_bucket_times]
-        max_date = max(all_dates)
+        max_date = max(valid_dates)
         return max_date.strftime('%Y-%m-%dT%H:%M:%SZ')
     
     def _compare_gflags(self, prev: Dict[str, Any], curr: Dict[str, Any]) -> Dict[str, Any]:
