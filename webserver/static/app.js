@@ -1284,11 +1284,26 @@ document.addEventListener("DOMContentLoaded", function () {
           data.nodes.forEach((node) => {
             html += "<tr>";
             columns.forEach((col) => {
-              html += `<td>${
-                node[col.key] !== null && node[col.key] !== undefined
-                  ? node[col.key]
-                  : ""
-              }</td>`;
+              let value = node[col.key];
+              if (
+                (col.key === "is_master" || col.key === "is_tserver") &&
+                value !== null &&
+                value !== undefined
+              ) {
+                // Show colored badge for boolean
+                const isTrue =
+                  value === true ||
+                  value === "true" ||
+                  value === 1 ||
+                  value === "1";
+                html += `<td><span style='display:inline-block;padding:2px 10px;border-radius:12px;font-weight:bold;color:white;background:${
+                  isTrue ? "#38a169" : "#e53e3e"
+                };'>${isTrue ? "Yes" : "No"}</span></td>`;
+              } else {
+                html += `<td>${
+                  value !== null && value !== undefined ? value : ""
+                }</td>`;
+              }
             });
             html += "</tr>";
           });
