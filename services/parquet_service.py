@@ -90,7 +90,8 @@ class ParquetAnalysisService:
     def analyze_parquet_files(
         self,
         parquet_dir: Path,
-        patterns: List[str]
+        patterns: List[str],
+        num_threads: int = 10
     ) -> Dict[str, Any]:
         """
         Optimized: Analyze Parquet files for log patterns using DuckDB aggregation, running queries in parallel for each pattern.
@@ -105,7 +106,7 @@ class ParquetAnalysisService:
         import concurrent.futures
         start_total = time.time()
         try:
-            logger.info("🚀 Starting Parquet analysis (DuckDB aggregation, parallel)...")
+            logger.info(f"🚀 Starting Parquet analysis (DuckDB aggregation, parallel with {num_threads} threads)...")
             bundle_name = self.get_bundle_name_from_parquet(parquet_dir)
             parquet_path = str(parquet_dir / "*.parquet")
             node_results = {}
@@ -131,7 +132,7 @@ class ParquetAnalysisService:
                 return pattern, rows
 
             # Use ThreadPoolExecutor for parallel pattern queries
-            with concurrent.futures.ThreadPoolExecutor() as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
                 future_to_pattern = {executor.submit(run_pattern_query, pattern): pattern for pattern in patterns}
                 for future in concurrent.futures.as_completed(future_to_pattern):
                     pattern = future_to_pattern[future]

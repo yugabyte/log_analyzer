@@ -108,7 +108,6 @@ class LogAnalyzerApp:
             metavar="DIR",
             help="Directory containing extracted TabletReport files to analyze (optional, auto-detected with -s)"
         )
-        # ...existing code...
         parser.add_argument(
             "--types",
             metavar="LIST",
@@ -196,8 +195,6 @@ class LogAnalyzerApp:
                 unsupported_opts.append("--types")
             if args.nodes:
                 unsupported_opts.append("--nodes")
-            if args.num_threads != settings.analysis_config.default_parallel_threads:
-                unsupported_opts.append("--parallel")
             if args.skip_tar:
                 unsupported_opts.append("--skip_tar")
             if args.start_time:
@@ -354,7 +351,8 @@ class LogAnalyzerApp:
         start_analysis = time.time()
         result = self.parquet_service.analyze_parquet_files(
             parquet_dir=parquet_dir,
-            patterns=patterns
+            patterns=patterns,
+            num_threads=args.num_threads
         )
         analysis_time = time.time() - start_analysis
         
