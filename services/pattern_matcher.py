@@ -25,6 +25,7 @@ class PatternMatcher:
     
     def __init__(self):
         self.patterns_cache: Dict[str, re.Pattern] = {}
+        self.solutions_cache: Dict[str, str] = {}
         self._load_patterns()
     
     def _load_patterns(self) -> None:
@@ -46,14 +47,18 @@ class PatternMatcher:
             for msg_dict in universe_config:
                 name = msg_dict["name"]
                 pattern = msg_dict["pattern"]
+                solution = msg_dict.get("solution", "No solution available for this log message.")
                 self.patterns_cache[name] = re.compile(pattern, re.IGNORECASE)
+                self.solutions_cache[name] = solution
             
             # Load PostgreSQL patterns
             pg_config = config.get("pg", {}).get("log_messages", [])
             for msg_dict in pg_config:
                 name = msg_dict["name"]
                 pattern = msg_dict["pattern"]
+                solution = msg_dict.get("solution", "No solution available for this log message.")
                 self.patterns_cache[name] = re.compile(pattern, re.IGNORECASE)
+                self.solutions_cache[name] = solution
             
             logger.info(f"Loaded {len(self.patterns_cache)} patterns")
             
@@ -142,6 +147,7 @@ class PatternMatcher:
         Returns:
             Dictionary of pattern names to LogMessageStats
         """
+        solution=solution
         from services.file_processor import FileProcessor
 
         file_processor = FileProcessor()
@@ -155,43 +161,48 @@ class PatternMatcher:
                 timestamp = self._parse_timestamp(line)
                 if not timestamp:
                     continue
-                
+
                 # Check if line is within time range
                 if not (start_time <= timestamp <= end_time):
                     continue
-                
+
                 # Match patterns
                 match_result = self.match_line(line, patterns)
                 if match_result:
                     pattern_name, match = match_result
-                    
+
+                    # Get solution for this pattern
+                    solution = self.solutions_cache.get(pattern_name, "No solution available for this log message.")
+
                     # Update statistics
                     if pattern_name not in message_stats:
                         message_stats[pattern_name] = LogMessageStats(
                             pattern_name=pattern_name,
                             start_time=timestamp,
                             end_time=timestamp,
-                            count=1
+                            count=1,
+                            solution=solution
                         )
                     else:
                         stats = message_stats[pattern_name]
                         stats.count += 1
                         stats.start_time = min(stats.start_time, timestamp)
                         stats.end_time = max(stats.end_time, timestamp)
-                    
+                        stats.solution = solution
+
                     # Update histogram
                     minute_key = timestamp.replace(second=0, microsecond=0).strftime('%Y-%m-%dT%H:%M:00Z')
                     message_stats[pattern_name].histogram[minute_key] = (
                         message_stats[pattern_name].histogram.get(minute_key, 0) + 1
                     )
-                
+
                 # Progress callback
                 if progress_callback and line_num % 1000 == 0:
                     progress_callback(line_num)
-                    
+
         except Exception as e:
             logger.error(f"Error analyzing log file {file_path}: {e}")
-        
+
         return message_stats
     
     def _parse_timestamp(self, line: str) -> Optional[datetime]:

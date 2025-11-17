@@ -34,20 +34,21 @@ class LogFileMetadata:
 @dataclass
 class LogMessageStats:
     """Statistics for a specific log message pattern."""
-    
     pattern_name: str
     start_time: datetime
     end_time: datetime
     count: int
     histogram: Dict[str, int] = field(default_factory=dict)
-    
+    solution: Optional[str] = None
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary format for JSON serialization."""
         return {
             "StartTime": self.start_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
             "EndTime": self.end_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
             "count": self.count,
-            "histogram": self.histogram
+            "histogram": self.histogram,
+            "solution": self.solution
         }
 
 
