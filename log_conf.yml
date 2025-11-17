@@ -77,12 +77,52 @@ universe:
         **NOTE**
         - If this message is not observed frequently, then we can ignore this message. We should only be concerned if this message is observed continuously by a particular tablet server or while providing RCA of an issue happened at the same time.
 
-    - name: "The follower will never be able to catch up"
-      pattern: "The follower will never be able to catch up"
+    - name: "Logs have been garbage collected"
+      pattern: "logs.*have been garbage collected*"
       solution: |
-        This means that the follower will never be able to catch up with the leader. This could be because of network issues or tablet server being down or overloaded. In case of tablets, they get removed and the load balancer will take care of bootstrapping the new peers. But in case of master, We can follow below KB article.
+        When your log analyzer finds messages like `logs.*have been garbage collected*` in YugabyteDB logs, it means that Write-Ahead Log (WAL) segments have been deleted (garbage collected, or GCed) because they were no longer needed according to the system's retention policies. The meaning and impact of this message differ depending on whether it appears in the context of the YB-Master, YB-TServer, or xCluster/CDC replication.
+        ## 1. YB-Master and YB-TServer
+        
+        **What does it mean?**
+        - This message indicates that WAL segments containing certain operation indexes (OpIds) have been deleted from disk.
+        - WALs are retained to allow lagging Raft peers (followers) to catch up, for CDC/xCluster replication, and for other internal processes.
+        - If a peer falls behind and the WALs it needs have already been GCed, it will not be able to catch up using normal replication. The log will show errors like:
+          ```
+          The logs from index X have been garbage collected and cannot be read (Not found ...: Failed to read ops X..Y: Segment Z which contained index X has been GCed)
+          ```
+        - This can result in the peer being unable to catch up, and replication being broken for that tablet or table. This is a critical situation for cluster health and data consistency if not addressed promptly
 
-        **KB Article**: [[INTERNAL] YugabyteDB Anywhere Generates an Under-Replicated Master Alert](https://support.yugabyte.com/hc/en-us/articles/10700352325645--INTERNAL-YugabyteDB-Anywhere-Generates-an-Under-Replicated-Master-Alert)
+        **Next steps**
+        - For yb-masters, follow the steps mentioned in [this KB](https://support.yugabyte.com/hc/en-us/articles/10700352325645--INTERNAL-YugabyteDB-Anywhere-Generates-an-Under-Replicated-Master-Alert) to re-bootstrap the affected master peer.
+        - The tablets do get re-bootstrapped automatically when they detect they are out of sync, so manual intervention is not typically required for tservers.
+        - Review and possibly increase your WAL retention settings (`log_min_seconds_to_retain`, `cdc_wal_retention_time_secs`) to prevent premature GC in the future, especially if you have slow or frequently disconnected nodes.
+        - For disk space issues:
+        	- Monitor disk usage and ensure you have enough space to retain WALs for the required duration.
+        
+        ---
+        
+        ## 2. xCluster and CDC
+        
+        **What does it mean?**
+        - In the context of xCluster or CDC, this message means that WAL segments required for replication or change data capture have been deleted before the consumer (target cluster or CDC client) could read them.
+        - This typically results in replication or CDC failure, with errors such as:
+          ```
+          The logs from index X have been garbage collected and cannot be read
+          ```
+        - Once WALs are GCed, the consumer cannot catch up from the missing point, and the replication stream is broken, [see example](https://github.com/yugabyte/yugabyte-db/issues/19385).
+        
+        **Next steps**
+        - For xCluster/CDC failures:
+          - You will need to re-bootstrap the replication. This involves taking a fresh backup of the source, restoring it to the target, and re-establishing the replication stream [see bootstrapping](https://docs.yugabyte.com/stable/architecture/docdb-replication/async-replication/#replication-bootstrapping).
+          - Increase the WAL retention period (`cdc_wal_retention_time_secs`) to a value that covers the maximum expected replication lag or outage window. A common best practice is to set this to 86400 seconds (24 hours) for DR/xCluster scenarios [see best practices](https://support.yugabyte.com/hc/en-us/articles/29809348650381-How-to-troubleshoot-xCluster-replication-lag-and-errors#h_01J6JHKF2MRT66N371ME8TG499).
+          - Ensure you have enough disk space to accommodate the increased retention.
+        
+        ## Summary Table
+        
+        | Component    | Meaning of Log GC Message                                                          | Next Steps                                                                      |
+        | ------------ | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+        | YB-Master    | WALs needed for Raft peer catch-up have been deleted.                              | Re-bootstrap peer, review WAL retention, monitor disk.                          |
+        | YB-TServer   | WALs needed for Raft peer catch-up or CDC/xCluster have been deleted.              | review WAL retention, tablets to get recovered automatically.                
 
     - name: "VoteRequest RPC timed out"
       pattern: "VoteRequest.*timed out"
