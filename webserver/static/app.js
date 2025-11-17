@@ -1344,30 +1344,48 @@ document.addEventListener("DOMContentLoaded", function () {
       logsolutionsDiv.innerHTML = "<em>No log data loaded.</em>";
       return;
     }
-    const foundMessages = new Set();
+    const foundNames = new Set();
+    const patternToNameMap = window.patternToNameMap || {};
     Object.values(jsonData.nodes).forEach((nodeData) => {
       Object.values(nodeData).forEach((logTypeData) => {
         if (logTypeData.logMessages) {
-          Object.keys(logTypeData.logMessages).forEach((msg) =>
-            foundMessages.add(msg)
-          );
+          Object.keys(logTypeData.logMessages).forEach((msg) => {
+            // If msg matches a pattern, use the mapped name
+            let logName = msg;
+            // Try exact match first
+            if (patternToNameMap[msg]) {
+              logName = patternToNameMap[msg];
+            } else {
+              // Try regex match for wildcards
+              for (const [pattern, name] of Object.entries(patternToNameMap)) {
+                try {
+                  const re = new RegExp(pattern);
+                  if (re.test(msg)) {
+                    logName = name;
+                    break;
+                  }
+                } catch (e) {}
+              }
+            }
+            foundNames.add(logName);
+          });
         }
       });
     });
     const solutionsMap = window.logSolutionsMap || {};
     let html = "";
-    if (foundMessages.size === 0) {
+    if (foundNames.size === 0) {
       html = "<em>No log messages found in this report.</em>";
     } else {
       html = '<div class="log-solutions-list">';
       const converter = new showdown.Converter();
       let idx = 0;
-      foundMessages.forEach((msg) => {
+      foundNames.forEach((logName) => {
         const solutionMd =
-          solutionsMap[msg] ||
+          solutionsMap[logName] ||
           "<em>No solution available for this log message.</em>";
         const solutionHtml = converter.makeHtml(solutionMd);
-        html += `<div class=\"log-solution-collapsible\" style=\"margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fafbfc;\">\n          <div class=\"log-solution-header\" data-idx=\"${idx}\" style=\"cursor:pointer; display:flex; align-items:center; padding: 12px 18px; font-weight:600; font-size:1.08em; color:#172447; border-radius:6px 6px 0 0; background:#f1f3f7; transition:background 0.2s;\">\n            <span class=\"arrow\" style=\"margin-right:10px; font-size:1.2em; color:#888;\">&#9654;</span>\n            <span>${msg}</span>\n          </div>\n          <div class=\"log-solution-body\" style=\"display:none; padding: 18px; background: #fff; border-radius:0 0 6px 6px; border-top:1px solid #e2e8f0;\">${solutionHtml}</div>\n        </div>`;
+        html += `<div class=\"log-solution-collapsible\" style=\"margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fafbfc;\">\n          <div class=\"log-solution-header\" data-idx=\"${idx}\" style=\"cursor:pointer; display:flex; align-items:center; padding: 12px 18px; font-weight:600; font-size:1.08em; color:#172447; border-radius:6px 6px 0 0; background:#f1f3f7; transition:background 0.2s;\">\n            <span class=\"arrow\" style=\"margin-right:10px; font-size:1.2em; color:#888;\">&#9654;</span>\n            <span>${logName}</span>\n          </div>\n          <div class=\"log-solution-body\" style=\"display:none; padding: 18px; background: #fff; border-radius:0 0 6px 6px; border-top:1px solid #e2e8f0;\">${solutionHtml}</div>\n        </div>`;
         idx++;
       });
       html += "</div>";

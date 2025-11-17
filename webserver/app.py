@@ -83,12 +83,21 @@ class LogAnalyzerWebApp:
         def report_page(uuid):
             """Report viewing page."""
             try:
-                # Load solutions for frontend
-                from lib.patterns_lib import solutions
+                # Load log patterns and solutions
+                from lib.patterns_lib import universe_regex_patterns, pg_regex_patterns, solutions
+                # Build a mapping: pattern -> name for all log messages
+                pattern_to_name = {}
+                for name, pattern in universe_regex_patterns.items():
+                    pattern_to_name[pattern] = name
+                for name, pattern in pg_regex_patterns.items():
+                    pattern_to_name[pattern] = name
+
+                # Pass both solutions and pattern_to_name to frontend
                 return render_template(
-                    'reports.html', 
-                    report_uuid=uuid, 
-                    log_solutions_map=solutions
+                    'reports.html',
+                    report_uuid=uuid,
+                    log_solutions_map=solutions,
+                    pattern_to_name_map=pattern_to_name
                 )
             except Exception as e:
                 self.logger.error(f"Error loading report page: {e}")

@@ -265,7 +265,12 @@
     </div>
     <script>
       window.report_uuid = "{{ report_uuid|default('') }}";
-      window.logSolutionsMap = {{ log_solutions_map|tojson|safe }};
+    </script>
+    <script id="logSolutionsMap" type="application/json">{{ log_solutions_map|tojson|safe }}</script>
+    <script id="patternToNameMap" type="application/json">{{ pattern_to_name_map|tojson|safe }}</script>
+    <script>
+      window.logSolutionsMap = JSON.parse(document.getElementById('logSolutionsMap').textContent);
+      window.patternToNameMap = JSON.parse(document.getElementById('patternToNameMap').textContent);
     </script>
     <script>
       // Help modal logic for reports page

@@ -117,12 +117,12 @@ universe:
           - Increase the WAL retention period (`cdc_wal_retention_time_secs`) to a value that covers the maximum expected replication lag or outage window. A common best practice is to set this to 86400 seconds (24 hours) for DR/xCluster scenarios [see best practices](https://support.yugabyte.com/hc/en-us/articles/29809348650381-How-to-troubleshoot-xCluster-replication-lag-and-errors#h_01J6JHKF2MRT66N371ME8TG499).
           - Ensure you have enough disk space to accommodate the increased retention.
         
-        ## Summary Table
-        
-        | Component    | Meaning of Log GC Message                                                          | Next Steps                                                                      |
-        | ------------ | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-        | YB-Master    | WALs needed for Raft peer catch-up have been deleted.                              | Re-bootstrap peer, review WAL retention, monitor disk.                          |
-        | YB-TServer   | WALs needed for Raft peer catch-up or CDC/xCluster have been deleted.              | review WAL retention, tablets to get recovered automatically.                
+        **Summary Table**
+
+        | Component   | Meaning of Log GC Message                                                      | Next Steps                                                                 |
+        |-------------|-------------------------------------------------------------------------------|----------------------------------------------------------------------------|
+        | YB-Master   | WALs needed for Raft peer catch-up have been deleted.                         | Re-bootstrap peer, review WAL retention, monitor disk.                     |
+        | YB-TServer  | WALs needed for Raft peer catch-up or CDC/xCluster have been deleted.         | Review WAL retention, tablets get recovered automatically.                  |
 
     - name: "VoteRequest RPC timed out"
       pattern: "VoteRequest.*timed out"
