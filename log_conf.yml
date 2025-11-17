@@ -80,7 +80,6 @@ universe:
     - name: "Logs have been garbage collected"
       pattern: "logs.*have been garbage collected*"
       solution: |
-        When your log analyzer finds messages like `logs.*have been garbage collected*` in YugabyteDB logs, it means that Write-Ahead Log (WAL) segments have been deleted (garbage collected, or GCed) because they were no longer needed according to the system's retention policies. The meaning and impact of this message differ depending on whether it appears in the context of the YB-Master, YB-TServer, or xCluster/CDC replication.
         ## 1. YB-Master and YB-TServer
         
         **What does it mean?**
@@ -117,13 +116,34 @@ universe:
           - Increase the WAL retention period (`cdc_wal_retention_time_secs`) to a value that covers the maximum expected replication lag or outage window. A common best practice is to set this to 86400 seconds (24 hours) for DR/xCluster scenarios [see best practices](https://support.yugabyte.com/hc/en-us/articles/29809348650381-How-to-troubleshoot-xCluster-replication-lag-and-errors#h_01J6JHKF2MRT66N371ME8TG499).
           - Ensure you have enough disk space to accommodate the increased retention.
         
-        **Summary Table**
-
-        | Component   | Meaning of Log GC Message                                                      | Next Steps                                                                 |
-        |-------------|-------------------------------------------------------------------------------|----------------------------------------------------------------------------|
-        | YB-Master   | WALs needed for Raft peer catch-up have been deleted.                         | Re-bootstrap peer, review WAL retention, monitor disk.                     |
-        | YB-TServer  | WALs needed for Raft peer catch-up or CDC/xCluster have been deleted.         | Review WAL retention, tablets get recovered automatically.                  |
-
+        ## **Summary Table**
+        <table>
+          <thead>
+            <tr>
+              <th>Component</th>
+              <th>Meaning of Log GC Message</th>
+              <th>Next Steps</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>YB-Master</td>
+              <td>WALs needed for Raft peer catch-up have been deleted.</td>
+              <td>Re-bootstrap peer, review WAL retention, monitor disk.</td>
+            </tr>
+            <tr>
+              <td>YB-TServer</td>
+              <td>WALs needed for Raft peer catch-up or CDC/xCluster have been deleted.</td>
+              <td>Review WAL retention, tablets get recovered automatically.</td>
+            </tr>
+            <tr>
+              <td>XCLUSTER / CDC</td>
+              <td>WALs needed for CDC/xCluster replication have been deleted.</td>
+              <td>Re-bootstrap replication, review WAL retention, monitor disk.</td>
+            </tr>
+          </tbody>
+        </table>
+        
     - name: "VoteRequest RPC timed out"
       pattern: "VoteRequest.*timed out"
       solution: |
