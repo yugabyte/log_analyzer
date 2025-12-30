@@ -91,7 +91,6 @@ class LogAnalyzerApp:
             description="Log Analyzer for YugabyteDB logs",
             formatter_class=ColoredHelpFormatter
         )
-        
         # Input options
         input_group = parser.add_mutually_exclusive_group(required=True)
         input_group.add_argument(
@@ -103,8 +102,6 @@ class LogAnalyzerApp:
             metavar="DIR",
             help="Directory containing Parquet files to analyze"
         )
-        
-        # Analysis options
         parser.add_argument(
             "--types",
             metavar="LIST",
@@ -192,8 +189,6 @@ class LogAnalyzerApp:
                 unsupported_opts.append("--types")
             if args.nodes:
                 unsupported_opts.append("--nodes")
-            if args.num_threads != settings.analysis_config.default_parallel_threads:
-                unsupported_opts.append("--parallel")
             if args.skip_tar:
                 unsupported_opts.append("--skip_tar")
             if args.start_time:
@@ -350,7 +345,8 @@ class LogAnalyzerApp:
         start_analysis = time.time()
         result = self.parquet_service.analyze_parquet_files(
             parquet_dir=parquet_dir,
-            patterns=patterns
+            patterns=patterns,
+            num_threads=args.num_threads
         )
         analysis_time = time.time() - start_analysis
         
@@ -375,27 +371,42 @@ class LogAnalyzerApp:
             
             for node_name, node_data in result.get("nodes", {}).items():
                 converted_nodes[node_name] = {}
-                
                 for log_type, log_type_data in node_data.items():
-                    # Create NodeAnalysisResult
                     node_result = NodeAnalysisResult(
                         node_name=node_name,
                         log_type=log_type,
                         log_messages={}
                     )
-                    
-                    # Convert log messages
                     for pattern_name, message_data in log_type_data.get("logMessages", {}).items():
-                        # Create LogMessageStats
+                        # Robustly handle None and invalid ISO strings
+                        def parse_dt(val):
+                            if val is None:
+                                return datetime.min
+                            try:
+                                # Accept both ISO and DuckDB string
+                                if isinstance(val, str):
+                                    # If already ISO, parse
+                                    if "T" in val:
+                                        # Remove trailing Z if present
+                                        val = val.rstrip("Z")
+                                        # If no timezone, add +00:00
+                                        if "+" not in val and "-" not in val:
+                                            val += "+00:00"
+                                        return datetime.fromisoformat(val)
+                                    else:
+                                        # Try DuckDB default format
+                                        return datetime.strptime(val[:19], "%Y-%m-%d %H:%M:%S")
+                                return val
+                            except Exception:
+                                return datetime.min
                         log_stats = LogMessageStats(
                             pattern_name=pattern_name,
-                            start_time=datetime.fromisoformat(message_data["StartTime"].replace("Z", "+00:00")),
-                            end_time=datetime.fromisoformat(message_data["EndTime"].replace("Z", "+00:00")),
+                            start_time=parse_dt(message_data.get("StartTime")),
+                            end_time=parse_dt(message_data.get("EndTime")),
                             count=message_data["count"],
                             histogram=message_data["histogram"]
                         )
                         node_result.log_messages[pattern_name] = log_stats
-                    
                     converted_nodes[node_name][log_type] = node_result
             
             # Use actual bundle name from Parquet data
@@ -460,10 +471,41 @@ class LogAnalyzerApp:
             
             # Run analysis based on input type
             if args.support_bundle:
-                self.analyze_support_bundle(args)
+                # Analyze support bundle and get report_id
+                bundle_path = Path(args.support_bundle)
+                bundle_name = bundle_path.stem.replace('.tar', '').replace('.tgz', '')
+                # Check if already analyzed
+                existing_report_id = self.database_service.check_report_exists(bundle_name)
+                force = getattr(args, 'force', False)
+                if existing_report_id and not force:
+                    report_id = existing_report_id
+                    self.logger.warning(f"📊 Analysis already completed for support bundle '{bundle_name}'.")
+                    self.logger.warning(f"🔁 Use --force option to re-trigger the analysis forcefully")
+                    self.logger.warning(f"🔗 Use the link below to view the report:")
+                    report_url = f"http://{settings.server.host}:{settings.server.port}/reports/{existing_report_id}"
+                    self.logger.warning(report_url)
+                else:
+                    analysis_config = self.create_analysis_config(args)
+                    report = self.analysis_service.analyze_support_bundle(
+                        bundle_path=bundle_path,
+                        analysis_config=analysis_config,
+                        skip_extraction=args.skip_tar
+                    )
+                    if args.output_file:
+                        output_path = Path(args.output_file)
+                        self.analysis_service.save_report(report, output_path)
+                    try:
+                        report_id = self.database_service.store_report(report)
+                        self.logger.info("✅ Analysis completed successfully!")
+                        self.logger.info(f"👉 Report available at: http://{settings.server.host}:{settings.server.port}/reports/{report_id}")
+                        self.logger.info(f"📊 Results saved to: {output_path}")
+                    except Exception as e:
+                        self.logger.error(f"👉 Failed to insert report into PostgreSQL: {e}")
+                        self.logger.info("✅ Analysis completed successfully!")
+                        self.logger.warning("⚠️  Report could not be stored in database. Check database connection.")
+                        return 1
             elif args.parquet_files:
                 self.analyze_parquet_files(args)
-            
             return 0
             
         except ValidationError as e:

@@ -57,6 +57,7 @@
         </button>
         <button class="tab-btn" data-tab="table-tab">Table View</button>
         <button class="tab-btn" data-tab="gflags-tab">GFlags</button>
+        <button class="tab-btn" data-tab="gflags-diff-tab">GFlags Diff</button>
         <button class="tab-btn" data-tab="nodeinfo-tab">Node Info</button>
         <button class="tab-btn" data-tab="logsolutions-tab">Log Details</button>
         <button class="tab-btn" data-tab="warnings-tab" style="display: none">
@@ -147,6 +148,30 @@
         </div>
         <div id="table-tab" class="tab-panel"><div id="tables"></div></div>
         <div id="gflags-tab" class="tab-panel"><div id="gflags"></div></div>
+        <div id="gflags-diff-tab" class="tab-panel">
+          <div id="gflags-diff">
+            <div id="gflags-diff-header" class="gflags-diff-header">
+              <h3>GFlags Changes Across Support Bundles</h3>
+              <p class="gflags-diff-description">View GFlags changes from support bundles collected in the last <span id="gflags-days-label">90</span> days for this universe.</p>
+              <div class="gflags-days-select-container" style="margin-top: 0.5em;">
+                <label for="gflags-days-select">Show changes from last </label>
+                <select id="gflags-days-select" style="min-width: 70px;">
+                  <option value="7">7 days</option>
+                  <option value="15">15 days</option>
+                  <option value="30">30 days</option>
+                  <option value="60">60 days</option>
+                  <option value="90" selected>90 days</option>
+                  <option value="180">180 days</option>
+                  <option value="365">365 days</option>
+                </select>
+                <span>support bundles</span>
+              </div>
+            </div>
+            <div id="gflags-diff-content" class="gflags-diff-content">
+              <div class="loading-spinner">Loading GFlags diff...</div>
+            </div>
+          </div>
+        </div>
         <div id="nodeinfo-tab" class="tab-panel"><div id="nodeinfo"></div></div>
         <div id="config-tab" class="tab-panel"><div id="analysis-config"></div></div>
         <div id="logsolutions-tab" class="tab-panel">
@@ -240,7 +265,12 @@
     </div>
     <script>
       window.report_uuid = "{{ report_uuid|default('') }}";
-      window.logSolutionsMap = {{ log_solutions_map|tojson|safe }};
+    </script>
+    <script id="logSolutionsMap" type="application/json">{{ log_solutions_map|tojson|safe }}</script>
+    <script id="patternToNameMap" type="application/json">{{ pattern_to_name_map|tojson|safe }}</script>
+    <script>
+      window.logSolutionsMap = JSON.parse(document.getElementById('logSolutionsMap').textContent);
+      window.patternToNameMap = JSON.parse(document.getElementById('patternToNameMap').textContent);
     </script>
     <script>
       // Help modal logic for reports page

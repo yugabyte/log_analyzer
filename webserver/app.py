@@ -83,12 +83,21 @@ class LogAnalyzerWebApp:
         def report_page(uuid):
             """Report viewing page."""
             try:
-                # Load solutions for frontend
-                from lib.patterns_lib import solutions
+                # Load log patterns and solutions
+                from lib.patterns_lib import universe_regex_patterns, pg_regex_patterns, solutions
+                # Build a mapping: pattern -> name for all log messages
+                pattern_to_name = {}
+                for name, pattern in universe_regex_patterns.items():
+                    pattern_to_name[pattern] = name
+                for name, pattern in pg_regex_patterns.items():
+                    pattern_to_name[pattern] = name
+
+                # Pass both solutions and pattern_to_name to frontend
                 return render_template(
-                    'reports.html', 
-                    report_uuid=uuid, 
-                    log_solutions_map=solutions
+                    'reports.html',
+                    report_uuid=uuid,
+                    log_solutions_map=solutions,
+                    pattern_to_name_map=pattern_to_name
                 )
             except Exception as e:
                 self.logger.error(f"Error loading report page: {e}")
@@ -157,6 +166,117 @@ class LogAnalyzerWebApp:
                 return jsonify({'error': 'Database error'}), 500
             except Exception as e:
                 self.logger.error(f"Unexpected error getting GFlags: {e}")
+                return jsonify({'error': 'Internal server error'}), 500
+        
+        @self.app.route('/api/gflags_diff/<cluster_name>/<organization>')
+        def gflags_diff_api(cluster_name, organization):
+            """API endpoint for GFlags diff from support bundles of a universe."""
+            try:
+                # Get 'days' from query param, default 90
+                days = request.args.get('days', default=90, type=int)
+                bundle_name = request.args.get('bundle')
+                with self.db_service.get_connection() as conn:
+                    with conn.cursor() as cur:
+                        # If bundle_name is provided, get its timestamp, else use latest
+                        if bundle_name:
+                            cur.execute(
+                                """
+                                SELECT "timestamp" FROM public.support_bundle_header
+                                WHERE support_bundle = %s AND cluster_name = %s AND organization = %s
+                                """,
+                                (bundle_name, cluster_name, organization)
+                            )
+                            ts_row = cur.fetchone()
+                            if not ts_row or not ts_row[0]:
+                                return jsonify({'error': 'Support bundle not found'}), 404
+                            ref_ts = ts_row[0]
+                        else:
+                            cur.execute(
+                                """
+                                SELECT MAX("timestamp") FROM public.support_bundle_header
+                                WHERE cluster_name = %s AND organization = %s
+                                """,
+                                (cluster_name, organization)
+                            )
+                            max_ts_row = cur.fetchone()
+                            if not max_ts_row or not max_ts_row[0]:
+                                return jsonify({'error': 'No support bundles found'}), 404
+                            ref_ts = max_ts_row[0]
+
+                        # Get all bundles in the last N days from the reference bundle
+                        cur.execute(
+                            """
+                            SELECT support_bundle, "timestamp", cluster_uuid
+                            FROM public.support_bundle_header
+                            WHERE cluster_name = %s AND organization = %s
+                              AND "timestamp" >= %s::timestamp - INTERVAL '%s days'
+                              AND "timestamp" <= %s::timestamp
+                            ORDER BY "timestamp" DESC
+                            """,
+                            (cluster_name, organization, ref_ts, days, ref_ts)
+                        )
+                        bundles = cur.fetchall()
+                        if not bundles:
+                            return jsonify({'error': 'No support bundles found'}), 404
+
+                        bundle_names = [b[0] for b in bundles]  # newest to oldest
+                        bundle_timestamps = [b[1].isoformat() for b in bundles]
+                        cluster_uuid = bundles[0][2]  # Get cluster_uuid from first result
+
+                        # Fetch all GFlags for these bundles
+                        cur.execute(
+                            """
+                            SELECT support_bundle, node_name, server_type, gflag, value
+                            FROM public.support_bundle_gflags
+                            WHERE support_bundle = ANY(%s)
+                            ORDER BY support_bundle, node_name, server_type, gflag
+                            """,
+                            (bundle_names,)
+                        )
+                        rows = cur.fetchall()
+
+                # Organize: {bundle: {node: {role: {flag: value}}}}
+                bundle_gflags = {}
+                for bundle, node, role, flag, value in rows:
+                    bundle_gflags.setdefault(bundle, {}).setdefault(node, {}).setdefault(role, {})[flag] = value
+
+                # For each node/role, build a list of gflags per bundle
+                node_role_keys = set()
+                for bundle in bundle_names:
+                    for node in bundle_gflags.get(bundle, {}):
+                        for role in bundle_gflags[bundle][node]:
+                            node_role_keys.add((node, role))
+
+                # For each node/role, for each bundle, get gflags dict
+                diffs = {}
+                for node, role in sorted(node_role_keys):
+                    diffs.setdefault(node, {})[role] = []
+                    prev = None
+                    for i, bundle in enumerate(bundle_names):
+                        gflags = bundle_gflags.get(bundle, {}).get(node, {}).get(role, {})
+                        # Compare to previous
+                        if prev is None:
+                            change = { 'type': 'initial', 'gflags': gflags }
+                        else:
+                            change = self._compare_gflags(prev, gflags)
+                        diffs[node][role].append({
+                            'bundle': bundle,
+                            'timestamp': bundle_timestamps[i],
+                            'change': change,
+                            'gflags': gflags
+                        })
+                        prev = gflags
+
+                return jsonify({
+                    'universe': cluster_uuid,
+                    'organization': organization,
+                    'bundles': [
+                        {'name': b, 'timestamp': t} for b, t in zip(bundle_names, bundle_timestamps)
+                    ],
+                    'diffs': diffs
+                })
+            except Exception as e:
+                self.logger.error(f"Error in gflags_diff_api: {e}")
                 return jsonify({'error': 'Internal server error'}), 500
         
         @self.app.route('/api/related_reports/<uuid>')
@@ -269,20 +389,22 @@ class LogAnalyzerWebApp:
             return jsonify({'error': str(error)}), 400
     
     def _filter_histogram_data(
-        self, 
-        data: Dict[str, Any], 
-        start: Optional[str], 
-        end: Optional[str], 
+        self,
+        data: Dict[str, Any],
+        start: Optional[str],
+        end: Optional[str],
         interval: int
     ) -> Dict[str, Any]:
-        """Filter and aggregate histogram data."""
-        
-        def parse_time(s: str) -> datetime:
-            return datetime.strptime(s, '%Y-%m-%dT%H:%M:%SZ')
-        
+        """Filter and aggregate histogram data, robust to null/invalid keys."""
+        def parse_time(s: str) -> Optional[datetime]:
+            if not s or s == 'null':
+                return None
+            try:
+                return datetime.strptime(s, '%Y-%m-%dT%H:%M:%SZ')
+            except Exception:
+                return None
         def format_time(dt: datetime) -> str:
             return dt.strftime('%Y-%m-%dT%H:%M:00Z')
-        
         # If no start/end provided, compute last 7 days from latest bucket
         if not start or not end:
             all_bucket_times = []
@@ -290,18 +412,16 @@ class LogAnalyzerWebApp:
                 for proc, proc_data in node_data.items():
                     for msg, msg_stats in proc_data.get('logMessages', {}).items():
                         hist = msg_stats.get('histogram', {})
-                        all_bucket_times.extend(hist.keys())
-            
-            if all_bucket_times:
-                all_dates = [parse_time(b) for b in all_bucket_times]
-                max_date = max(all_dates)
+                        all_bucket_times.extend([k for k in hist.keys() if k and k != 'null'])
+            valid_dates = [parse_time(b) for b in all_bucket_times]
+            valid_dates = [d for d in valid_dates if d]
+            if valid_dates:
+                max_date = max(valid_dates)
                 min_date = max_date - timedelta(days=7)
-                
                 if not start:
                     start_dt = min_date
                 else:
                     start_dt = parse_time(start)
-                
                 if not end:
                     end_dt = max_date
                 else:
@@ -312,25 +432,24 @@ class LogAnalyzerWebApp:
         else:
             start_dt = parse_time(start)
             end_dt = parse_time(end)
-        
         # Filter and aggregate data
         for node, node_data in data.get('nodes', {}).items():
             for proc, proc_data in node_data.items():
                 for msg, msg_stats in proc_data.get('logMessages', {}).items():
                     hist = msg_stats.get('histogram', {})
-                    
                     # Filter by time range
                     filtered = {}
                     for k, v in hist.items():
                         t = parse_time(k)
-                        if (not start_dt or t >= start_dt) and (not end_dt or t <= end_dt):
+                        if t and (not start_dt or t >= start_dt) and (not end_dt or t <= end_dt):
                             filtered[k] = v
-                    
                     # Aggregate by interval
                     if interval > 1:
                         agg = {}
                         for k, v in filtered.items():
                             t = parse_time(k)
+                            if not t:
+                                continue
                             bucket_minute = (t.minute // interval) * interval
                             bucket = t.replace(minute=bucket_minute, second=0, microsecond=0)
                             bucket_key = format_time(bucket)
@@ -338,25 +457,57 @@ class LogAnalyzerWebApp:
                         msg_stats['histogram'] = agg
                     else:
                         msg_stats['histogram'] = filtered
-        
         return data
     
     def _get_latest_histogram_datetime(self, data: Dict[str, Any]) -> Optional[str]:
-        """Get the latest datetime from histogram data."""
+        """Get the latest datetime from histogram data, robust to null/invalid keys."""
         all_bucket_times = []
-        
         for node, node_data in data.get('nodes', {}).items():
             for proc, proc_data in node_data.items():
                 for msg, msg_stats in proc_data.get('logMessages', {}).items():
                     hist = msg_stats.get('histogram', {})
-                    all_bucket_times.extend(hist.keys())
-        
-        if not all_bucket_times:
+                    all_bucket_times.extend([k for k in hist.keys() if k and k != 'null'])
+        valid_dates = []
+        for b in all_bucket_times:
+            try:
+                valid_dates.append(datetime.strptime(b, '%Y-%m-%dT%H:%M:%SZ'))
+            except Exception:
+                continue
+        if not valid_dates:
             return None
-        
-        all_dates = [datetime.strptime(b, '%Y-%m-%dT%H:%M:%SZ') for b in all_bucket_times]
-        max_date = max(all_dates)
+        max_date = max(valid_dates)
         return max_date.strftime('%Y-%m-%dT%H:%M:%SZ')
+    
+    def _compare_gflags(self, prev: Dict[str, Any], curr: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Compare two gflags dicts. Return dict with added, removed, modified.
+        Handles all value types as string for comparison.
+        """
+        added = {}
+        removed = {}
+        modified = {}
+        prev_keys = set(prev.keys())
+        curr_keys = set(curr.keys())
+        
+        # Added flags
+        for k in curr_keys - prev_keys:
+            added[k] = curr[k]
+        
+        # Removed flags
+        for k in prev_keys - curr_keys:
+            removed[k] = prev[k]
+        
+        # Modified flags
+        for k in prev_keys & curr_keys:
+            if str(prev[k]) != str(curr[k]):
+                modified[k] = {'old': prev[k], 'new': curr[k]}
+        
+        return {
+            'type': 'diff',
+            'added': added,
+            'removed': removed,
+            'modified': modified
+        }
     
     def run(self, debug: bool = False, host: str = None, port: int = None) -> None:
         """Run the Flask application."""

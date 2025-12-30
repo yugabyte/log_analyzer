@@ -88,77 +88,86 @@ class ParquetAnalysisService:
             return parquet_dir.name
 
     def analyze_parquet_files(
-        self, 
-        parquet_dir: Path, 
-        patterns: List[str]
+        self,
+        parquet_dir: Path,
+        patterns: List[str],
+        num_threads: int = 10
     ) -> Dict[str, Any]:
         """
-        Analyze Parquet files for log patterns.
-        
+        Optimized: Analyze Parquet files for log patterns using DuckDB aggregation, running queries in parallel for each pattern.
         Args:
             parquet_dir: Directory containing Parquet files
             patterns: List of regex patterns to search for
-            
         Returns:
             Dictionary with analysis results
-            
         Raises:
             AnalysisError: If analysis fails
         """
+        import concurrent.futures
         start_total = time.time()
-        
         try:
-            logger.info("🚀 Starting Parquet analysis...")
-            # Extract bundle name
+            logger.info(f"🚀 Starting Parquet analysis (DuckDB aggregation, parallel with {num_threads} threads)...")
             bundle_name = self.get_bundle_name_from_parquet(parquet_dir)
-            
-            # Build DuckDB query
             parquet_path = str(parquet_dir / "*.parquet")
-            # pattern_filters = self._build_pattern_filters(patterns)
-            # Enhanced filtering to remove blank messages and whitespace-only messages
-            pattern_filters = []
-            for pattern in patterns:
+            node_results = {}
+
+            def run_pattern_query(pattern):
+                import duckdb
                 safe_pattern = pattern.replace("'", "''").replace("\\", "\\\\")
-                pattern_filters.append(f"REGEXP_MATCHES(message, '(?i){safe_pattern}')")
-            where_clause = "node_name IS NOT NULL AND (" + " OR ".join(pattern_filters) + ")"
-            
-            # Main analysis query
-            sql = f"""
-                SELECT node_name, log_type, timestamp, message
-                FROM '{parquet_path}'
-                WHERE {where_clause}
-            """
-            
-            logger.info("📊 Executing DuckDB query with pattern filtering...")
-            start_duckdb = time.time()
-            
-            # Execute query
-            con = duckdb.connect()
-            rows = con.execute(sql).fetchall()
-            con.close()
-            
-            duckdb_time = time.time() - start_duckdb
-            logger.info(f"✅ DuckDB query completed in {duckdb_time:.2f} seconds. Rows fetched: {len(rows)}")
-            
-            # Process results with detailed timing
-            start_processing = time.time()
-            node_results = self._process_query_results(rows, patterns)
-            processing_time = time.time() - start_processing
-            logger.info(f"✅ Pattern matching completed in {processing_time:.2f} seconds.")
-            
-            # Build final result with actual bundle name
+                sql = f"""
+                    SELECT node_name, log_type,
+                           MIN(timestamp) AS start_time,
+                           MAX(timestamp) AS end_time,
+                           COUNT(*) AS total_count,
+                           strftime(timestamp, '%Y-%m-%dT%H:%M:00Z') AS minute,
+                           COUNT(*) AS minute_count
+                    FROM '{parquet_path}'
+                    WHERE node_name IS NOT NULL AND REGEXP_MATCHES(message, '(?i){safe_pattern}')
+                    GROUP BY node_name, log_type, minute
+                """
+                logger.info(f"DuckDB aggregation for pattern: {pattern}")
+                con = duckdb.connect()
+                rows = con.execute(sql).fetchall()
+                con.close()
+                return pattern, rows
+
+            # Use ThreadPoolExecutor for parallel pattern queries
+            with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+                future_to_pattern = {executor.submit(run_pattern_query, pattern): pattern for pattern in patterns}
+                for future in concurrent.futures.as_completed(future_to_pattern):
+                    pattern = future_to_pattern[future]
+                    try:
+                        pattern, rows = future.result()
+                        for row in rows:
+                            node_name, log_type, start_time, end_time, total_count, minute, minute_count = row
+                            if node_name not in node_results:
+                                node_results[node_name] = {}
+                            if log_type not in node_results[node_name]:
+                                node_results[node_name][log_type] = {"logMessages": {}}
+                            log_messages = node_results[node_name][log_type]["logMessages"]
+                            if pattern not in log_messages:
+                                log_messages[pattern] = {
+                                    "StartTime": start_time,
+                                    "EndTime": end_time,
+                                    "count": 0,
+                                    "histogram": {}
+                                }
+                            log_messages[pattern]["count"] += minute_count
+                            log_messages[pattern]["histogram"][minute] = minute_count
+                            if log_messages[pattern]["StartTime"] is None or start_time < log_messages[pattern]["StartTime"]:
+                                log_messages[pattern]["StartTime"] = start_time
+                            if log_messages[pattern]["EndTime"] is None or end_time > log_messages[pattern]["EndTime"]:
+                                log_messages[pattern]["EndTime"] = end_time
+                    except Exception as exc:
+                        logger.error(f"Pattern {pattern} generated an exception: {exc}")
+
+            total_time = time.time() - start_total
+            logger.info(f"✅ DuckDB aggregation (parallel) completed in {total_time:.2f} seconds.")
             result = {
                 "nodes": node_results,
-                "universeName": bundle_name  # Use directory name as bundle name
+                "universeName": bundle_name
             }
-            
-            total_time = time.time() - start_total
-            logger.info(f"📈 Performance breakdown:")
-            logger.info(f"   - DuckDB query: {duckdb_time:.2f}s ({(duckdb_time/total_time)*100:.1f}%)")
-            logger.info(f"   - Pattern processing: {processing_time:.2f}s ({(processing_time/total_time)*100:.1f}%)")
-            
             return result
-            
         except Exception as e:
             raise AnalysisError(f"Parquet analysis failed: {e}")
     
@@ -275,21 +284,29 @@ class ParquetAnalysisService:
     
     def save_results(self, result: Dict[str, Any], output_path: Path) -> None:
         """
-        Save analysis results to file.
-        
+        Save analysis results to file, converting datetime objects to ISO strings.
         Args:
             result: Analysis results dictionary
             output_path: Path to save results
-            
         Raises:
             AnalysisError: If saving fails
         """
+        def convert(obj):
+            if isinstance(obj, dict):
+                return {k: convert(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [convert(v) for v in obj]
+            elif isinstance(obj, tuple):
+                return tuple(convert(v) for v in obj)
+            elif hasattr(obj, 'isoformat'):
+                return obj.isoformat()
+            else:
+                return obj
         try:
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            
+            serializable_result = convert(result)
             with open(output_path, "w") as f:
-                json.dump(result, f, indent=2)
-                        
+                json.dump(serializable_result, f, indent=2)
         except Exception as e:
             raise AnalysisError(f"Failed to save results: {e}")
     

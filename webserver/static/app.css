@@ -1080,3 +1080,331 @@ tr:nth-child(even) td {
   color: #c0c6d4;
   margin: 0 0.2em;
 }
+
+/* GitHub-style GFlags Diff Styles */
+.gflags-diff-header {
+  margin-bottom: 1.5em;
+  padding-bottom: 1em;
+  border-bottom: 1px solid var(--yuga-border);
+}
+
+.gflags-diff-header h3 {
+  margin: 0 0 0.5em 0;
+  color: var(--modern-accent);
+  font-size: 1.4em;
+}
+
+.gflags-diff-description {
+  margin: 0;
+  color: var(--yuga-dark-gray);
+  font-size: 1em;
+  line-height: 1.5;
+}
+
+.gflags-diff-content {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.loading-spinner {
+  text-align: center;
+  padding: 2em;
+  color: var(--yuga-dark-gray);
+  font-style: italic;
+}
+
+.diff-container {
+  margin-bottom: 2em;
+}
+
+.diff-node-header {
+  background: rgba(245, 246, 250, 0.9);
+  border: 1px solid #d1d9e0;
+  border-radius: 8px 8px 0 0;
+  padding: 0.8em 1.2em;
+  font-weight: 600;
+  color: var(--modern-accent);
+  font-size: 1.1em;
+  margin-top: 1.5em;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.diff-node-header:hover {
+  background: rgba(235, 241, 247, 0.9);
+}
+
+.diff-node-header .arrow {
+  margin-right: 0.5em;
+  transition: transform 0.2s;
+}
+
+.diff-role-section {
+  border: 1px solid #d1d9e0;
+  border-top: none;
+  margin-bottom: 0;
+}
+
+.diff-role-header {
+  background: rgba(252, 253, 254, 0.9);
+  padding: 0.6em 1.5em;
+  font-weight: 600;
+  color: var(--yuga-dark-gray);
+  border-bottom: 1px solid #e1e8ed;
+  font-size: 1em;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.diff-role-header:hover {
+  background: rgba(245, 246, 250, 0.9);
+}
+
+.diff-role-header .arrow {
+  margin-right: 0.5em;
+  transition: transform 0.2s;
+  font-size: 0.9em;
+}
+
+.diff-commits {
+  display: flex;
+  flex-direction: column;
+}
+
+.diff-commit {
+  border-bottom: 1px solid #e1e8ed;
+}
+
+.diff-commit:last-child {
+  border-bottom: none;
+  border-radius: 0 0 8px 8px;
+}
+
+.diff-commit-header {
+  background: rgba(250, 251, 252, 0.9);
+  padding: 0.6em 1.5em;
+  border-bottom: 1px solid #e1e8ed;
+  font-size: 0.95em;
+  color: var(--yuga-dark-gray);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.diff-commit-sha {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  background: rgba(235, 238, 242, 0.8);
+  padding: 0.2em 0.5em;
+  border-radius: 4px;
+  font-size: 0.8em;
+  color: var(--modern-accent);
+  font-weight: 600;
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.diff-commit-date {
+  font-size: 0.85em;
+  color: #586069;
+}
+
+.diff-changes {
+  padding: 0;
+  margin: 0;
+  background: #fff;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.diff-change-line {
+  display: flex;
+  align-items: stretch;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.85em;
+  line-height: 1.4;
+  border: none;
+  margin: 0;
+}
+
+.diff-line-number {
+  background: rgba(246, 248, 250, 0.9);
+  color: #586069;
+  padding: 0.3em 0.8em;
+  text-align: right;
+  min-width: 50px;
+  user-select: none;
+  border-right: 1px solid #e1e8ed;
+  font-size: 0.8em;
+}
+
+.diff-line-content {
+  flex: 1;
+  padding: 0.3em 1em;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.diff-change-line.added {
+  background: rgba(220, 255, 237, 0.3);
+}
+
+.diff-change-line.added .diff-line-content {
+  background: rgba(220, 255, 237, 0.4);
+  border-left: 3px solid #28a745;
+}
+
+.diff-change-line.removed {
+  background: rgba(255, 235, 233, 0.3);
+}
+
+.diff-change-line.removed .diff-line-content {
+  background: rgba(255, 235, 233, 0.4);
+  border-left: 3px solid #d73a49;
+}
+
+.diff-change-line.modified {
+  background: rgba(255, 248, 220, 0.3);
+}
+
+.diff-change-line.modified .diff-line-content {
+  background: rgba(255, 248, 220, 0.4);
+  border-left: 3px solid #f66a0a;
+}
+
+.diff-change-line.context {
+  background: #fff;
+  color: #586069;
+}
+
+.diff-change-indicator {
+  display: inline-block;
+  width: 1.2em;
+  font-weight: bold;
+  margin-right: 0.5em;
+}
+
+.diff-change-indicator.added {
+  color: #28a745;
+}
+
+.diff-change-indicator.removed {
+  color: #d73a49;
+}
+
+.diff-change-indicator.modified {
+  color: #f66a0a;
+}
+
+.diff-gflag-name {
+  font-weight: 600;
+  color: var(--modern-accent);
+}
+
+.diff-gflag-value {
+  color: #586069;
+}
+
+.diff-no-changes {
+  padding: 1.5em;
+  text-align: center;
+  color: #586069;
+  font-style: italic;
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.diff-stats {
+  display: flex;
+  gap: 1em;
+  margin-bottom: 0.8em;
+  padding: 0.5em 1.5em;
+  background: rgba(248, 250, 252, 0.9);
+  border-bottom: 1px solid #e1e8ed;
+  font-size: 0.9em;
+}
+
+.diff-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  font-weight: 600;
+}
+
+.diff-stat.added {
+  color: #28a745;
+}
+
+.diff-stat.removed {
+  color: #d73a49;
+}
+
+.diff-stat.modified {
+  color: #f66a0a;
+}
+
+.summary-inline {
+  display: inline-block;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.summary-inline .diff-stat {
+  font-size: 0.9em;
+  font-weight: 600;
+  display: inline;
+}
+
+/* Force headers to stay on single line */
+.diff-node-header, .diff-role-header {
+  display: block;
+  line-height: 1.2;
+}
+
+.diff-node-header > *, .diff-role-header > * {
+  display: inline;
+  white-space: nowrap;
+}
+
+.diff-node-header .arrow, .diff-role-header .arrow {
+  display: inline;
+  margin-right: 0.5em;
+}
+
+.collapsible-content {
+  display: none;
+}
+
+.collapsible-content.expanded {
+  display: block;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .diff-commit-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3em;
+  }
+  
+  .diff-line-number {
+    min-width: 35px;
+    padding: 0.3em 0.5em;
+  }
+  
+  .diff-line-content {
+    padding: 0.3em 0.5em;
+  }
+  
+  .diff-stats {
+    flex-direction: column;
+    gap: 0.3em;
+  }
+}

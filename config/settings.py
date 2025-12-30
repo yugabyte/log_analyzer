@@ -31,7 +31,7 @@ class ServerConfig:
 @dataclass
 class AnalysisConfig:
     """Log analysis configuration settings."""
-    default_parallel_threads: int = 5
+    default_parallel_threads: int = 10
     default_time_range_days: int = 30
     max_file_size_mb: int = 100
     supported_log_types: Dict[str, str] = None

@@ -1095,12 +1095,31 @@ document.addEventListener("DOMContentLoaded", function () {
       if (tabId === "histogram-tab" && jsonData) renderHistogram();
       if (tabId === "table-tab" && jsonData) renderTables();
       if (tabId === "gflags-tab" && jsonData) renderGFlags();
+      if (tabId === "gflags-diff-tab" && jsonData) {
+        // Always re-attach event to dropdown and render diff
+        attachGFlagsDaysListener();
+        renderGFlagsDiff();
+      }
       if (tabId === "nodeinfo-tab" && jsonData) renderNodeInfo();
       if (tabId === "config-tab" && jsonData) renderAnalysisConfig();
       if (tabId === "logsolutions-tab" && jsonData) renderLogSolutions();
       if (tabId === "related-tab") renderRelatedReports();
     });
   });
+
+  // Attach GFlags days dropdown event listener (idempotent)
+  function attachGFlagsDaysListener() {
+    const daysSelect = document.getElementById("gflags-days-select");
+    if (daysSelect && !daysSelect.dataset.gflagsListenerAttached) {
+      daysSelect.addEventListener("change", function () {
+        renderGFlagsDiff();
+      });
+      daysSelect.dataset.gflagsListenerAttached = "true";
+    }
+  }
+
+  // Attach on DOMContentLoaded in case GFlags Diff is default tab
+  attachGFlagsDaysListener();
 
   function renderGFlags() {
     const gflagsDiv = document.getElementById("gflags");
@@ -1265,11 +1284,26 @@ document.addEventListener("DOMContentLoaded", function () {
           data.nodes.forEach((node) => {
             html += "<tr>";
             columns.forEach((col) => {
-              html += `<td>${
-                node[col.key] !== null && node[col.key] !== undefined
-                  ? node[col.key]
-                  : ""
-              }</td>`;
+              let value = node[col.key];
+              if (
+                (col.key === "is_master" || col.key === "is_tserver") &&
+                value !== null &&
+                value !== undefined
+              ) {
+                // Show colored badge for boolean
+                const isTrue =
+                  value === true ||
+                  value === "true" ||
+                  value === 1 ||
+                  value === "1";
+                html += `<td><span style='display:inline-block;padding:2px 10px;border-radius:12px;font-weight:bold;color:white;background:${
+                  isTrue ? "#38a169" : "#e53e3e"
+                };'>${isTrue ? "Yes" : "No"}</span></td>`;
+              } else {
+                html += `<td>${
+                  value !== null && value !== undefined ? value : ""
+                }</td>`;
+              }
             });
             html += "</tr>";
           });
@@ -1310,30 +1344,48 @@ document.addEventListener("DOMContentLoaded", function () {
       logsolutionsDiv.innerHTML = "<em>No log data loaded.</em>";
       return;
     }
-    const foundMessages = new Set();
+    const foundNames = new Set();
+    const patternToNameMap = window.patternToNameMap || {};
     Object.values(jsonData.nodes).forEach((nodeData) => {
       Object.values(nodeData).forEach((logTypeData) => {
         if (logTypeData.logMessages) {
-          Object.keys(logTypeData.logMessages).forEach((msg) =>
-            foundMessages.add(msg)
-          );
+          Object.keys(logTypeData.logMessages).forEach((msg) => {
+            // If msg matches a pattern, use the mapped name
+            let logName = msg;
+            // Try exact match first
+            if (patternToNameMap[msg]) {
+              logName = patternToNameMap[msg];
+            } else {
+              // Try regex match for wildcards
+              for (const [pattern, name] of Object.entries(patternToNameMap)) {
+                try {
+                  const re = new RegExp(pattern);
+                  if (re.test(msg)) {
+                    logName = name;
+                    break;
+                  }
+                } catch (e) {}
+              }
+            }
+            foundNames.add(logName);
+          });
         }
       });
     });
     const solutionsMap = window.logSolutionsMap || {};
     let html = "";
-    if (foundMessages.size === 0) {
+    if (foundNames.size === 0) {
       html = "<em>No log messages found in this report.</em>";
     } else {
       html = '<div class="log-solutions-list">';
       const converter = new showdown.Converter();
       let idx = 0;
-      foundMessages.forEach((msg) => {
+      foundNames.forEach((logName) => {
         const solutionMd =
-          solutionsMap[msg] ||
+          solutionsMap[logName] ||
           "<em>No solution available for this log message.</em>";
         const solutionHtml = converter.makeHtml(solutionMd);
-        html += `<div class=\"log-solution-collapsible\" style=\"margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fafbfc;\">\n          <div class=\"log-solution-header\" data-idx=\"${idx}\" style=\"cursor:pointer; display:flex; align-items:center; padding: 12px 18px; font-weight:600; font-size:1.08em; color:#172447; border-radius:6px 6px 0 0; background:#f1f3f7; transition:background 0.2s;\">\n            <span class=\"arrow\" style=\"margin-right:10px; font-size:1.2em; color:#888;\">&#9654;</span>\n            <span>${msg}</span>\n          </div>\n          <div class=\"log-solution-body\" style=\"display:none; padding: 18px; background: #fff; border-radius:0 0 6px 6px; border-top:1px solid #e2e8f0;\">${solutionHtml}</div>\n        </div>`;
+        html += `<div class=\"log-solution-collapsible\" style=\"margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fafbfc;\">\n          <div class=\"log-solution-header\" data-idx=\"${idx}\" style=\"cursor:pointer; display:flex; align-items:center; padding: 12px 18px; font-weight:600; font-size:1.08em; color:#172447; border-radius:6px 6px 0 0; background:#f1f3f7; transition:background 0.2s;\">\n            <span class=\"arrow\" style=\"margin-right:10px; font-size:1.2em; color:#888;\">&#9654;</span>\n            <span>${logName}</span>\n          </div>\n          <div class=\"log-solution-body\" style=\"display:none; padding: 18px; background: #fff; border-radius:0 0 6px 6px; border-top:1px solid #e2e8f0;\">${solutionHtml}</div>\n        </div>`;
         idx++;
       });
       html += "</div>";
@@ -1511,6 +1563,364 @@ document.addEventListener("DOMContentLoaded", function () {
         relatedDiv.innerHTML = "<em>Failed to load related reports.</em>";
       });
   }
+
+  // GFlags Diff functionality
+  function renderGFlagsDiff() {
+    const gflagsDiffDiv = document.getElementById("gflags-diff-content");
+
+    if (!jsonData) {
+      gflagsDiffDiv.innerHTML =
+        '<div class="diff-no-changes">No report data available for GFlags diff.</div>';
+      return;
+    }
+
+    // Show loading state
+    gflagsDiffDiv.innerHTML =
+      '<div class="loading-spinner">Loading GFlags diff data...</div>';
+
+    // Extract cluster name and organization from report data
+    let clusterName = null;
+    let organization = null;
+
+    // Try to get cluster name from various sources
+    if (jsonData.cluster_name) {
+      clusterName = jsonData.cluster_name;
+    } else if (jsonData.universe_name) {
+      clusterName = jsonData.universe_name;
+    }
+
+    // Try to get organization from various sources
+    if (jsonData.organization) {
+      organization = jsonData.organization;
+    } else if (jsonData.organization_name) {
+      organization = jsonData.organization_name;
+    } else if (jsonData.org) {
+      organization = jsonData.org;
+    }
+
+    if (!clusterName || !organization) {
+      console.log("Available jsonData fields:", Object.keys(jsonData));
+      console.log("jsonData contents:", jsonData);
+
+      let debugInfo = '<div class="diff-no-changes">';
+      debugInfo += `Missing cluster information for GFlags diff.<br>`;
+      debugInfo += `Cluster: ${clusterName || "Not found"}<br>`;
+      debugInfo += `Organization: ${organization || "Not found"}<br><br>`;
+      debugInfo += "Available fields in report data:<br>";
+      debugInfo += Object.keys(jsonData).join(", ");
+      debugInfo +=
+        "<br><br>Please ensure the report contains cluster and organization information.";
+      debugInfo += "</div>";
+
+      gflagsDiffDiv.innerHTML = debugInfo;
+      return;
+    }
+
+    // Get selected days and current bundle
+    const daysSelect = document.getElementById("gflags-days-select");
+    const days = daysSelect ? daysSelect.value : 90;
+    // Try to get the current bundle name from jsonData
+    const bundleName =
+      jsonData.support_bundle_name ||
+      (jsonData.bundles && jsonData.bundles[0] && jsonData.bundles[0].name);
+    // Update label
+    const daysLabel = document.getElementById("gflags-days-label");
+    if (daysLabel) daysLabel.textContent = days;
+    // Build API URL
+    let apiUrl = `/api/gflags_diff/${encodeURIComponent(
+      clusterName
+    )}/${encodeURIComponent(organization)}?days=${days}`;
+    if (bundleName) apiUrl += `&bundle=${encodeURIComponent(bundleName)}`;
+    fetch(apiUrl)
+      .then((resp) => resp.json())
+      .then((data) => {
+        if (data.error) {
+          gflagsDiffDiv.innerHTML = `<div class="diff-no-changes">Error loading GFlags diff: ${data.error}</div>`;
+          return;
+        }
+        renderGFlagsDiffContent(data);
+      })
+      .catch((err) => {
+        console.error("Error fetching GFlags diff:", err);
+        gflagsDiffDiv.innerHTML =
+          '<div class="diff-no-changes">Failed to load GFlags diff data. Please try again later.</div>';
+      });
+    // (Event listener for days dropdown is now attached globally below)
+    // Attach GFlags days dropdown event listener globally (only once, after DOM is ready)
+    document.addEventListener("DOMContentLoaded", function () {
+      const daysSelect = document.getElementById("gflags-days-select");
+      if (daysSelect && !daysSelect.dataset.gflagsListenerAttached) {
+        daysSelect.addEventListener("change", function () {
+          renderGFlagsDiff();
+        });
+        daysSelect.dataset.gflagsListenerAttached = "true";
+      }
+    });
+  }
+
+  function renderGFlagsDiffContent(diffData) {
+    const gflagsDiffDiv = document.getElementById("gflags-diff-content");
+
+    if (!diffData.diffs || Object.keys(diffData.diffs).length === 0) {
+      gflagsDiffDiv.innerHTML =
+        '<div class="diff-no-changes">No GFlags changes found across support bundles.</div>';
+      return;
+    }
+
+    let html = "";
+
+    // Add universe info header
+    html += `<div style="margin-top: 0.5em; font-size: 0.9em; color: #586069;">Analyzing ${diffData.bundles.length} support bundles (newest to oldest)</div>`;
+    // Process each node
+    Object.entries(diffData.diffs).forEach(([nodeName, nodeRoles]) => {
+      // Calculate node-level summary
+      const nodeSummary = calculateNodeSummary(nodeRoles);
+      const nodeSummaryText = formatSummary(nodeSummary);
+
+      html += `<div class="diff-container">`;
+      html += `<div class="diff-node-header" onclick="toggleNode('${nodeName}')">`;
+      html += `<span class="arrow" id="arrow-${nodeName}">▶</span> Node: ${nodeName} ${nodeSummaryText}`;
+      html += `</div>`;
+      html += `<div class="collapsible-content" id="content-${nodeName}">`;
+
+      // Process each role (master, tserver, etc.)
+      Object.entries(nodeRoles).forEach(([roleName, roleCommits]) => {
+        // Calculate role-level summary
+        const roleSummary = calculateRoleSummary(roleCommits);
+        const roleSummaryText = formatSummary(roleSummary);
+
+        const roleId = `${nodeName}-${roleName}`;
+        html += `<div class="diff-role-section">`;
+        html += `<div class="diff-role-header" onclick="toggleRole('${roleId}')" style="cursor: pointer;">`;
+        html += `<span class="arrow" id="arrow-role-${roleId}">▶</span> ${
+          roleName.charAt(0).toUpperCase() + roleName.slice(1)
+        } Process ${roleSummaryText}`;
+        html += `</div>`;
+
+        html += `<div class="collapsible-content" id="content-role-${roleId}">`;
+        html += `<div class="diff-commits">`;
+
+        // Process each commit/bundle
+        roleCommits.forEach((commitData, index) => {
+          const { bundle, timestamp, change, gflags } = commitData;
+
+          html += `<div class="diff-commit">`;
+
+          // Commit header with bundle info
+          html += `<div class="diff-commit-header">`;
+          html += `<div><span class="diff-commit-sha">${bundle}</span></div>`;
+          html += `<div class="diff-commit-date">${formatTimestamp(
+            timestamp
+          )}</div>`;
+          html += `</div>`;
+
+          // Changes content - skip initial state, only show diffs
+          if (change.type !== "initial") {
+            // Show diff stats
+            const addedCount = Object.keys(change.added).length;
+            const removedCount = Object.keys(change.removed).length;
+            const modifiedCount = Object.keys(change.modified).length;
+
+            if (addedCount > 0 || removedCount > 0 || modifiedCount > 0) {
+              html += `<div class="diff-stats">`;
+              if (addedCount > 0)
+                html += `<div class="diff-stat added">+${addedCount} added</div>`;
+              if (removedCount > 0)
+                html += `<div class="diff-stat removed">-${removedCount} removed</div>`;
+              if (modifiedCount > 0)
+                html += `<div class="diff-stat modified">~${modifiedCount} modified</div>`;
+              html += `</div>`;
+
+              html += `<div class="diff-changes">`;
+
+              // Show removed flags
+              Object.entries(change.removed).forEach(([flag, value]) => {
+                html += createDiffLine("removed", flag, value);
+              });
+
+              // Show added flags
+              Object.entries(change.added).forEach(([flag, value]) => {
+                html += createDiffLine("added", flag, value);
+              });
+
+              // Show modified flags
+              Object.entries(change.modified).forEach(([flag, values]) => {
+                html += createDiffLine("removed", flag, values.old);
+                html += createDiffLine("added", flag, values.new);
+              });
+
+              html += `</div>`;
+            } else {
+              html += `<div class="diff-no-changes">No changes in this support bundle</div>`;
+            }
+          }
+
+          html += `</div>`; // Close diff-commit
+        });
+
+        html += `</div>`; // Close diff-commits
+        html += `</div>`; // Close collapsible-content (role)
+        html += `</div>`; // Close diff-role-section
+      });
+
+      html += `</div>`; // Close collapsible-content (node)
+      html += `</div>`; // Close diff-container
+    });
+
+    gflagsDiffDiv.innerHTML = html;
+  }
+
+  function createDiffLine(changeType, flag, value) {
+    let indicator = "";
+    let changeClass = "";
+
+    switch (changeType) {
+      case "added":
+        indicator = "+";
+        changeClass = "added";
+        break;
+      case "removed":
+        indicator = "-";
+        changeClass = "removed";
+        break;
+      case "modified":
+        indicator = "~";
+        changeClass = "modified";
+        break;
+      default:
+        indicator = " ";
+        changeClass = "context";
+    }
+
+    const escapedFlag = escapeHtml(flag);
+    const escapedValue = escapeHtml(String(value));
+
+    return `
+      <div class="diff-change-line ${changeClass}">
+        <div class="diff-line-number"></div>
+        <div class="diff-line-content">
+          <span class="diff-change-indicator ${changeClass}">${indicator}</span>
+          <span class="diff-gflag-name">${escapedFlag}</span>: 
+          <span class="diff-gflag-value">${escapedValue}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  function formatTimestamp(timestamp) {
+    try {
+      return new Date(timestamp).toLocaleString();
+    } catch (e) {
+      return timestamp;
+    }
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // Helper function to calculate node-level summary
+  function calculateNodeSummary(nodeRoles) {
+    let totalAdded = 0,
+      totalRemoved = 0,
+      totalModified = 0;
+
+    Object.values(nodeRoles).forEach((roleCommits) => {
+      roleCommits.forEach((commitData) => {
+        const { change } = commitData;
+        if (change.type !== "initial") {
+          totalAdded += Object.keys(change.added || {}).length;
+          totalRemoved += Object.keys(change.removed || {}).length;
+          totalModified += Object.keys(change.modified || {}).length;
+        }
+      });
+    });
+
+    return {
+      added: totalAdded,
+      removed: totalRemoved,
+      modified: totalModified,
+    };
+  }
+
+  // Helper function to calculate role-level summary
+  function calculateRoleSummary(roleCommits) {
+    let totalAdded = 0,
+      totalRemoved = 0,
+      totalModified = 0;
+
+    roleCommits.forEach((commitData) => {
+      const { change } = commitData;
+      if (change.type !== "initial") {
+        totalAdded += Object.keys(change.added || {}).length;
+        totalRemoved += Object.keys(change.removed || {}).length;
+        totalModified += Object.keys(change.modified || {}).length;
+      }
+    });
+
+    return {
+      added: totalAdded,
+      removed: totalRemoved,
+      modified: totalModified,
+    };
+  }
+
+  // Helper function to format summary text
+  function formatSummary(summary) {
+    if (!summary.added && !summary.removed && !summary.modified) return "";
+
+    const parts = [];
+    if (summary.added > 0)
+      parts.push(`<span class="diff-stat added">${summary.added} added</span>`);
+    if (summary.removed > 0)
+      parts.push(
+        `<span class="diff-stat removed">${summary.removed} removed</span>`
+      );
+    if (summary.modified > 0)
+      parts.push(
+        `<span class="diff-stat modified">${summary.modified} modified</span>`
+      );
+
+    return `<span class="summary-inline">(${parts.join(", ")})</span>`;
+  }
+
+  // Global function for toggling nodes (needed for onclick handlers)
+  window.toggleNode = function (nodeId) {
+    const content = document.getElementById(`content-${nodeId}`);
+    const arrow = document.getElementById(`arrow-${nodeId}`);
+
+    if (content && arrow) {
+      const isExpanded = content.classList.contains("expanded");
+
+      if (isExpanded) {
+        content.classList.remove("expanded");
+        arrow.textContent = "▶";
+      } else {
+        content.classList.add("expanded");
+        arrow.textContent = "▼";
+      }
+    }
+  };
+
+  // Global function for toggling roles (needed for onclick handlers)
+  window.toggleRole = function (roleId) {
+    const content = document.getElementById(`content-role-${roleId}`);
+    const arrow = document.getElementById(`arrow-role-${roleId}`);
+
+    if (content && arrow) {
+      const isExpanded = content.classList.contains("expanded");
+
+      if (isExpanded) {
+        content.classList.remove("expanded");
+        arrow.textContent = "▶";
+      } else {
+        content.classList.add("expanded");
+        arrow.textContent = "▼";
+      }
+    }
+  };
 
   // Add CSS for spinner animation
   const style = document.createElement("style");
