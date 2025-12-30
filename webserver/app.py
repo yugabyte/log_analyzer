@@ -217,6 +217,24 @@ class LogAnalyzerWebApp:
                 self.logger.error(f"Unexpected error getting node info: {e}")
                 return jsonify({'error': 'Internal server error'}), 500
         
+        @self.app.route('/api/long_operations/<uuid>')
+        def long_operations_api(uuid):
+            """API endpoint for long operations data."""
+            try:
+                report_data = self.db_service.get_report(uuid)
+                if not report_data:
+                    return jsonify({'error': 'Report not found'}), 404
+                
+                long_operations = report_data.get('long_operations', [])
+                return jsonify({'long_operations': long_operations})
+                
+            except DatabaseError as e:
+                self.logger.error(f"Database error getting long operations: {e}")
+                return jsonify({'error': 'Database error'}), 500
+            except Exception as e:
+                self.logger.error(f"Unexpected error getting long operations: {e}")
+                return jsonify({'error': 'Internal server error'}), 500
+        
         @self.app.route('/api/histogram_latest_datetime/<report_id>')
         def histogram_latest_datetime_api(report_id):
             """API endpoint for latest datetime in histogram."""

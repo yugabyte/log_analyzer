@@ -146,10 +146,14 @@ class ParquetAnalysisService:
             processing_time = time.time() - start_processing
             logger.info(f"✅ Pattern matching completed in {processing_time:.2f} seconds.")
             
+            # Collect long operations data
+            long_ops_data = self.get_long_operations_data(parquet_dir)
+            
             # Build final result with actual bundle name
             result = {
                 "nodes": node_results,
-                "universeName": bundle_name  # Use directory name as bundle name
+                "universeName": bundle_name,  # Use directory name as bundle name
+                "long_operations": long_ops_data
             }
             
             total_time = time.time() - start_total
@@ -312,6 +316,104 @@ class ParquetAnalysisService:
                 
         except Exception as e:
             raise AnalysisError(f"Failed to load results: {e}")
+    
+    def get_long_operations_data(self, parquet_dir: Path) -> List[Dict[str, Any]]:
+        """
+        Collect long operations data from Parquet files.
+        
+        This method queries parquet files for long operation messages from
+        'long_operation_tracker.cc' and aggregates them by time interval.
+        
+        Args:
+            parquet_dir: Directory containing Parquet files
+            
+        Returns:
+            List of dictionaries with long operations data, each containing:
+            - time_interval: 10-minute time bucket (ISO format string)
+            - message_prefix: Extracted message prefix
+            - max_long_op_value: Maximum operation duration
+            - avg_long_op_value: Average operation duration
+            - occurrence_count: Number of occurrences
+        """
+        try:
+            parquet_path = str(parquet_dir / "*.parquet")
+            
+            # Query to extract long operations data
+            # Extract timestamp, message_prefix, and numeric value
+            # Bucket timestamps to 10-minute intervals
+            # Escape single quotes in parquet_path for SQL
+            escaped_path = parquet_path.replace("'", "''")
+            # Use a subquery to filter by message_prefix since it's a computed column
+            sql = f"""
+                SELECT 
+                    "timestamp",
+                    message_prefix,
+                    long_op_value
+                FROM (
+                    SELECT 
+                        "timestamp",
+                        regexp_extract(message, '^(.*?)\\s+time\\b', 1) AS message_prefix,
+                        CAST(regexp_extract(message, '(\\d+\\.?\\d*)\\s*(s|sec|seconds?)\\b', 1) AS DOUBLE) AS long_op_value
+                    FROM '{escaped_path}'
+                    WHERE file = 'long_operation_tracker.cc'
+                      AND message LIKE '%took a long%'
+                )
+                WHERE message_prefix IS NOT NULL
+                  AND message_prefix LIKE '%took a long%'
+                  AND long_op_value IS NOT NULL
+            """
+            
+            con = duckdb.connect()
+            rows = con.execute(sql).fetchall()
+            con.close()
+            
+            # Group by 10-minute time buckets and message_prefix, calculate aggregates
+            from collections import defaultdict
+            grouped_data = defaultdict(lambda: defaultdict(list))
+            
+            for row in rows:
+                timestamp, message_prefix, long_op_value = row
+                if timestamp and message_prefix and long_op_value is not None:
+                    # Convert timestamp to datetime if needed
+                    if isinstance(timestamp, str):
+                        try:
+                            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        except:
+                            continue
+                    elif isinstance(timestamp, datetime):
+                        dt = timestamp
+                    else:
+                        continue
+                    
+                    # Bucket to 10-minute intervals: round down to nearest 10 minutes
+                    bucket_minute = (dt.minute // 10) * 10
+                    time_bucket = dt.replace(minute=bucket_minute, second=0, microsecond=0)
+                    # Format to match user's expected format: 'YYYY-MM-DD HH:MM:00'
+                    time_key = time_bucket.strftime('%Y-%m-%d %H:%M:00')
+                    
+                    grouped_data[time_key][message_prefix].append(long_op_value)
+            
+            # Build result list with aggregates
+            result = []
+            for time_interval, prefixes in sorted(grouped_data.items()):
+                for message_prefix, values in sorted(prefixes.items()):
+                    if values:  # Only add if we have values
+                        result.append({
+                            "time_interval": time_interval,
+                            "message_prefix": message_prefix,
+                            "max_long_op_value": max(values),
+                            "avg_long_op_value": sum(values) / len(values),
+                            "occurrence_count": len(values)
+                        })
+            
+            logger.info(f"Collected {len(result)} long operations records")
+            return result
+            
+        except Exception as e:
+            logger.warning(f"Failed to collect long operations data: {e}")
+            import traceback
+            logger.debug(traceback.format_exc())
+            return []
     
     def get_parquet_info(self, parquet_dir: Path) -> Dict[str, Any]:
         """

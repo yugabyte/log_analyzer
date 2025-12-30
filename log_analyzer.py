@@ -401,6 +401,9 @@ class LogAnalyzerApp:
             # Use actual bundle name from Parquet data
             bundle_name = result.get("universeName", parquet_dir.name)
             
+            # Get long operations data from result
+            long_operations = result.get("long_operations", [])
+            
             report = AnalysisReport(
                 support_bundle_name=bundle_name,  # Use actual bundle name from data
                 nodes=converted_nodes,
@@ -415,7 +418,8 @@ class LogAnalyzerApp:
                     "parquet_directory": str(parquet_dir),
                     "patterns_used": patterns,
                     "analysis_type": "parquet"
-                }
+                },
+                long_operations=long_operations if long_operations else None
             )
             
             # Store in database
