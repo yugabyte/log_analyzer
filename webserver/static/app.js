@@ -503,43 +503,72 @@ document.addEventListener("DOMContentLoaded", function () {
     Object.keys(messageBuckets).forEach((msg, i) => {
       msgColorMap[msg] = diverseColors[i % diverseColors.length];
     });
-    // Prepare datasets for Chart.js
+    // Prepare datasets for Chart.js (line chart format)
     const datasets = Object.entries(messageBuckets).map(
       ([msg, bucketsObj], i) => ({
         label: msg,
         data: allBuckets.map((b) => bucketsObj[b] || 0),
         backgroundColor: msgColorMap[msg],
-        borderWidth: 1,
         borderColor: msgColorMap[msg],
-        barPercentage: 0.9,
-        categoryPercentage: 0.8,
+        borderWidth: 2,
+        fill: false,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        tension: 0.2,
       })
     );
+    
+    // Format labels for display
+    const formattedLabels = allBuckets.map((b) => {
+      // Handle formats like "2025-10-18 17:20:00" or "2025-10-18T17:20:00Z"
+      if (b.includes("T")) {
+        const date = b.slice(0, 10);
+        const time = b.slice(11, 16);
+        return `${date} ${time}`;
+      } else if (b.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/)) {
+        // Format "2025-10-18 17:20:00" -> "10-18 17:20"
+        const date = b.slice(5, 10);
+        const time = b.slice(11, 16);
+        return `${date} ${time}`;
+      }
+      return b;
+    });
+    
     // Chart.js config for main histogram
     const chartConfig = {
-      type: "bar",
+      type: "line",
       data: {
-        labels: allBuckets,
+        labels: formattedLabels,
         datasets: datasets,
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: {
+          mode: "index",
+          intersect: false,
+        },
         plugins: {
           legend: {
-            position: "bottom",
+            display: true,
+            position: "top",
             labels: {
-              font: { size: 15, family: "Inter, Arial, sans-serif" },
-              boxWidth: 18,
-              padding: 18,
+              usePointStyle: true,
+              padding: 15,
+              font: {
+                size: 13,
+              },
+              color: "#4a5568",
             },
-            align: "start",
           },
           title: { display: false },
           tooltip: {
             mode: "index",
             intersect: false,
             callbacks: {
+              title: function (context) {
+                return context[0].label;
+              },
               label: function (context) {
                 if (
                   !context.parsed ||
@@ -552,53 +581,64 @@ document.addEventListener("DOMContentLoaded", function () {
             },
           },
           zoom: {
-            pan: { enabled: true, mode: "x" },
-            zoom: {
-              wheel: { enabled: false },
-              pinch: { enabled: true },
-              drag: { enabled: true, modifierKey: null },
+            pan: {
+              enabled: true,
               mode: "x",
             },
-            limits: {
-              x: { min: 0, max: allBuckets.length - 1 },
-              y: { min: 0 },
+            zoom: {
+              wheel: {
+                enabled: true,
+              },
+              pinch: {
+                enabled: true,
+              },
+              drag: {
+                enabled: true,
+              },
+              mode: "x",
             },
           },
         },
         scales: {
           x: {
-            title: { display: false },
+            title: {
+              display: true,
+              text: "Time Interval",
+              color: "#4a5568",
+              font: {
+                size: 14,
+              },
+            },
             ticks: {
               color: "#4a5568",
-              font: { size: 13 },
-              callback: function (val, idx, ticks) {
-                const N = Math.ceil(ticks.length / 8);
-                if (idx === 0 || idx === ticks.length - 1 || idx % N === 0) {
-                  const dt = this.getLabelForValue(val);
-                  if (dt.length > 16 && dt.includes("T")) {
-                    const date = dt.slice(5, 10);
-                    const time = dt.slice(11, 16);
-                    return `${date} ${time}`;
-                  }
-                  return dt;
-                }
-                return "";
+              font: {
+                size: 12,
               },
-              maxRotation: 0,
-              minRotation: 0,
-              autoSkip: false,
+              maxRotation: 45,
+              minRotation: 45,
             },
-            grid: { color: "#e2e8f0", display: false },
+            grid: {
+              color: "#e2e8f0",
+            },
           },
           y: {
             title: {
               display: true,
               text: "Count",
               color: "#4a5568",
-              font: { size: 16 },
+              font: {
+                size: 14,
+              },
             },
-            ticks: { color: "#4a5568", font: { size: 13 } },
-            grid: { color: "#e2e8f0", display: false },
+            ticks: {
+              color: "#4a5568",
+              font: {
+                size: 12,
+              },
+            },
+            grid: {
+              color: "#e2e8f0",
+            },
             type: histogramScale === "log" ? "logarithmic" : "linear",
             beginAtZero: true,
           },
@@ -1104,6 +1144,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (tabId === "config-tab" && jsonData) renderAnalysisConfig();
       if (tabId === "logsolutions-tab" && jsonData) renderLogSolutions();
       if (tabId === "related-tab") renderRelatedReports();
+      if (tabId === "longops-tab") renderLongOperations();
     });
   });
 
@@ -1425,6 +1466,257 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       };
     });
+  }
+
+  function renderLongOperations() {
+    const longOpsDiv = document.getElementById("long-operations");
+    longOpsDiv.innerHTML = "<em>Loading long operations data...</em>";
+    if (!window.report_uuid) {
+      longOpsDiv.innerHTML = "<em>No report selected.</em>";
+      return;
+    }
+    fetch(`/api/long_operations/${window.report_uuid}`)
+      .then((resp) => resp.json())
+      .then((data) => {
+        if (!data || data.error) {
+          longOpsDiv.innerHTML = "<em>No long operations data available.</em>";
+          return;
+        }
+        const longOps = data.long_operations || [];
+        if (longOps.length === 0) {
+          longOpsDiv.innerHTML = "<em>No long operations data found.</em>";
+          return;
+        }
+        
+        // Group data by message_prefix
+        const dataByPrefix = {};
+        const allTimeIntervals = new Set();
+        
+        longOps.forEach((op) => {
+          const prefix = op.message_prefix || "Unknown";
+          const timeInterval = op.time_interval || "";
+          
+          if (!dataByPrefix[prefix]) {
+            dataByPrefix[prefix] = {};
+          }
+          
+          dataByPrefix[prefix][timeInterval] = {
+            avg: op.avg_long_op_value || 0,
+            max: op.max_long_op_value || 0,
+            count: op.occurrence_count || 0
+          };
+          
+          allTimeIntervals.add(timeInterval);
+        });
+        
+        // Sort time intervals
+        const sortedTimeIntervals = Array.from(allTimeIntervals).sort();
+        
+        // Color palette for different message prefixes
+        const diverseColors = [
+          "#172447",
+          "#ff9400",
+          "#36a2eb",
+          "#e74c3c",
+          "#2ecc71",
+          "#9b59b6",
+          "#f1c40f",
+          "#16a085",
+          "#e67e22",
+          "#34495e",
+        ];
+        
+        const prefixColors = {};
+        Object.keys(dataByPrefix).forEach((prefix, i) => {
+          prefixColors[prefix] = diverseColors[i % diverseColors.length];
+        });
+        
+        // Clear and create chart container
+        longOpsDiv.innerHTML = "";
+        
+        // Create canvas for chart
+        const canvas = document.createElement("canvas");
+        canvas.id = "longOpsChart";
+        canvas.height = 600;
+        longOpsDiv.appendChild(canvas);
+        
+        // Helper function to clean up label (remove "took a long" since it's redundant)
+        const cleanLabel = (label) => {
+          return label.replace(/\s+took a long\s*$/i, "").trim();
+        };
+        
+        // Create a mapping from cleaned labels to original prefixes for tooltip lookup
+        const cleanToOriginalPrefix = {};
+        Object.keys(dataByPrefix).forEach((prefix) => {
+          cleanToOriginalPrefix[cleanLabel(prefix)] = prefix;
+        });
+        
+        // Prepare datasets for Chart.js (one line per message prefix)
+        const datasets = Object.entries(dataByPrefix).map(([prefix, timeData]) => ({
+          label: cleanLabel(prefix),
+          data: sortedTimeIntervals.map((timeInterval) => 
+            timeData[timeInterval] ? timeData[timeInterval].avg : null
+          ),
+          backgroundColor: prefixColors[prefix],
+          borderColor: prefixColors[prefix],
+          borderWidth: 2,
+          fill: false,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          tension: 0.2,
+        }));
+        
+        // Chart configuration
+        const chartConfig = {
+          type: "line",
+          data: {
+            labels: sortedTimeIntervals.map((t) => {
+              // Format time interval for display
+              // Handle formats like "2025-10-18 17:20:00" or "2025-10-18T17:20:00Z"
+              if (t.includes("T")) {
+                const date = t.slice(0, 10);
+                const time = t.slice(11, 16);
+                return `${date} ${time}`;
+              } else if (t.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+                // Format "2025-10-18 17:20:00" -> "10-18 17:20"
+                const date = t.slice(5, 10);
+                const time = t.slice(11, 16);
+                return `${date} ${time}`;
+              }
+              return t;
+            }),
+            datasets: datasets,
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              mode: "index",
+              intersect: false,
+            },
+            plugins: {
+              legend: {
+                display: true,
+                position: "top",
+                labels: {
+                  usePointStyle: true,
+                  padding: 15,
+                  font: {
+                    size: 13,
+                  },
+                  color: "#4a5568",
+                },
+              },
+              tooltip: {
+                mode: "index",
+                intersect: false,
+                callbacks: {
+                  title: function (context) {
+                    return context[0].label;
+                  },
+                  label: function (context) {
+                    const cleanPrefix = context.dataset.label;
+                    const originalPrefix = cleanToOriginalPrefix[cleanPrefix] || cleanPrefix;
+                    const timeInterval = sortedTimeIntervals[context.dataIndex];
+                    const timeData = dataByPrefix[originalPrefix]?.[timeInterval];
+                    if (!timeData) return "";
+                    
+                    return [
+                      `${cleanPrefix}:`,
+                      `  Avg: ${timeData.avg.toFixed(3)}s`,
+                      `  Max: ${timeData.max.toFixed(3)}s`,
+                      `  Count: ${timeData.count}`,
+                    ];
+                  },
+                },
+              },
+              zoom: {
+                pan: {
+                  enabled: true,
+                  mode: "x",
+                },
+                zoom: {
+                  wheel: {
+                    enabled: true,
+                  },
+                  pinch: {
+                    enabled: true,
+                  },
+                  drag: {
+                    enabled: true,
+                  },
+                  mode: "x",
+                },
+              },
+            },
+            scales: {
+              x: {
+                title: {
+                  display: true,
+                  text: "Time Interval",
+                  color: "#4a5568",
+                  font: {
+                    size: 14,
+                  },
+                },
+                ticks: {
+                  color: "#4a5568",
+                  font: {
+                    size: 12,
+                  },
+                  maxRotation: 45,
+                  minRotation: 45,
+                },
+                grid: {
+                  color: "#e2e8f0",
+                },
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: "Average Duration (seconds)",
+                  color: "#4a5568",
+                  font: {
+                    size: 14,
+                  },
+                },
+                ticks: {
+                  color: "#4a5568",
+                  font: {
+                    size: 12,
+                  },
+                  callback: function (value) {
+                    return value.toFixed(2) + "s";
+                  },
+                },
+                grid: {
+                  color: "#e2e8f0",
+                },
+                beginAtZero: true,
+              },
+            },
+          },
+        };
+        
+        // Render chart
+        const chartInstance = new Chart(canvas, chartConfig);
+        
+        // Store chart instance for potential cleanup
+        if (window.longOpsChartInstance) {
+          window.longOpsChartInstance.destroy();
+        }
+        window.longOpsChartInstance = chartInstance;
+        
+        // Add double-click to reset zoom
+        canvas.ondblclick = function () {
+          if (chartInstance && chartInstance.resetZoom) {
+            chartInstance.resetZoom();
+          }
+        };
+      })
+      .catch(() => {
+        longOpsDiv.innerHTML = "<em>Failed to load long operations data.</em>";
+      });
   }
 
   function renderRelatedReports() {

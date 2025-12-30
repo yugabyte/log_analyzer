@@ -80,10 +80,11 @@ class AnalysisReport:
     nodes: Dict[str, Dict[str, NodeAnalysisResult]] = field(default_factory=dict)
     warnings: List[Dict[str, Any]] = field(default_factory=list)
     analysis_config: Dict[str, Any] = field(default_factory=dict)
+    long_operations: Optional[List[Dict[str, Any]]] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary format for JSON serialization."""
-        return {
+        result = {
             "nodes": {
                 node_name: {
                     log_type: result.to_dict()
@@ -94,6 +95,9 @@ class AnalysisReport:
             "warnings": self.warnings,
             "analysis_config": self.analysis_config
         }
+        if self.long_operations is not None:
+            result["long_operations"] = self.long_operations
+        return result
 
 
 @dataclass
