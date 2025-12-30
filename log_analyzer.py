@@ -413,7 +413,7 @@ class LogAnalyzerApp:
             bundle_name = result.get("universeName", parquet_dir.name)
             
             # Get long operations data from result
-            long_operations = result.get("long_operations", [])
+            long_operations = result.get("long_operations", {})
             
             report = AnalysisReport(
                 support_bundle_name=bundle_name,  # Use actual bundle name from data

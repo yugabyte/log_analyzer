@@ -1482,32 +1482,44 @@ document.addEventListener("DOMContentLoaded", function () {
           longOpsDiv.innerHTML = "<em>No long operations data available.</em>";
           return;
         }
-        const longOps = data.long_operations || [];
-        if (longOps.length === 0) {
+        const longOps = data.long_operations || {};
+        
+        // Handle both new nested format and legacy array format for backward compatibility
+        let dataByPrefix = {};
+        const allTimeIntervals = new Set();
+        
+        if (Array.isArray(longOps)) {
+          // Legacy format: array of objects with message_prefix and time_interval
+          longOps.forEach((op) => {
+            const prefix = op.message_prefix || "Unknown";
+            const timeInterval = op.time_interval || "";
+            
+            if (!dataByPrefix[prefix]) {
+              dataByPrefix[prefix] = {};
+            }
+            
+            dataByPrefix[prefix][timeInterval] = {
+              avg: op.avg_long_op_value || 0,
+              max: op.max_long_op_value || 0,
+              count: op.occurrence_count || 0
+            };
+            
+            allTimeIntervals.add(timeInterval);
+          });
+        } else if (typeof longOps === 'object' && longOps !== null) {
+          // New nested format: { message_prefix: { time_interval: { c, avg, max } } }
+          dataByPrefix = longOps;
+          Object.values(dataByPrefix).forEach((timeData) => {
+            Object.keys(timeData).forEach((timeInterval) => {
+              allTimeIntervals.add(timeInterval);
+            });
+          });
+        }
+        
+        if (Object.keys(dataByPrefix).length === 0) {
           longOpsDiv.innerHTML = "<em>No long operations data found.</em>";
           return;
         }
-        
-        // Group data by message_prefix
-        const dataByPrefix = {};
-        const allTimeIntervals = new Set();
-        
-        longOps.forEach((op) => {
-          const prefix = op.message_prefix || "Unknown";
-          const timeInterval = op.time_interval || "";
-          
-          if (!dataByPrefix[prefix]) {
-            dataByPrefix[prefix] = {};
-          }
-          
-          dataByPrefix[prefix][timeInterval] = {
-            avg: op.avg_long_op_value || 0,
-            max: op.max_long_op_value || 0,
-            count: op.occurrence_count || 0
-          };
-          
-          allTimeIntervals.add(timeInterval);
-        });
         
         // Sort time intervals
         const sortedTimeIntervals = Array.from(allTimeIntervals).sort();
@@ -1554,9 +1566,12 @@ document.addEventListener("DOMContentLoaded", function () {
         // Prepare datasets for Chart.js (one line per message prefix)
         const datasets = Object.entries(dataByPrefix).map(([prefix, timeData]) => ({
           label: cleanLabel(prefix),
-          data: sortedTimeIntervals.map((timeInterval) => 
-            timeData[timeInterval] ? timeData[timeInterval].avg : null
-          ),
+          data: sortedTimeIntervals.map((timeInterval) => {
+            const intervalData = timeData[timeInterval];
+            if (!intervalData) return null;
+            // Handle both new format (avg) and legacy format (avg_long_op_value)
+            return intervalData.avg !== undefined ? intervalData.avg : (intervalData.avg_long_op_value || null);
+          }),
           backgroundColor: prefixColors[prefix],
           borderColor: prefixColors[prefix],
           borderWidth: 2,
@@ -1621,11 +1636,16 @@ document.addEventListener("DOMContentLoaded", function () {
                     const timeData = dataByPrefix[originalPrefix]?.[timeInterval];
                     if (!timeData) return "";
                     
+                    // Handle both new format (c, avg, max) and legacy format (count, avg, max)
+                    const avg = timeData.avg || 0;
+                    const max = timeData.max || 0;
+                    const count = timeData.c !== undefined ? timeData.c : timeData.count || 0;
+                    
                     return [
                       `${cleanPrefix}:`,
-                      `  Avg: ${timeData.avg.toFixed(3)}s`,
-                      `  Max: ${timeData.max.toFixed(3)}s`,
-                      `  Count: ${timeData.count}`,
+                      `  Avg: ${avg.toFixed(3)}s`,
+                      `  Max: ${max.toFixed(3)}s`,
+                      `  Count: ${count}`,
                     ];
                   },
                 },

@@ -335,23 +335,28 @@ class ParquetAnalysisService:
         except Exception as e:
             raise AnalysisError(f"Failed to load results: {e}")
     
-    def get_long_operations_data(self, parquet_dir: Path) -> List[Dict[str, Any]]:
+    def get_long_operations_data(self, parquet_dir: Path) -> Dict[str, Dict[str, Dict[str, Any]]]:
         """
         Collect long operations data from Parquet files.
         
         This method queries parquet files for long operation messages from
-        'long_operation_tracker.cc' and aggregates them by time interval.
+        'long_operation_tracker.cc' and aggregates them by message prefix and time interval.
         
         Args:
             parquet_dir: Directory containing Parquet files
             
         Returns:
-            List of dictionaries with long operations data, each containing:
-            - time_interval: 10-minute time bucket (ISO format string)
-            - message_prefix: Extracted message prefix
-            - max_long_op_value: Maximum operation duration
-            - avg_long_op_value: Average operation duration
-            - occurrence_count: Number of occurrences
+            Nested dictionary structure:
+            {
+                "message_prefix": {
+                    "time_interval": {
+                        "c": occurrence_count,
+                        "avg": average_duration,
+                        "max": max_duration
+                    }
+                }
+            }
+            Field names are optimized: c=count, avg=average, max=maximum, t=time_interval
         """
         try:
             parquet_path = str(parquet_dir / "*.parquet")
@@ -385,7 +390,7 @@ class ParquetAnalysisService:
             rows = con.execute(sql).fetchall()
             con.close()
             
-            # Group by 10-minute time buckets and message_prefix, calculate aggregates
+            # Group by message_prefix first, then by 10-minute time buckets, calculate aggregates
             from collections import defaultdict
             grouped_data = defaultdict(lambda: defaultdict(list))
             
@@ -409,22 +414,22 @@ class ParquetAnalysisService:
                     # Format to match user's expected format: 'YYYY-MM-DD HH:MM:00'
                     time_key = time_bucket.strftime('%Y-%m-%d %H:%M:00')
                     
-                    grouped_data[time_key][message_prefix].append(long_op_value)
+                    grouped_data[message_prefix][time_key].append(long_op_value)
             
-            # Build result list with aggregates
-            result = []
-            for time_interval, prefixes in sorted(grouped_data.items()):
-                for message_prefix, values in sorted(prefixes.items()):
+            # Build nested result structure with optimized field names
+            result = {}
+            for message_prefix, time_intervals in sorted(grouped_data.items()):
+                result[message_prefix] = {}
+                for time_interval, values in sorted(time_intervals.items()):
                     if values:  # Only add if we have values
-                        result.append({
-                            "time_interval": time_interval,
-                            "message_prefix": message_prefix,
-                            "max_long_op_value": max(values),
-                            "avg_long_op_value": sum(values) / len(values),
-                            "occurrence_count": len(values)
-                        })
+                        result[message_prefix][time_interval] = {
+                            "c": len(values),  # count
+                            "avg": sum(values) / len(values),  # average
+                            "max": max(values)  # maximum
+                        }
             
-            logger.info(f"Collected {len(result)} long operations records")
+            total_records = sum(len(intervals) for intervals in result.values())
+            logger.info(f"Collected {total_records} long operations records across {len(result)} message prefixes")
             return result
             
         except Exception as e:

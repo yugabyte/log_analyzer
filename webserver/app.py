@@ -345,7 +345,7 @@ class LogAnalyzerWebApp:
                 if not report_data:
                     return jsonify({'error': 'Report not found'}), 404
                 
-                long_operations = report_data.get('long_operations', [])
+                long_operations = report_data.get('long_operations', {})
                 return jsonify({'long_operations': long_operations})
                 
             except DatabaseError as e:
