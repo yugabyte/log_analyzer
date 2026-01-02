@@ -165,6 +165,7 @@ class ParquetAnalysisService:
             logger.info(f"✅ DuckDB aggregation (parallel) completed in {total_time:.2f} seconds.")
             
             # Collect long operations data
+            logger.info("📊 Collecting long operations data from parquet files...")
             long_ops_data = self.get_long_operations_data(parquet_dir)
             
             result = {
@@ -339,8 +340,14 @@ class ParquetAnalysisService:
         """
         Collect long operations data from Parquet files.
         
-        This method queries parquet files for long operation messages from
-        'long_operation_tracker.cc' and aggregates them by message prefix and time interval.
+        This method queries parquet files for long operation messages from all files,
+        handling both long_op_value and timing_real_value.
+        
+        Only includes messages containing:
+        - "took a long time" (extracts 2 words before this phrase)
+        - "Time spent" (extracts 2 words after this phrase)
+        
+        Aggregates by message prefix and time interval.
         
         Args:
             parquet_dir: Directory containing Parquet files
@@ -356,34 +363,70 @@ class ParquetAnalysisService:
                     }
                 }
             }
-            Field names are optimized: c=count, avg=average, max=maximum, t=time_interval
+            Field names are optimized: c=count, avg=average, max=maximum
         """
         try:
             parquet_path = str(parquet_dir / "*.parquet")
             
-            # Query to extract long operations data
-            # Extract timestamp, message_prefix, and numeric value
-            # Bucket timestamps to 10-minute intervals
-            # Escape single quotes in parquet_path for SQL
+            # Query to extract long operations data from all files
+            # Handles both long_op_value and timing_real_value
+            # Extracts message prefixes from various formats
             escaped_path = parquet_path.replace("'", "''")
-            # Use a subquery to filter by message_prefix since it's a computed column
+            
             sql = f"""
                 SELECT 
                     "timestamp",
+                    file,
                     message_prefix,
-                    long_op_value
+                    op_value
                 FROM (
                     SELECT 
                         "timestamp",
-                        regexp_extract(message, '^(.*?)\\s+time\\b', 1) AS message_prefix,
-                        CAST(regexp_extract(message, '(\\d+\\.?\\d*)\\s*(s|sec|seconds?)\\b', 1) AS DOUBLE) AS long_op_value
+                        file,
+                        -- Extract message prefix: 1-2 words before "took a long" (with or without "time") or 1-2 words after "Time spent"
+                        -- For "took a long" patterns, extract up to 2 words before the phrase
+                        -- For "Time spent" patterns, extract up to 2 words after the phrase
+                        COALESCE(
+                            -- Pattern 1: Extract 1-2 words before "took a long time" (prefer 2 words, fallback to 1)
+                            CASE 
+                                WHEN message LIKE '%took a long time%'
+                                THEN TRIM(COALESCE(
+                                    NULLIF(regexp_extract(message, '([^\\s]+\\s+[^\\s]+)\\s+took a long time', 1), ''),
+                                    NULLIF(regexp_extract(message, '([^\\s]+)\\s+took a long time', 1), '')
+                                ))
+                                ELSE NULL
+                            END,
+                            -- Pattern 2: Extract 1-2 words before "took a long" (without "time", prefer 2 words, fallback to 1)
+                            -- This handles: "StartRemoteBootstrap took a long", "Log callback took a long", "Read took a long"
+                            CASE 
+                                WHEN message LIKE '%took a long%' AND message NOT LIKE '%took a long time%'
+                                THEN TRIM(COALESCE(
+                                    -- Try to match 2 words first: "Log callback took a long" -> "Log callback"
+                                    NULLIF(regexp_extract(message, '([^\\s]+\\s+[^\\s]+)\\s+took a long', 1), ''),
+                                    -- Fallback to 1 word: "Read took a long" -> "Read", "StartRemoteBootstrap took a long" -> "StartRemoteBootstrap"
+                                    NULLIF(regexp_extract(message, '([^\\s]+)\\s+took a long', 1), '')
+                                ))
+                                ELSE NULL
+                            END,
+                            -- Pattern 3: Extract 1-2 words after "Time spent" (prefer 2 words, fallback to 1)
+                            CASE 
+                                WHEN message LIKE 'Time spent%'
+                                THEN TRIM(COALESCE(
+                                    NULLIF(regexp_extract(message, 'Time spent\\s+([^\\s]+\\s+[^\\s]+)', 1), ''),
+                                    NULLIF(regexp_extract(message, 'Time spent\\s+([^\\s]+)', 1), '')
+                                ))
+                                ELSE NULL
+                            END
+                        ) AS message_prefix,
+                        -- Use COALESCE to get value from either column
+                        COALESCE(long_op_value, timing_real_value) AS op_value
                     FROM '{escaped_path}'
-                    WHERE file = 'long_operation_tracker.cc'
-                      AND message LIKE '%took a long%'
+                    WHERE (long_op_value IS NOT NULL OR timing_real_value IS NOT NULL)
+                      AND (message LIKE '%took a long%' OR message LIKE 'Time spent%')
                 )
                 WHERE message_prefix IS NOT NULL
-                  AND message_prefix LIKE '%took a long%'
-                  AND long_op_value IS NOT NULL
+                  AND op_value IS NOT NULL
+                  AND LENGTH(TRIM(message_prefix)) > 0
             """
             
             con = duckdb.connect()
@@ -391,12 +434,11 @@ class ParquetAnalysisService:
             con.close()
             
             # Group by message_prefix first, then by 10-minute time buckets, calculate aggregates
-            from collections import defaultdict
             grouped_data = defaultdict(lambda: defaultdict(list))
             
             for row in rows:
-                timestamp, message_prefix, long_op_value = row
-                if timestamp and message_prefix and long_op_value is not None:
+                timestamp, file, message_prefix, op_value = row
+                if timestamp and message_prefix and op_value is not None:
                     # Convert timestamp to datetime if needed
                     if isinstance(timestamp, str):
                         try:
@@ -408,13 +450,24 @@ class ParquetAnalysisService:
                     else:
                         continue
                     
+                    # Clean up message prefix: trim whitespace and normalize common patterns
+                    message_prefix = message_prefix.strip()
+                    
+                    # Remove IDs in parentheses (e.g., "running LogGCOp(fab8633b...)" -> "running LogGCOp")
+                    # This groups operations with different IDs together
+                    message_prefix = re.sub(r'\([^)]+\)', '', message_prefix)
+                    message_prefix = message_prefix.strip()
+                    
+                    # Remove trailing colons and other punctuation
+                    message_prefix = re.sub(r'[:;]+$', '', message_prefix).strip()
+                    
                     # Bucket to 10-minute intervals: round down to nearest 10 minutes
                     bucket_minute = (dt.minute // 10) * 10
                     time_bucket = dt.replace(minute=bucket_minute, second=0, microsecond=0)
                     # Format to match user's expected format: 'YYYY-MM-DD HH:MM:00'
                     time_key = time_bucket.strftime('%Y-%m-%d %H:%M:00')
                     
-                    grouped_data[message_prefix][time_key].append(long_op_value)
+                    grouped_data[message_prefix][time_key].append(op_value)
             
             # Build nested result structure with optimized field names
             result = {}
@@ -430,6 +483,9 @@ class ParquetAnalysisService:
             
             total_records = sum(len(intervals) for intervals in result.values())
             logger.info(f"Collected {total_records} long operations records across {len(result)} message prefixes")
+            if result:
+                sample_prefixes = list(result.keys())[:10]
+                logger.debug(f"Sample message prefixes: {sample_prefixes}")
             return result
             
         except Exception as e:

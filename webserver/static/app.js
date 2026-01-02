@@ -1490,22 +1490,22 @@ document.addEventListener("DOMContentLoaded", function () {
         
         if (Array.isArray(longOps)) {
           // Legacy format: array of objects with message_prefix and time_interval
-          longOps.forEach((op) => {
-            const prefix = op.message_prefix || "Unknown";
-            const timeInterval = op.time_interval || "";
-            
-            if (!dataByPrefix[prefix]) {
-              dataByPrefix[prefix] = {};
-            }
-            
-            dataByPrefix[prefix][timeInterval] = {
-              avg: op.avg_long_op_value || 0,
-              max: op.max_long_op_value || 0,
-              count: op.occurrence_count || 0
-            };
-            
-            allTimeIntervals.add(timeInterval);
-          });
+        longOps.forEach((op) => {
+          const prefix = op.message_prefix || "Unknown";
+          const timeInterval = op.time_interval || "";
+          
+          if (!dataByPrefix[prefix]) {
+            dataByPrefix[prefix] = {};
+          }
+          
+          dataByPrefix[prefix][timeInterval] = {
+            avg: op.avg_long_op_value || 0,
+            max: op.max_long_op_value || 0,
+            count: op.occurrence_count || 0
+          };
+          
+          allTimeIntervals.add(timeInterval);
+        });
         } else if (typeof longOps === 'object' && longOps !== null) {
           // New nested format: { message_prefix: { time_interval: { c, avg, max } } }
           dataByPrefix = longOps;
@@ -1546,11 +1546,15 @@ document.addEventListener("DOMContentLoaded", function () {
         // Clear and create chart container
         longOpsDiv.innerHTML = "";
         
+        // Create a container div with fixed height for the chart
+        const chartContainer = document.createElement("div");
+        chartContainer.style.cssText = "position: relative; height: 600px; width: 100%;";
+        
         // Create canvas for chart
         const canvas = document.createElement("canvas");
         canvas.id = "longOpsChart";
-        canvas.height = 600;
-        longOpsDiv.appendChild(canvas);
+        chartContainer.appendChild(canvas);
+        longOpsDiv.appendChild(chartContainer);
         
         // Helper function to clean up label (remove "took a long" since it's redundant)
         const cleanLabel = (label) => {
@@ -1733,6 +1737,14 @@ document.addEventListener("DOMContentLoaded", function () {
             chartInstance.resetZoom();
           }
         };
+        
+        // Add note explaining how labels are extracted with examples
+        const noteDiv = document.createElement("div");
+        noteDiv.style.cssText = "margin-top: 1em; padding: 0.75em; font-size: 0.9em; color: #666; font-style: italic; border-top: 1px solid #e2e8f0;";
+        noteDiv.innerHTML = "Note: Labels are extracted from messages containing 'X took a long time' or 'Time spent Y'. " +
+            "Examples: 'UpdateReplica took a long time: 1.5s' → 'UpdateReplica', " +
+            "'Time spent sync call for /path: real 1.0s' → 'sync call'";
+        longOpsDiv.appendChild(noteDiv);
       })
       .catch(() => {
         longOpsDiv.innerHTML = "<em>Failed to load long operations data.</em>";
