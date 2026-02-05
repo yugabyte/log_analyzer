@@ -95,7 +95,7 @@ class LogAnalyzerApp:
         input_group = parser.add_mutually_exclusive_group(required=True)
         input_group.add_argument(
             "-s", "--support_bundle",
-            help="Support bundle file name (.tar.gz or .tgz)"
+            help="[DEPRECATED] Support bundle file name (.tar.gz or .tgz). Use --parquet_files instead."
         )
         input_group.add_argument(
             "--parquet_files",
@@ -475,39 +475,22 @@ class LogAnalyzerApp:
             
             # Run analysis based on input type
             if args.support_bundle:
-                # Analyze support bundle and get report_id
-                bundle_path = Path(args.support_bundle)
-                bundle_name = bundle_path.stem.replace('.tar', '').replace('.tgz', '')
-                # Check if already analyzed
-                existing_report_id = self.database_service.check_report_exists(bundle_name)
-                force = getattr(args, 'force', False)
-                if existing_report_id and not force:
-                    report_id = existing_report_id
-                    self.logger.warning(f"📊 Analysis already completed for support bundle '{bundle_name}'.")
-                    self.logger.warning(f"🔁 Use --force option to re-trigger the analysis forcefully")
-                    self.logger.warning(f"🔗 Use the link below to view the report:")
-                    report_url = f"http://{settings.server.host}:{settings.server.port}/reports/{existing_report_id}"
-                    self.logger.warning(report_url)
-                else:
-                    analysis_config = self.create_analysis_config(args)
-                    report = self.analysis_service.analyze_support_bundle(
-                        bundle_path=bundle_path,
-                        analysis_config=analysis_config,
-                        skip_extraction=args.skip_tar
-                    )
-                    if args.output_file:
-                        output_path = Path(args.output_file)
-                        self.analysis_service.save_report(report, output_path)
-                    try:
-                        report_id = self.database_service.store_report(report)
-                        self.logger.info("✅ Analysis completed successfully!")
-                        self.logger.info(f"👉 Report available at: http://{settings.server.host}:{settings.server.port}/reports/{report_id}")
-                        self.logger.info(f"📊 Results saved to: {output_path}")
-                    except Exception as e:
-                        self.logger.error(f"👉 Failed to insert report into PostgreSQL: {e}")
-                        self.logger.info("✅ Analysis completed successfully!")
-                        self.logger.warning("⚠️  Report could not be stored in database. Check database connection.")
-                        return 1
+                # Show deprecation warning
+                print(f"\n{Fore.YELLOW}{'='*80}{Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}⚠️  DEPRECATION WARNING{Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}{'='*80}{Style.RESET_ALL}")
+                print(f"{Fore.RED}The support bundle option (-s/--support_bundle) is deprecated.{Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}Please use the parquet files option (--parquet_files) instead.{Style.RESET_ALL}\n")
+                print(f"{Fore.CYAN}How to convert log files to parquet files:{Style.RESET_ALL}")
+                print(f"{Fore.WHITE}1. Go to case directory: cd /cases/$case_id{Style.RESET_ALL}")
+                print(f"{Fore.WHITE}2. Run the following command to convert the log files to parquet files:{Style.RESET_ALL}")
+                print(f"{Fore.GREEN}   wtl -i . 2> /dev/null{Style.RESET_ALL}")
+                print(f"{Fore.WHITE}3. The parquet files will be saved under parquet_files/support_bundle_name/{Style.RESET_ALL}")
+                print(f"{Fore.WHITE}   (The support bundle name is the name of the support bundle directory){Style.RESET_ALL}")
+                print(f"{Fore.WHITE}4. Change directory to parquet_files/support_bundle_name/ and run:{Style.RESET_ALL}")
+                print(f"{Fore.GREEN}   python log_analyzer.py --parquet_files .{Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}{'='*80}{Style.RESET_ALL}\n")
+                return 1
             elif args.parquet_files:
                 self.analyze_parquet_files(args)
             return 0
