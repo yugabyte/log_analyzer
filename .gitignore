@@ -10,3 +10,5 @@ webserver/__pycache__/*.pyc
 PROJECT_FILE_GUIDE.md
 # Ignore Python bytecode files
 **/*.pyc
+tablet-report-yb-prod-IBL-PROD-ACQ-DC-MUM-n4-2026-02-25_135322.sqlite
+.cursor/debug-dee1ec.log
