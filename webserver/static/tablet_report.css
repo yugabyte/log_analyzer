@@ -463,12 +463,30 @@
   width: 15px;
   height: 15px;
 }
-/* Tooltip popup is rendered by JS into #tr-tooltip-el (fixed-position div) */
 .tr-card .tr-tip {
   display: none;
 }
 .tr-card[data-tip] {
   cursor: help;
+}
+
+/* --- Tippy.js 'yb' theme --- */
+.tippy-box[data-theme~='yb'] {
+  background: #1e293b;
+  color: #f1f5f9;
+  font-size: 0.82em;
+  font-weight: 400;
+  line-height: 1.5;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.22);
+  padding: 0.15em 0.2em;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.tippy-box[data-theme~='yb'] > .tippy-arrow::before {
+  color: #1e293b;
+}
+.tippy-box[data-theme~='yb'] > .tippy-content {
+  padding: 0.45em 0.7em;
 }
 
 /* --- Misc --- */

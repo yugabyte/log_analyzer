@@ -6,6 +6,9 @@
     <link rel="stylesheet" href="/static/app.css" />
     <link rel="stylesheet" href="/static/tablet_report.css" />
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tippy.js@6/dist/tippy.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tippy.js@6/dist/tippy-bundle.umd.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -408,6 +411,7 @@
         renderTabletsTab(data);
         renderBalanceTab(data);
         renderClusterTab(data);
+        initTooltips();
       }
 
       /* ═══════════════════════════════════════════════════════════════
@@ -1214,125 +1218,26 @@
         window.dispatchEvent(new Event('resize'));
       }
 
-    /* ═══════════════════════════════════════════════════════════════
-       GLOBAL TOOLTIP ENGINE — follows the mouse cursor
-       ═══════════════════════════════════════════════════════════════ */
-    (function() {
-      var el = document.createElement('div');
-      el.id = 'tr-tooltip-el';
-      el.style.cssText = 'position:fixed;z-index:999999;background:#1e293b;color:#f1f5f9;'
-        + 'font-size:0.82em;font-weight:400;line-height:1.5;padding:0.55em 0.85em;'
-        + 'border-radius:8px;max-width:390px;pointer-events:none;opacity:0;'
-        + 'box-shadow:0 4px 16px rgba(0,0,0,0.22);white-space:normal;word-wrap:break-word;'
-        + 'font-family:Inter,system-ui,sans-serif;letter-spacing:normal;text-transform:none;'
-        + 'left:-9999px;top:-9999px;transition:opacity 0.08s;';
-      document.body.appendChild(el);
-
-      var active = null;
-      var mx = 0, my = 0;
-
-      // Make tooltip trigger easier: hovering the chart title also shows the same tip.
-      var tipIcons = document.querySelectorAll('.tr-tip[data-tip]');
-      for (var i = 0; i < tipIcons.length; i++) {
-        var icon = tipIcons[i];
-        var title = icon.closest('h3');
-        if (title && !title.getAttribute('data-tip')) {
-          title.setAttribute('data-tip', icon.getAttribute('data-tip'));
-          title.style.cursor = 'help';
-        }
-      }
-
-      function place() {
-        var tw = el.offsetWidth;
-        var th = el.offsetHeight;
-        var vw = window.innerWidth;
-        var vh = window.innerHeight;
-        var gap = 12;
-
-        // Keep tooltip near cursor, then clamp to viewport.
-        var left = mx + gap;
-        var top = my + gap;
-
-        if (left + tw > vw - 4) left = vw - tw - 4;
-        if (top + th > vh - 4) top = vh - th - 4;
-        if (left < 4) left = 4;
-        if (top < 4) top = 4;
-
-        el.style.left = left + 'px';
-        el.style.top = top + 'px';
-      }
-
-      function hideTooltip() {
-        active = null;
-        el.style.opacity = '0';
-        el.style.left = '-9999px';
-        el.style.top = '-9999px';
-      }
-
-      function getTargetAtPoint(x, y, fallbackTarget) {
-        var target = null;
-        if (document.elementsFromPoint) {
-          var stack = document.elementsFromPoint(x, y) || [];
-          for (var si = 0; si < stack.length; si++) {
-            var cand = stack[si] && stack[si].closest ? stack[si].closest('[data-tip]') : null;
-            if (cand) { target = cand; break; }
-          }
-        }
-        if (!target) {
-          target = fallbackTarget && fallbackTarget.closest ? fallbackTarget.closest('[data-tip]') : null;
-        }
-        if (!target) {
-          var probe = document.elementFromPoint(x, y);
-          target = probe && probe.closest ? probe.closest('[data-tip]') : null;
-        }
-        return target;
-      }
-
-      function setActiveTarget(target) {
-        if (target !== active) {
-          active = target;
-          el.textContent = target.getAttribute('data-tip');
-          el.style.opacity = '0';
-          el.style.left = '-9999px';
-          el.style.top = '-9999px';
-          void el.offsetWidth;
-        }
-      }
-
-      function updateTooltipFromEvent(e) {
-        var target = getTargetAtPoint(e.clientX, e.clientY, e.target);
-
-        if (!target) {
-          if (active) hideTooltip();
-          return;
-        }
-
-        mx = e.clientX;
-        my = e.clientY;
-        setActiveTarget(target);
-        place();
-        el.style.opacity = '1';
-      }
-
-      // Show immediately when cursor enters a tooltip trigger.
-      document.addEventListener('pointerover', updateTooltipFromEvent, true);
-      // Keep tooltip following cursor as it moves.
-      document.addEventListener('mousemove', updateTooltipFromEvent, true);
-
-      document.addEventListener('scroll', function() {
-        if (!active) return;
-        var target = getTargetAtPoint(mx, my, null);
-        if (!target) {
-          hideTooltip();
-          return;
-        }
-        setActiveTarget(target);
-        place();
-        el.style.opacity = '1';
-      }, true);
-
-      window.addEventListener('blur', hideTooltip);
-    })();
+    /* ── Tippy.js tooltip initialization ── */
+    function initTooltips() {
+      document.querySelectorAll('[data-tip]').forEach(function(el) {
+        if (el._tippy) return;
+        tippy(el, {
+          content: el.getAttribute('data-tip'),
+          allowHTML: false,
+          placement: 'auto',
+          delay: [0, 0],
+          duration: [100, 50],
+          maxWidth: 400,
+          theme: 'yb',
+          appendTo: document.body,
+          zIndex: 999999,
+          interactive: false,
+          arrow: true,
+        });
+      });
+    }
+    initTooltips();
 
     })();
     </script>
