@@ -87,8 +87,16 @@
             <div class="tr-chart-row">
               <div class="tr-chart-card">
                 <h3>Storage Distribution <span class="tr-tip" data-tip="Each rectangle represents a table, sized proportionally by SST. Very small tables may not be visible. Click a namespace to zoom in. This reflects all replicas — single-replica size is shown in the Tables tab."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
-                <p class="tr-chart-subtitle">Each rectangle is a table, sized by leader SST. Click a namespace to zoom in.</p>
-                <div id="tr-chart-treemap" class="tr-chart tr-chart-tall"></div>
+                <p class="tr-chart-subtitle">Each shape is a table, sized by leader SST. Click a namespace to drill down.</p>
+                <div style="display:flex;align-items:center;gap:0.8em;flex-wrap:wrap">
+                  <div class="tr-viz-toggle" id="tr-overview-viz-toggle" role="group" aria-label="Visualization type">
+                    <button class="active" data-type="treemap" aria-pressed="true">Treemap</button>
+                    <button data-type="sunburst" aria-pressed="false">Sunburst</button>
+                    <button data-type="icicle" aria-pressed="false">Icicle</button>
+                  </div>
+                  <button class="tr-reset-zoom-btn" id="tr-overview-reset-zoom" style="display:none">Reset Zoom</button>
+                </div>
+                <div id="tr-chart-treemap" class="tr-chart tr-chart-tall" role="img" aria-label="Storage distribution visualization showing table sizes by namespace"></div>
               </div>
             </div>
           </div>
@@ -189,13 +197,23 @@
               </div>
             </div>
 
-            <!-- Per-Table Per-Node Heatmap -->
-            <h3>Table × Node Heatmap <span class="tr-tip" data-tip="SST size of each major table on each node. Darker = more data. Blank cells mean no replicas of that table are on that node — expected when tablet_count × RF < node_count, or with placement policies. Uneven shading within a row suggests skewed tablet sizes for that table."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
+            <!-- Per-Table Per-Node Heatmap Table -->
+            <h3>Table × Node SST <span class="tr-tip" data-tip="SST size of each major table on each node. Darker = more data. Blank cells mean no replicas of that table are on that node — expected when tablet_count × RF < node_count, or with placement policies. Uneven shading within a row suggests skewed tablet sizes for that table."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
             <p class="tr-chart-subtitle">Top tables by total SST — darker cells = more data on that node</p>
-            <div id="tr-heatmap-container" style="overflow-x:auto"></div>
+            <div class="tr-heatmap-controls">
+              <label style="font-size:0.8em;color:#64748b;display:inline-flex;align-items:center;gap:0.4em">
+                Sort by
+                <select class="tr-heatmap-sort-select" id="tr-heatmap-sort">
+                  <option value="total">Total Size</option>
+                  <option value="spread">Spread (max-min)</option>
+                  <option value="node_count">Node Count</option>
+                </select>
+              </label>
+            </div>
+            <div id="tr-heatmap-table-container"></div>
 
             <!-- Tables Not on All Nodes -->
-            <div id="tr-partial-spread-section"></div>
+            <div id="tr-partial-spread-section" style="margin-top:1.8em"></div>
 
             <!-- Split Recommendations -->
             <h3>Tablet Split Recommendations <span class="tr-tip" data-tip="ADVISORY ONLY — do not follow blindly. These estimates target ~10 GB per tablet (RF1), which is a general guideline, not a rule. Before splitting: (1) each tablet adds Raft + memory overhead, (2) tablet merging is NOT supported — splits are permanent, (3) splitting triggers background compaction that temporarily increases CPU/disk IO, (4) check if auto-split with lower thresholds would be more appropriate, (5) consider workload patterns — not just data size."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
@@ -239,8 +257,16 @@
               <div class="tr-chart-row">
                 <div class="tr-chart-card">
                   <h3>Tablet Storage Treemap</h3>
-                  <p class="tr-chart-subtitle">Each rectangle is a tablet replica grouped by node. Areas are log-scaled for visibility.</p>
-                  <div id="tr-chart-table-treemap" class="tr-chart tr-chart-tall"></div>
+                  <p class="tr-chart-subtitle">Each shape is a tablet replica grouped by node. Area reflects actual SST size.</p>
+                  <div style="display:flex;align-items:center;gap:0.8em;flex-wrap:wrap">
+                    <div class="tr-viz-toggle" id="tr-drilldown-viz-toggle" role="group" aria-label="Drilldown visualization type">
+                      <button class="active" data-type="treemap" aria-pressed="true">Treemap</button>
+                      <button data-type="sunburst" aria-pressed="false">Sunburst</button>
+                      <button data-type="icicle" aria-pressed="false">Icicle</button>
+                    </div>
+                    <button class="tr-reset-zoom-btn" id="tr-drilldown-reset-zoom" style="display:none">Reset Zoom</button>
+                  </div>
+                  <div id="tr-chart-table-treemap" class="tr-chart tr-chart-tall" role="img" aria-label="Tablet storage treemap showing individual tablet sizes grouped by node"></div>
                 </div>
               </div>
               <div class="tr-chart-row">
@@ -466,35 +492,137 @@
         }
 
         if (data.table_treemap.length) {
-          var labels = [], parents = [], values = [], texts = [], tColors = [];
+          var _overviewVizType = 'treemap';
           var nsSet = new Set();
-          for (var i = 0; i < data.table_treemap.length; i++) {
-            var t = data.table_treemap[i];
-            if (t.sst_size <= 0) continue;
-            nsSet.add(t.namespace);
-            labels.push(t.table_name);
-            parents.push(t.namespace);
-            values.push(t.sst_size);
-            texts.push(t.sst_human + '<br>' + t.tablet_count + ' tablets');
-            tColors.push(SEQUENCE[Array.from(nsSet).indexOf(t.namespace) % SEQUENCE.length]);
+          var totalSST = 0;
+          for (var i = 0; i < data.table_treemap.length; i++) totalSST += data.table_treemap[i].sst_size;
+
+          var NS_PALETTE = [
+            '#4361ee', '#f97316', '#22c55e', '#ef4444', '#14b8a6',
+            '#8b5cf6', '#ec4899', '#06b6d4', '#eab308', '#0ea5e9',
+            '#d946ef', '#84cc16'
+          ];
+
+          var nsMaxSST = {};
+          for (var mi = 0; mi < data.table_treemap.length; mi++) {
+            var mt = data.table_treemap[mi];
+            if (mt.sst_size <= 0) continue;
+            if (!nsMaxSST[mt.namespace] || mt.sst_size > nsMaxSST[mt.namespace]) {
+              nsMaxSST[mt.namespace] = mt.sst_size;
+            }
           }
-          nsSet.forEach(function(ns) {
-            labels.push(ns);
-            parents.push('');
-            values.push(0);
-            texts.push('');
-            tColors.push('#e2e8f0');
+
+          function adjustBrightness(hex, factor) {
+            var r = parseInt(hex.slice(1, 3), 16);
+            var g = parseInt(hex.slice(3, 5), 16);
+            var b = parseInt(hex.slice(5, 7), 16);
+            r = Math.min(255, Math.round(r + (255 - r) * (1 - factor)));
+            g = Math.min(255, Math.round(g + (255 - g) * (1 - factor)));
+            b = Math.min(255, Math.round(b + (255 - b) * (1 - factor)));
+            return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+          }
+
+          // Build data arrays per viz type
+          // Uses explicit `ids` so tables with the same name in different namespaces don't collide
+          // Sunburst/Icicle: sqrt-scaled with a 2% floor so small tables remain visible
+          function buildOverviewData(vizType) {
+            var ids = [], labels = [], parents = [], values = [], texts = [], tColors = [], customData = [];
+            var localNsSet = new Set();
+            var useSqrt = (vizType === 'sunburst' || vizType === 'icicle');
+
+            var ovMax = 0;
+            for (var ox = 0; ox < data.table_treemap.length; ox++) {
+              if (data.table_treemap[ox].sst_size > ovMax) ovMax = data.table_treemap[ox].sst_size;
+            }
+            var sqrtOvMax = Math.sqrt(Math.max(1, ovMax));
+            var ovFloor = sqrtOvMax * 0.02;
+
+            for (var i2 = 0; i2 < data.table_treemap.length; i2++) {
+              var t = data.table_treemap[i2];
+              if (t.sst_size <= 0) continue;
+              localNsSet.add(t.namespace);
+              ids.push('tbl:' + t.namespace + '.' + t.table_name);
+              labels.push(t.table_name);
+              parents.push('ns:' + t.namespace);
+              values.push(useSqrt ? Math.max(ovFloor, Math.sqrt(t.sst_size)) : t.sst_size);
+              var pctTotal = totalSST > 0 ? (t.sst_size / totalSST * 100).toFixed(1) : '0.0';
+              texts.push(t.sst_human + '<br>' + t.tablet_count + ' tablets');
+              customData.push([t.sst_human, t.tablet_count, pctTotal + '%', t.namespace]);
+
+              var nsIdx = Array.from(localNsSet).indexOf(t.namespace);
+              var baseColor = NS_PALETTE[nsIdx % NS_PALETTE.length];
+              var sizeFrac = nsMaxSST[t.namespace] > 0 ? t.sst_size / nsMaxSST[t.namespace] : 0.5;
+              var lighten = 1 - sizeFrac * 0.35;
+              tColors.push(adjustBrightness(baseColor, lighten));
+            }
+            localNsSet.forEach(function(ns) {
+              var nsIdx2 = Array.from(localNsSet).indexOf(ns);
+              ids.push('ns:' + ns);
+              labels.push(ns);
+              parents.push('');
+              values.push(0);
+              texts.push('');
+              customData.push(['', 0, '', ns]);
+              tColors.push(NS_PALETTE[nsIdx2 % NS_PALETTE.length]);
+            });
+            nsSet = localNsSet;
+            return { ids: ids, labels: labels, parents: parents, values: values, texts: texts, colors: tColors, customData: customData };
+          }
+
+          function plotOverviewViz(vizType) {
+            var d = buildOverviewData(vizType);
+            var chartHeight = Math.max(400, Math.min(600, data.table_treemap.length * 3));
+            var trace = {
+              type: vizType,
+              ids: d.ids, labels: d.labels, parents: d.parents, values: d.values, text: d.texts,
+              customdata: d.customData,
+              hovertemplate: '<b>%{label}</b><br>Namespace: %{customdata[3]}<br>SST: %{customdata[0]}<br>Tablets: %{customdata[1]}<br>Share: %{customdata[2]}<extra></extra>',
+              textinfo: 'label+text',
+              marker: { colors: d.colors, line: { width: 2, color: '#fff' } },
+              branchvalues: 'remainder',
+              pathbar: { visible: true, side: 'top', textfont: { size: 11 } },
+              maxdepth: 2,
+              textfont: { size: 12 },
+            };
+            if (vizType === 'treemap') {
+              trace.tiling = { packing: 'squarify', pad: 4 };
+            }
+            if (vizType === 'icicle') {
+              trace.tiling = { orientation: 'v' };
+            }
+            Plotly.newPlot('tr-chart-treemap', [trace], mergeLayout({
+              margin: { l: 8, r: 8, t: 30, b: 8 },
+              height: chartHeight,
+            }), CONFIG);
+
+            var el = document.getElementById('tr-chart-treemap');
+            el.on('plotly_treemapclick', function() {
+              document.getElementById('tr-overview-reset-zoom').style.display = 'inline-block';
+            });
+            el.on('plotly_sunburstclick', function() {
+              document.getElementById('tr-overview-reset-zoom').style.display = 'inline-block';
+            });
+          }
+
+          plotOverviewViz(_overviewVizType);
+
+          document.querySelectorAll('#tr-overview-viz-toggle button').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+              document.querySelectorAll('#tr-overview-viz-toggle button').forEach(function(b) {
+                b.classList.remove('active');
+                b.setAttribute('aria-pressed', 'false');
+              });
+              this.classList.add('active');
+              this.setAttribute('aria-pressed', 'true');
+              _overviewVizType = this.getAttribute('data-type');
+              plotOverviewViz(_overviewVizType);
+            });
           });
-          Plotly.newPlot('tr-chart-treemap', [{
-            type: 'treemap',
-            labels: labels, parents: parents, values: values, text: texts,
-            hovertemplate: '<b>%{label}</b><br>%{text}<extra></extra>',
-            textinfo: 'label+text',
-            marker: { colors: tColors, line: { width: 2, color: '#fff' } },
-            branchvalues: 'remainder',
-            tiling: { pad: 3 },
-            textfont: { size: 12 },
-          }], mergeLayout({ margin: { l: 8, r: 8, t: 8, b: 8 } }), CONFIG);
+
+          document.getElementById('tr-overview-reset-zoom').addEventListener('click', function() {
+            plotOverviewViz(_overviewVizType);
+            this.style.display = 'none';
+          });
         }
       }
 
@@ -877,44 +1005,93 @@
       }
 
       /* ═══════════════════════════════════════════════════════════════
-         NEW: Per-Table × Per-Node Heatmap
+         Per-Table × Per-Node Heatmap Table
          ═══════════════════════════════════════════════════════════════ */
+      var _hmState = { sortBy: 'total', data: null, nodes: null };
+
+      function ylOrRd(t) {
+        var r = Math.round(255 - t * 127);
+        var g = Math.round(255 - t * 210);
+        var b = Math.round(210 - t * 190);
+        return 'rgb(' + Math.max(0, Math.min(255, r)) + ',' + Math.max(0, Math.min(255, g)) + ',' + Math.max(0, Math.min(255, b)) + ')';
+      }
+
+      function sortHeatmapData(hm, sortBy) {
+        return hm.slice().sort(function(a, b) {
+          if (sortBy === 'spread') return b.spread - a.spread;
+          if (sortBy === 'node_count') return a.node_count - b.node_count;
+          return b.total - a.total;
+        });
+      }
+
+      function renderHeatmapTable() {
+        var hm = _hmState.data;
+        var nodes = _hmState.nodes;
+        if (!hm || !hm.length || !nodes || !nodes.length) return;
+
+        var sorted = sortHeatmapData(hm, _hmState.sortBy);
+        var globalMax = 0;
+        for (var i = 0; i < sorted.length; i++) {
+          if (sorted[i].max_node_val > globalMax) globalMax = sorted[i].max_node_val;
+        }
+
+        var html = '<table class="tr-data-table" aria-label="Per-table per-node SST sizes"><thead><tr>';
+        html += '<th scope="col" class="sortable" data-sort="table">Table</th>';
+        html += '<th scope="col" class="text-right sortable" data-sort="total">Total</th>';
+        html += '<th scope="col" class="text-right sortable" data-sort="spread">Spread</th>';
+        html += '<th scope="col" class="text-right sortable" data-sort="node_count">Nodes</th>';
+        for (var n = 0; n < nodes.length; n++) html += '<th scope="col" class="text-right">' + nodes[n] + '</th>';
+        html += '</tr></thead><tbody>';
+
+        for (var ri = 0; ri < sorted.length; ri++) {
+          var row = sorted[ri];
+          html += '<tr><td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + row.table + '">' + row.table + '</td>';
+          html += '<td class="text-right">' + row.total_human + '</td>';
+          html += '<td class="text-right">' + row.spread_human + '</td>';
+          var nodeCountColor = row.node_count < nodes.length ? COLORS.red : '#374151';
+          var warnIcon = row.node_count < nodes.length ? '<span class="tr-hm-warn-icon" title="Not on all nodes">&#9888;</span>' : '';
+          html += '<td class="text-right" style="color:' + nodeCountColor + ';font-weight:' + (row.node_count < nodes.length ? '600' : '400') + '">' + row.node_count + '/' + nodes.length + warnIcon + '</td>';
+
+          for (var ni = 0; ni < nodes.length; ni++) {
+            var val = row.per_node[nodes[ni]] || 0;
+            var humanVal = row.per_node_human[nodes[ni]] || '–';
+            var intensity = globalMax > 0 ? Math.pow(val / globalMax, 0.5) : 0;
+            var bg = val === 0 ? '#f8f9fb' : ylOrRd(intensity);
+            var fg = intensity > 0.6 ? '#fff' : '#374151';
+            html += '<td class="text-right hm-cell" style="background:' + bg + ';color:' + fg + '" title="' + val + ' bytes">' + (val === 0 ? '–' : humanVal) + '</td>';
+          }
+          html += '</tr>';
+        }
+        html += '</tbody></table>';
+        document.getElementById('tr-heatmap-table-container').innerHTML = html;
+
+        // Wire up sortable column headers
+        document.querySelectorAll('#tr-heatmap-table-container th.sortable').forEach(function(th) {
+          th.addEventListener('click', function() {
+            var sort = this.getAttribute('data-sort');
+            if (sort === 'table') return;
+            _hmState.sortBy = sort;
+            document.getElementById('tr-heatmap-sort').value = sort;
+            renderHeatmapTable();
+          });
+        });
+      }
+
       function renderHeatmap(data) {
         var hm = data.heatmap;
         var nodes = data.heatmap_nodes;
         if (!hm || !hm.length || !nodes || !nodes.length) return;
 
-        var maxVal = 0;
-        for (var i = 0; i < hm.length; i++) {
-          for (var j = 0; j < nodes.length; j++) {
-            var v = hm[i].per_node[nodes[j]] || 0;
-            if (v > maxVal) maxVal = v;
-          }
-        }
+        _hmState.data = hm;
+        _hmState.nodes = nodes;
 
-        var html = '<table class="tr-data-table"><thead><tr><th>Table</th><th class="text-right">Total</th><th class="text-right">Spread</th><th class="text-right">Nodes</th>';
-        for (var n = 0; n < nodes.length; n++) html += '<th class="text-right">' + nodes[n] + '</th>';
-        html += '</tr></thead><tbody>';
+        renderHeatmapTable();
 
-        for (var ri = 0; ri < hm.length; ri++) {
-          var row = hm[ri];
-          html += '<tr><td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + row.table + '">' + row.table + '</td>';
-          html += '<td class="text-right">' + row.total_human + '</td>';
-          html += '<td class="text-right">' + row.spread_human + '</td>';
-          var nodeCountColor = row.node_count < nodes.length ? COLORS.red : '#374151';
-          html += '<td class="text-right" style="color:' + nodeCountColor + ';font-weight:' + (row.node_count < nodes.length ? '600' : '400') + '">' + row.node_count + '/' + nodes.length + '</td>';
-          for (var ni = 0; ni < nodes.length; ni++) {
-            var val = row.per_node[nodes[ni]] || 0;
-            var humanVal = row.per_node_human[nodes[ni]] || '–';
-            var intensity = maxVal > 0 ? Math.pow(val / maxVal, 0.5) : 0;
-            var bg = val === 0 ? '#f8f9fb' : 'rgba(67, 97, 238, ' + (0.08 + intensity * 0.55) + ')';
-            var fg = intensity > 0.55 ? '#fff' : '#374151';
-            html += '<td class="text-right" style="background:' + bg + ';color:' + fg + '">' + (val === 0 ? '–' : humanVal) + '</td>';
-          }
-          html += '</tr>';
-        }
-        html += '</tbody></table>';
-        document.getElementById('tr-heatmap-container').innerHTML = html;
+        // Wire up sort selector
+        document.getElementById('tr-heatmap-sort').addEventListener('change', function() {
+          _hmState.sortBy = this.value;
+          renderHeatmapTable();
+        });
       }
 
       /* ═══════════════════════════════════════════════════════════════
@@ -1139,43 +1316,128 @@
           document.getElementById('tr-chart-table-tablet-dist').innerHTML = '<p class="tr-no-data">No leader tablet data.</p>';
         }
 
-        /* 2) Treemap */
+        /* 2) Treemap (sqrt-scaled visuals, dual-channel color, mode toggle) */
         if (tablets.length) {
-          var tmLabels = [], tmParents = [], tmValues = [], tmTexts = [], tmColors = [];
+          var _ddVizType = 'treemap';
           var nodeIpMap = {};
           for (var ni = 0; ni < tablets.length; ni++) {
             var nt = tablets[ni];
             nodeIpMap[nt.node_uuid] = (nt.node_ip || nt.node_uuid.substring(0, 8)) + (nt.node_zone ? ' (' + nt.node_zone + ')' : '');
           }
-          var minVal = Math.max(1, Math.min.apply(null, tablets.map(function(t) { return t.sst_val; })));
+
+          var nodeMaxSST = {};
           var nodeSet = new Set();
           for (var ti = 0; ti < tablets.length; ti++) {
             var t = tablets[ti];
             var nodeLabel = nodeIpMap[t.node_uuid];
             nodeSet.add(nodeLabel);
-            tmLabels.push(t.tablet_uuid.substring(0, 12));
-            tmParents.push(nodeLabel);
-            tmValues.push(Math.log2(t.sst_val / minVal + 1) + 1);
-            tmTexts.push(formatBytes(t.sst_val) + '<br>' + (t.is_leader ? 'Leader' : 'Follower'));
-            tmColors.push(t.is_leader ? COLORS.leader : COLORS.follower);
+            if (!nodeMaxSST[nodeLabel] || t.sst_val > nodeMaxSST[nodeLabel]) {
+              nodeMaxSST[nodeLabel] = t.sst_val;
+            }
           }
-          nodeSet.forEach(function(node) {
-            tmLabels.push(node);
-            tmParents.push('');
-            tmValues.push(0);
-            tmTexts.push('');
-            tmColors.push('#e2e8f0');
+
+          function ddColor(isLeader, sst, nodeLabel) {
+            var base = isLeader ? [67, 97, 238] : [249, 115, 22];
+            var maxInNode = nodeMaxSST[nodeLabel] || 1;
+            var frac = sst / maxInNode;
+            var lighten = 0.6 - frac * 0.45;
+            var r = Math.min(255, Math.round(base[0] + (255 - base[0]) * Math.max(0, lighten)));
+            var g = Math.min(255, Math.round(base[1] + (255 - base[1]) * Math.max(0, lighten)));
+            var b = Math.min(255, Math.round(base[2] + (255 - base[2]) * Math.max(0, lighten)));
+            return 'rgb(' + r + ',' + g + ',' + b + ')';
+          }
+
+          // Build data arrays per viz type
+          // Uses explicit `ids` so replicas of the same tablet on different nodes don't collide
+          // Sunburst/Icicle: sqrt-scaled with a 2% floor so small tablets remain visible
+          function buildDrilldownData(vizType) {
+            var tmIds = [], tmLabels = [], tmParents = [], tmValues = [], tmTexts = [], tmColors = [], tmCustom = [];
+            var useSqrt = (vizType === 'sunburst' || vizType === 'icicle');
+
+            var globalMax = 0;
+            for (var mx = 0; mx < tablets.length; mx++) {
+              if (tablets[mx].sst_val > globalMax) globalMax = tablets[mx].sst_val;
+            }
+            var sqrtMax = Math.sqrt(Math.max(1, globalMax));
+            var floor = sqrtMax * 0.02;
+
+            for (var ti2 = 0; ti2 < tablets.length; ti2++) {
+              var t2 = tablets[ti2];
+              var nodeLabel2 = nodeIpMap[t2.node_uuid];
+              var raw = Math.max(1, t2.sst_val);
+              var shortId = t2.tablet_uuid.substring(0, 12);
+              tmIds.push(shortId + '@' + t2.node_uuid.substring(0, 8));
+              tmLabels.push(shortId);
+              tmParents.push('node:' + nodeLabel2);
+              tmValues.push(useSqrt ? Math.max(floor, Math.sqrt(raw)) : raw);
+              tmTexts.push(formatBytes(t2.sst_val) + '<br>' + (t2.is_leader ? 'Leader' : 'Follower'));
+              tmCustom.push([formatBytes(t2.sst_val), t2.is_leader ? 'Leader' : 'Follower', nodeLabel2]);
+              tmColors.push(ddColor(t2.is_leader, t2.sst_val, nodeLabel2));
+            }
+            nodeSet.forEach(function(node) {
+              tmIds.push('node:' + node);
+              tmLabels.push(node);
+              tmParents.push('');
+              tmValues.push(0);
+              tmTexts.push('');
+              tmCustom.push(['', '', node]);
+              tmColors.push('#e2e8f0');
+            });
+            return { ids: tmIds, labels: tmLabels, parents: tmParents, values: tmValues, texts: tmTexts, colors: tmColors, custom: tmCustom };
+          }
+
+          function plotDrilldownViz(vizType) {
+            var d = buildDrilldownData(vizType);
+            var trace = {
+              type: vizType,
+              ids: d.ids, labels: d.labels, parents: d.parents, values: d.values, text: d.texts,
+              customdata: d.custom,
+              hovertemplate: '<b>%{label}</b><br>Node: %{customdata[2]}<br>SST: %{customdata[0]}<br>Status: %{customdata[1]}<extra></extra>',
+              textinfo: 'label+text',
+              marker: { colors: d.colors, line: { width: 2, color: '#fff' } },
+              branchvalues: 'remainder',
+              pathbar: { visible: true, side: 'top', textfont: { size: 11 } },
+              maxdepth: 2,
+              textfont: { size: 11 },
+            };
+            if (vizType === 'treemap') {
+              trace.tiling = { packing: 'squarify', pad: 3, squarifyratio: 1 };
+            }
+            if (vizType === 'icicle') {
+              trace.tiling = { orientation: 'v' };
+            }
+            Plotly.newPlot('tr-chart-table-treemap', [trace], mergeLayout({
+              margin: { l: 8, r: 8, t: 30, b: 8 },
+            }), CONFIG);
+
+            var el = document.getElementById('tr-chart-table-treemap');
+            el.on('plotly_treemapclick', function() {
+              document.getElementById('tr-drilldown-reset-zoom').style.display = 'inline-block';
+            });
+            el.on('plotly_sunburstclick', function() {
+              document.getElementById('tr-drilldown-reset-zoom').style.display = 'inline-block';
+            });
+          }
+
+          plotDrilldownViz(_ddVizType);
+
+          document.querySelectorAll('#tr-drilldown-viz-toggle button').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+              document.querySelectorAll('#tr-drilldown-viz-toggle button').forEach(function(b) {
+                b.classList.remove('active');
+                b.setAttribute('aria-pressed', 'false');
+              });
+              this.classList.add('active');
+              this.setAttribute('aria-pressed', 'true');
+              _ddVizType = this.getAttribute('data-type');
+              plotDrilldownViz(_ddVizType);
+            });
           });
-          Plotly.newPlot('tr-chart-table-treemap', [{
-            type: 'treemap',
-            labels: tmLabels, parents: tmParents, values: tmValues, text: tmTexts,
-            hovertemplate: '<b>%{label}</b><br>%{text}<extra></extra>',
-            textinfo: 'label+text',
-            marker: { colors: tmColors, line: { width: 2, color: '#fff' } },
-            branchvalues: 'remainder',
-            tiling: { pad: 3 },
-            textfont: { size: 11 },
-          }], mergeLayout({ margin: { l: 8, r: 8, t: 8, b: 8 } }), CONFIG);
+
+          document.getElementById('tr-drilldown-reset-zoom').addEventListener('click', function() {
+            plotDrilldownViz(_ddVizType);
+            this.style.display = 'none';
+          });
         } else {
           document.getElementById('tr-chart-table-treemap').innerHTML = '<p class="tr-no-data">No tablet data.</p>';
         }

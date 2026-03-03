@@ -928,12 +928,15 @@ class LogAnalyzerWebApp:
                 max_val = max(node_values) if node_values else 0
                 min_val = min(node_values) if node_values else 0
                 spread = max_val - min_val
+                row_total = table_totals[tbl]
                 heatmap_data.append({
                     'table': tbl,
-                    'total': table_totals[tbl],
-                    'total_human': fmt(table_totals[tbl]),
+                    'total': row_total,
+                    'total_human': fmt(row_total),
                     'per_node': {ip: per_node.get(ip, 0) for ip in node_ip_list},
                     'per_node_human': {ip: fmt(per_node.get(ip, 0)) for ip in node_ip_list},
+                    'per_node_pct': {ip: round(per_node.get(ip, 0) / row_total * 100, 1) if row_total > 0 else 0 for ip in node_ip_list},
+                    'max_node_val': max_val,
                     'spread': spread,
                     'spread_human': fmt(spread),
                     'node_count': sum(1 for ip in node_ip_list if per_node.get(ip, 0) > 0),
