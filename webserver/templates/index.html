@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>YugabyteDB Log Analyzer</title>
+    <title>YugabyteDB Support Bundle Analyzer</title>
     <link rel="stylesheet" href="/static/app.css" />
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="/static/app.js"></script>
@@ -21,7 +21,7 @@
         alt="YugabyteDB Logo"
       />
       <a href="/" class="no-underline-inherit">
-        <span class="yuga-title">YugabyteDB Log Analyzer</span>
+        <span class="yuga-title">YugabyteDB Support Bundle Analyzer</span>
       </a>
     </div>
     <div class="yuga-container">
@@ -33,6 +33,7 @@
         />
         <button id="searchBtn">Search</button>
         <button id="clearSearchBtn">Clear</button>
+        <button id="analyzeTabletBtn" class="modern-tablet-btn" onclick="document.getElementById('tablet-report-modal').style.display='flex'">Analyze Tablet Report</button>
       </div>
       <div id="modern-pagination"></div>
       <div id="modernReportsList">
@@ -231,9 +232,9 @@
         <button class="help-modal-close" id="help-modal-close" title="Close">
           &times;
         </button>
-        <h2>Log Analyzer Help Center</h2>
+        <h2>Support Bundle Analyzer Help Center</h2>
         <p class="help-modal-desc">
-          Welcome! Here’s how to use the Log Analyzer effectively:
+          Welcome! Here’s how to use the Support Bundle Analyzer effectively:
         </p>
         <ul class="help-modal-list mb-1-5em">
           <li>
@@ -253,7 +254,7 @@
             the case ID to open it in Zendesk.
           </li>
         </ul>
-        <h3>How to Run Log Analyzer</h3>
+        <h3>How to Run Support Bundle Analyzer</h3>
         <ol class="mb-1-5em">
           <li>
             Run against support bundle <br /><code
@@ -297,8 +298,42 @@
         if (e.target === helpModal) helpModal.style.display = "none";
       };
       document.addEventListener("keydown", function (e) {
-        if (e.key === "Escape") helpModal.style.display = "none";
+        if (e.key === "Escape") {
+          helpModal.style.display = "none";
+          document.getElementById("tablet-report-modal").style.display = "none";
+        }
       });
+    </script>
+    <!-- Tablet Report Modal -->
+    <div id="tablet-report-modal" class="help-modal-overlay" style="display:none">
+      <div class="help-modal-content help-modal" style="max-width:480px">
+        <button class="help-modal-close" onclick="document.getElementById('tablet-report-modal').style.display='none'" title="Close">&times;</button>
+        <h2>Analyze Tablet Report</h2>
+        <p class="help-modal-desc">Enter the path to a tablet report SQLite file on the server.</p>
+        <div style="margin:1em 0">
+          <input id="tablet-db-path" type="text" placeholder="/path/to/tablet-report.sqlite" style="width:100%;padding:0.5em 0.7em;font-size:0.95em;border:1px solid #d1d5db;border-radius:7px;box-sizing:border-box;font-family:Inter,Arial,sans-serif" />
+        </div>
+        <div style="display:flex;gap:0.5em;justify-content:flex-end">
+          <button onclick="document.getElementById('tablet-report-modal').style.display='none'" style="padding:0.45em 1.1em;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:pointer;font-size:0.9em">Cancel</button>
+          <button id="tablet-report-go" style="padding:0.45em 1.1em;border:none;border-radius:6px;background:#3b5bdb;color:#fff;cursor:pointer;font-weight:600;font-size:0.9em">Analyze</button>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function() {
+        var modal = document.getElementById('tablet-report-modal');
+        var input = document.getElementById('tablet-db-path');
+        var goBtn = document.getElementById('tablet-report-go');
+        modal.onclick = function(e) { if (e.target === modal) modal.style.display = 'none'; };
+        goBtn.onclick = function() {
+          var p = input.value.trim();
+          if (!p) { input.focus(); return; }
+          window.location.href = '/tablet-report?db=' + encodeURIComponent(p);
+        };
+        input.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') goBtn.onclick();
+        });
+      })();
     </script>
   </body>
 </html>

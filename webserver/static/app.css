@@ -197,7 +197,7 @@
   background: #f5f6fa;
   text-decoration: none;
 }
-/* YugabyteDB Log Analyzer Styles */
+/* YugabyteDB Support Bundle Analyzer Styles */
 :root {
   --yuga-navy: #172447;
   --yuga-orange: #ff9400;
@@ -950,6 +950,15 @@ tr:nth-child(even) td {
   background: #f5f6fa;
   color: var(--modern-accent);
   border: 1.5px solid var(--modern-border);
+}
+.modern-tablet-btn {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+  color: #fff !important;
+  border: none !important;
+  margin-left: 0.5em;
+}
+.modern-tablet-btn:hover {
+  background: linear-gradient(135deg, #059669, #047857) !important;
 }
 
 .modern-case-link {
