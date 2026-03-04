@@ -58,8 +58,6 @@
       </div>
 
       <div id="tr-content" style="display:none">
-        <div class="tr-summary-grid" id="tr-summary-cards"></div>
-
         <div class="tab-bar">
           <button class="tab-btn active" data-tab="tr-overview-tab">Overview</button>
           <button class="tab-btn" data-tab="tr-nodes-tab">Nodes</button>
@@ -72,6 +70,7 @@
         <div id="tr-tab-panels">
           <!-- Overview -->
           <div id="tr-overview-tab" class="tab-panel" style="display:block">
+            <div class="tr-summary-grid" id="tr-summary-cards"></div>
             <div class="tr-chart-row">
               <div class="tr-chart-card tr-chart-card-half">
                 <h3>Size by Zone <span class="tr-tip" data-tip="SST (Sorted String Table) is persisted compacted data. WAL (Write-Ahead Log) buffers recent writes. Large WAL relative to SST may indicate heavy write throughput, pending flushes, or delayed compaction — not necessarily a problem on its own."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
@@ -111,13 +110,11 @@
               </div>
             </div>
             <div class="tr-chart-row">
-              <div class="tr-chart-card tr-chart-card-half">
-                <h3>Tablets per Node <span class="tr-tip" data-tip="Total tablet replicas (leaders + followers) per node. The load balancer aims for even distribution. Variance is normal during topology changes, tablet splits, or when tables have fewer tablets than nodes. Persistent imbalance may warrant investigation."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
+              <div class="tr-chart-card">
+                <h3>Tablets per Node <span class="tr-tip" data-tip="Total tablet replicas (leaders + followers) per node. The load balancer aims for even distribution. Variance is normal during topology changes, tablet splits, or when tables have fewer tablets than nodes. Persistent imbalance may warrant investigation."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span>
+                  <label class="tr-leader-toggle" title="Show leader tablets only"><input type="checkbox" id="tr-lo-tablets-per-node" /><span class="tr-leader-toggle-label">Leader Only</span></label>
+                </h3>
                 <div id="tr-chart-tablets-per-node" class="tr-chart"></div>
-              </div>
-              <div class="tr-chart-card tr-chart-card-half">
-                <h3>Leaders per Node <span class="tr-tip" data-tip="Leader tablets handle all reads and writes for their partition. The load balancer distributes leaders by count, not data size. Even leader counts can still produce uneven IO if leader tablet sizes vary significantly — see 'Leader Data Weight' in the Balance Analysis tab."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
-                <div id="tr-chart-leaders-per-node" class="tr-chart"></div>
               </div>
             </div>
             <h3>Node Details</h3>
@@ -198,7 +195,9 @@
             </div>
 
             <!-- Per-Table Per-Node Heatmap Table -->
-            <h3>Table × Node SST <span class="tr-tip" data-tip="SST size of each major table on each node. Darker = more data. Blank cells mean no replicas of that table are on that node — expected when tablet_count × RF < node_count, or with placement policies. Uneven shading within a row suggests skewed tablet sizes for that table."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
+            <h3>Table × Node SST <span class="tr-tip" data-tip="SST size of each major table on each node. Darker = more data. Blank cells mean no replicas of that table are on that node — expected when tablet_count × RF < node_count, or with placement policies. Uneven shading within a row suggests skewed tablet sizes for that table."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span>
+              <label class="tr-leader-toggle" title="Show leader tablet SST only"><input type="checkbox" id="tr-lo-heatmap" /><span class="tr-leader-toggle-label">Leader Only</span></label>
+            </h3>
             <p class="tr-chart-subtitle">Top tables by total SST — darker cells = more data on that node</p>
             <div class="tr-heatmap-controls">
               <label style="font-size:0.8em;color:#64748b;display:inline-flex;align-items:center;gap:0.4em">
@@ -221,13 +220,8 @@
             <div id="tr-split-recommendations"></div>
 
             <!-- Node Size Imbalance -->
-            <div class="tr-chart-row">
-              <div class="tr-chart-card">
-                <h3>Node Size Imbalance <span class="tr-tip" data-tip="Deviation from average total data per node (SST + WAL). Temporary skew is normal during compaction cycles or after tablet splits. Persistent skew may be caused by tables not spread across all nodes, uneven tablet sizes, or recent topology changes. Check the Waterfall and Heatmap charts above for root causes."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
-                <p class="tr-chart-subtitle">Deviation from average — red = above, green = below</p>
-                <div id="tr-chart-node-imbalance" class="tr-chart"></div>
-              </div>
-            </div>
+            <h3>Node Size Imbalance <span class="tr-tip" data-tip="Deviation from average SST size per node. Temporary skew is normal during compaction cycles or after tablet splits. Persistent skew may be caused by tables not spread across all nodes, uneven tablet sizes, or recent topology changes. Check the Waterfall and Heatmap charts above for root causes."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
+            <div id="tr-node-imbalance-table" style="overflow-x:auto"></div>
 
             <!-- Skew chart + drilldown (existing) -->
             <h3>Top Skewed Tables <span class="tr-tip" data-tip="Tables ranked by intra-table skew (largest leader tablet SST / smallest). High skew is common with range-sharded tables or non-uniform key distributions. >10x suggests some tablets may be hotspots. Click a bar to see per-tablet sizes. Consider if auto-split is enabled and if thresholds are appropriate."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
@@ -244,7 +238,10 @@
               <div class="tr-drilldown-controls">
                 <label>
                   <span>Table</span>
-                  <select id="tr-drilldown-select" class="tr-drilldown-select"></select>
+                  <div class="tr-searchable-select" id="tr-drilldown-select-wrap">
+                    <input type="text" id="tr-drilldown-search" class="tr-drilldown-search" placeholder="Search tables…" autocomplete="off" />
+                    <div class="tr-searchable-options" id="tr-drilldown-options"></div>
+                  </div>
                 </label>
                 <span id="tr-drilldown-loading" class="tr-drilldown-loading" style="display:none">Loading&hellip;</span>
               </div>
@@ -256,7 +253,9 @@
               </div>
               <div class="tr-chart-row">
                 <div class="tr-chart-card">
-                  <h3>Tablet Storage Treemap</h3>
+                  <h3>Tablet Storage Treemap
+                    <label class="tr-leader-toggle" title="Show leader tablets only"><input type="checkbox" id="tr-lo-drilldown-treemap" /><span class="tr-leader-toggle-label">Leader Only</span></label>
+                  </h3>
                   <p class="tr-chart-subtitle">Each shape is a tablet replica grouped by node. Area reflects actual SST size.</p>
                   <div style="display:flex;align-items:center;gap:0.8em;flex-wrap:wrap">
                     <div class="tr-viz-toggle" id="tr-drilldown-viz-toggle" role="group" aria-label="Drilldown visualization type">
@@ -271,12 +270,16 @@
               </div>
               <div class="tr-chart-row">
                 <div class="tr-chart-card tr-chart-card-half">
-                  <h3>Per-Node Breakdown</h3>
+                  <h3>Per-Node Breakdown
+                    <label class="tr-leader-toggle" title="Show leader tablets only"><input type="checkbox" id="tr-lo-per-node" /><span class="tr-leader-toggle-label">Leader Only</span></label>
+                  </h3>
                   <p class="tr-chart-subtitle">SST per node — blue = leader, orange = follower</p>
                   <div id="tr-chart-table-per-node" class="tr-chart"></div>
                 </div>
                 <div class="tr-chart-card tr-chart-card-half">
-                  <h3>Individual Tablet Sizes</h3>
+                  <h3>Individual Tablet Sizes
+                    <label class="tr-leader-toggle" title="Show leader tablets only"><input type="checkbox" id="tr-lo-tablet-bars" /><span class="tr-leader-toggle-label">Leader Only</span></label>
+                  </h3>
                   <p class="tr-chart-subtitle">Each bar = one replica (sorted descending)</p>
                   <div id="tr-chart-table-tablet-bars" class="tr-chart"></div>
                 </div>
@@ -640,17 +643,17 @@
 
         if (data.tablets_per_node.length) {
           var ips = data.tablets_per_node.map(function(n) { return n.ip; });
-          Plotly.newPlot('tr-chart-tablets-per-node', [{
-            x: ips, y: data.tablets_per_node.map(function(n) { return n.tablet_count; }),
-            type: 'bar', marker: { color: COLORS.teal, opacity: 0.85 },
-            hovertemplate: '%{x}<br><b>Tablets:</b> %{y}<extra></extra>',
-          }], mergeLayout({ yaxis: { title: { text: 'Tablets', font: { size: 11 } } } }), CONFIG);
-
-          Plotly.newPlot('tr-chart-leaders-per-node', [{
-            x: ips, y: data.tablets_per_node.map(function(n) { return n.leaders; }),
-            type: 'bar', marker: { color: COLORS.indigo, opacity: 0.85 },
-            hovertemplate: '%{x}<br><b>Leaders:</b> %{y}<extra></extra>',
-          }], mergeLayout({ yaxis: { title: { text: 'Leaders', font: { size: 11 } } } }), CONFIG);
+          function plotTabletsPerNode(leaderOnly) {
+            Plotly.newPlot('tr-chart-tablets-per-node', [{
+              x: ips,
+              y: data.tablets_per_node.map(function(n) { return leaderOnly ? n.leaders : n.tablet_count; }),
+              type: 'bar', marker: { color: leaderOnly ? COLORS.indigo : COLORS.teal, opacity: 0.85 },
+              hovertemplate: '%{x}<br><b>' + (leaderOnly ? 'Leaders' : 'Tablets') + ':</b> %{y}<extra></extra>',
+            }], mergeLayout({ yaxis: { title: { text: leaderOnly ? 'Leader Tablets' : 'Tablets', font: { size: 11 } } } }), CONFIG);
+          }
+          plotTabletsPerNode(false);
+          var loTPN = document.getElementById('tr-lo-tablets-per-node');
+          if (loTPN) loTPN.addEventListener('change', function() { plotTabletsPerNode(this.checked); });
         }
 
         var rows = data.node_sizes.map(function(n) {
@@ -778,19 +781,65 @@
         /* ─── Split Recommendations ─── */
         renderSplitRecommendations(data);
 
-        /* ─── Node Size Imbalance (existing) ─── */
+        /* ─── Node Size Imbalance (table only) ─── */
         if (data.node_sizes.length) {
-          var avgSize = data.node_sizes.reduce(function(a, n) { return a + n.total_size; }, 0) / data.node_sizes.length;
-          var nodeLabels = data.node_sizes.map(function(n) { return n.ip + '\n' + n.zone; });
-          var deviations = data.node_sizes.map(function(n) { return ((n.total_size - avgSize) / avgSize * 100).toFixed(1); });
-          var barColors = deviations.map(function(d) { return parseFloat(d) > 0 ? COLORS.red : COLORS.green; });
-          Plotly.newPlot('tr-chart-node-imbalance', [{
-            x: nodeLabels, y: deviations, type: 'bar',
-            marker: { color: barColors, opacity: 0.85 },
-            hovertemplate: '%{x}<br><b>Deviation:</b> %{y}%<extra></extra>',
-          }], mergeLayout({
-            yaxis: { title: { text: 'Deviation from Avg (%)', font: { size: 11 } }, zeroline: true, zerolinecolor: '#94a3b8', zerolinewidth: 1 },
-          }), CONFIG);
+          var ns = data.node_sizes;
+          var avgSST = ns.reduce(function(a, n) { return a + n.sst_size; }, 0) / ns.length;
+          var avgTablets = ns.reduce(function(a, n) { return a + n.tablet_count; }, 0) / ns.length;
+          var avgLeaders = ns.reduce(function(a, n) { return a + n.leaders; }, 0) / ns.length;
+
+          var sorted = ns.slice().sort(function(a, b) { return b.sst_size - a.sst_size; });
+          var maxSST = sorted[0].sst_size;
+          var minSST = sorted[sorted.length - 1].sst_size;
+          var html = '<table class="tr-data-table" style="font-size:0.82em">';
+          html += '<thead><tr>';
+          html += '<th>Node</th><th>Zone</th><th>Tablets</th><th>Leaders</th>';
+          html += '<th>SST Size</th>';
+          html += '<th style="min-width:110px">Deviation</th>';
+          html += '<th style="min-width:160px">vs Average (' + formatBytes(avgSST) + ')</th>';
+          html += '</tr></thead><tbody>';
+          for (var ni = 0; ni < sorted.length; ni++) {
+            var nd = sorted[ni];
+            var devPct = avgSST > 0 ? ((nd.sst_size - avgSST) / avgSST * 100) : 0;
+            var devSign = devPct > 0 ? '+' : '';
+            var devColor = devPct > 5 ? COLORS.red : (devPct < -5 ? COLORS.green : '#64748b');
+            var tabletDev = avgTablets > 0 ? ((nd.tablet_count - avgTablets) / avgTablets * 100) : 0;
+            var leaderDev = avgLeaders > 0 ? ((nd.leaders - avgLeaders) / avgLeaders * 100) : 0;
+            var tabletDevColor = Math.abs(tabletDev) > 10 ? '#b45309' : '#64748b';
+            var leaderDevColor = Math.abs(leaderDev) > 10 ? '#b45309' : '#64748b';
+
+            var isMax = nd.sst_size === maxSST;
+            var isMin = nd.sst_size === minSST;
+            var badge = isMax ? ' <span style="background:#fecaca;color:#991b1b;padding:1px 5px;border-radius:3px;font-size:0.78em">MAX</span>' :
+                        (isMin ? ' <span style="background:#bbf7d0;color:#166534;padding:1px 5px;border-radius:3px;font-size:0.78em">MIN</span>' : '');
+
+            var ratio = avgSST > 0 ? (nd.sst_size / avgSST) : 0;
+            var barWidth = Math.min(ratio * 100, 200);
+            var barColor = devPct > 5 ? '#ef4444' : (devPct < -5 ? '#22c55e' : '#3b82f6');
+
+            html += '<tr>';
+            html += '<td><strong>' + nd.ip + '</strong>' + badge + '</td>';
+            html += '<td>' + nd.zone + '</td>';
+            html += '<td>' + nd.tablet_count + ' <span style="color:' + tabletDevColor + ';font-size:0.8em">(' + (tabletDev > 0 ? '+' : '') + tabletDev.toFixed(1) + '%)</span></td>';
+            html += '<td>' + nd.leaders + ' <span style="color:' + leaderDevColor + ';font-size:0.8em">(' + (leaderDev > 0 ? '+' : '') + leaderDev.toFixed(1) + '%)</span></td>';
+            html += '<td><strong>' + nd.sst_human + '</strong></td>';
+            html += '<td style="color:' + devColor + ';font-weight:600">' + devSign + devPct.toFixed(1) + '%</td>';
+            html += '<td><div style="display:flex;align-items:center;gap:4px;position:relative">';
+            html += '<div style="position:absolute;left:50%;top:0;bottom:0;width:1.5px;background:#374151;z-index:1" title="Average (1.0x)"></div>';
+            html += '<div style="flex:0 0 ' + (barWidth / 2).toFixed(1) + '%;height:14px;background:' + barColor + ';border-radius:3px;opacity:0.75;transition:all 0.3s"></div>';
+            html += '<span style="font-size:0.75em;color:#64748b;white-space:nowrap">' + ratio.toFixed(2) + 'x</span>';
+            html += '</div></td>';
+            html += '</tr>';
+          }
+          html += '</tbody>';
+          html += '<tfoot><tr style="font-weight:600;background:#f8fafc">';
+          html += '<td>Average</td><td>—</td>';
+          html += '<td>' + avgTablets.toFixed(0) + '</td>';
+          html += '<td>' + avgLeaders.toFixed(0) + '</td>';
+          html += '<td>' + formatBytes(avgSST) + '</td>';
+          html += '<td>—</td><td>—</td>';
+          html += '</tr></tfoot></table>';
+          document.getElementById('tr-node-imbalance-table').innerHTML = html;
         }
 
         /* ─── Skew chart (existing) ─── */
@@ -1007,7 +1056,7 @@
       /* ═══════════════════════════════════════════════════════════════
          Per-Table × Per-Node Heatmap Table
          ═══════════════════════════════════════════════════════════════ */
-      var _hmState = { sortBy: 'total', data: null, nodes: null };
+      var _hmState = { sortBy: 'total', data: null, nodes: null, leaderOnly: false };
 
       function ylOrRd(t) {
         var r = Math.round(255 - t * 127);
@@ -1017,22 +1066,25 @@
       }
 
       function sortHeatmapData(hm, sortBy) {
+        var lo = _hmState.leaderOnly;
         return hm.slice().sort(function(a, b) {
-          if (sortBy === 'spread') return b.spread - a.spread;
-          if (sortBy === 'node_count') return a.node_count - b.node_count;
-          return b.total - a.total;
+          if (sortBy === 'spread') return (lo ? b.leader_spread - a.leader_spread : b.spread - a.spread);
+          if (sortBy === 'node_count') return (lo ? a.leader_node_count - b.leader_node_count : a.node_count - b.node_count);
+          return (lo ? b.leader_total - a.leader_total : b.total - a.total);
         });
       }
 
       function renderHeatmapTable() {
         var hm = _hmState.data;
         var nodes = _hmState.nodes;
+        var lo = _hmState.leaderOnly;
         if (!hm || !hm.length || !nodes || !nodes.length) return;
 
         var sorted = sortHeatmapData(hm, _hmState.sortBy);
         var globalMax = 0;
         for (var i = 0; i < sorted.length; i++) {
-          if (sorted[i].max_node_val > globalMax) globalMax = sorted[i].max_node_val;
+          var mx = lo ? sorted[i].max_leader_val : sorted[i].max_node_val;
+          if (mx > globalMax) globalMax = mx;
         }
 
         var html = '<table class="tr-data-table" aria-label="Per-table per-node SST sizes"><thead><tr>';
@@ -1045,16 +1097,21 @@
 
         for (var ri = 0; ri < sorted.length; ri++) {
           var row = sorted[ri];
+          var totalHuman = lo ? row.leader_total_human : row.total_human;
+          var spreadHuman = lo ? row.leader_spread_human : row.spread_human;
+          var nodeCount = lo ? row.leader_node_count : row.node_count;
           html += '<tr><td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + row.table + '">' + row.table + '</td>';
-          html += '<td class="text-right">' + row.total_human + '</td>';
-          html += '<td class="text-right">' + row.spread_human + '</td>';
-          var nodeCountColor = row.node_count < nodes.length ? COLORS.red : '#374151';
-          var warnIcon = row.node_count < nodes.length ? '<span class="tr-hm-warn-icon" title="Not on all nodes">&#9888;</span>' : '';
-          html += '<td class="text-right" style="color:' + nodeCountColor + ';font-weight:' + (row.node_count < nodes.length ? '600' : '400') + '">' + row.node_count + '/' + nodes.length + warnIcon + '</td>';
+          html += '<td class="text-right">' + totalHuman + '</td>';
+          html += '<td class="text-right">' + spreadHuman + '</td>';
+          var nodeCountColor = nodeCount < nodes.length ? COLORS.red : '#374151';
+          var warnIcon = nodeCount < nodes.length ? '<span class="tr-hm-warn-icon" title="Not on all nodes">&#9888;</span>' : '';
+          html += '<td class="text-right" style="color:' + nodeCountColor + ';font-weight:' + (nodeCount < nodes.length ? '600' : '400') + '">' + nodeCount + '/' + nodes.length + warnIcon + '</td>';
 
+          var perNode = lo ? row.per_node_leader : row.per_node;
+          var perNodeHuman = lo ? row.per_node_leader_human : row.per_node_human;
           for (var ni = 0; ni < nodes.length; ni++) {
-            var val = row.per_node[nodes[ni]] || 0;
-            var humanVal = row.per_node_human[nodes[ni]] || '–';
+            var val = perNode[nodes[ni]] || 0;
+            var humanVal = perNodeHuman[nodes[ni]] || '–';
             var intensity = globalMax > 0 ? Math.pow(val / globalMax, 0.5) : 0;
             var bg = val === 0 ? '#f8f9fb' : ylOrRd(intensity);
             var fg = intensity > 0.6 ? '#fff' : '#374151';
@@ -1065,7 +1122,6 @@
         html += '</tbody></table>';
         document.getElementById('tr-heatmap-table-container').innerHTML = html;
 
-        // Wire up sortable column headers
         document.querySelectorAll('#tr-heatmap-table-container th.sortable').forEach(function(th) {
           th.addEventListener('click', function() {
             var sort = this.getAttribute('data-sort');
@@ -1087,9 +1143,14 @@
 
         renderHeatmapTable();
 
-        // Wire up sort selector
         document.getElementById('tr-heatmap-sort').addEventListener('change', function() {
           _hmState.sortBy = this.value;
+          renderHeatmapTable();
+        });
+
+        var loHeatmap = document.getElementById('tr-lo-heatmap');
+        if (loHeatmap) loHeatmap.addEventListener('change', function() {
+          _hmState.leaderOnly = this.checked;
           renderHeatmapTable();
         });
       }
@@ -1186,31 +1247,95 @@
          DRILLDOWN
          ═══════════════════════════════════════════════════════════════ */
       function initDrilldownSelector(data) {
-        var select = document.getElementById('tr-drilldown-select');
-        if (!select) return;
+        var wrap = document.getElementById('tr-drilldown-select-wrap');
+        var input = document.getElementById('tr-drilldown-search');
+        var optionsEl = document.getElementById('tr-drilldown-options');
+        if (!wrap || !input || !optionsEl) return;
+
+        var allOptions = [];
         var seen = new Set();
-        var options = [];
         for (var i = 0; i < data.skew_analysis.length; i++) {
           var t = data.skew_analysis[i];
           var key = t.namespace + '.' + t.table_name;
-          if (!seen.has(key)) { seen.add(key); options.push({ namespace: t.namespace, table: t.table_name, label: t.namespace + '.' + t.table_name + ' (skew: ' + t.skew_ratio + 'x)' }); }
+          if (!seen.has(key)) { seen.add(key); allOptions.push({ ns: t.namespace, tbl: t.table_name, label: key + ' (skew: ' + t.skew_ratio + 'x)' }); }
         }
         for (var j = 0; j < data.table_sizes.length; j++) {
           var ts = data.table_sizes[j];
           var key2 = ts.namespace + '.' + ts.tablename;
-          if (!seen.has(key2)) { seen.add(key2); options.push({ namespace: ts.namespace, table: ts.tablename, label: ts.namespace + '.' + ts.tablename }); }
+          if (!seen.has(key2)) { seen.add(key2); allOptions.push({ ns: ts.namespace, tbl: ts.tablename, label: key2 }); }
         }
-        var html = '<option value="">— select a table —</option>';
-        for (var k = 0; k < options.length; k++) {
-          var o = options[k];
-          html += '<option value="' + o.namespace + '|||' + o.table + '">' + o.label + '</option>';
+
+        var activeIdx = -1;
+
+        function renderOptions(filter) {
+          var q = (filter || '').toLowerCase();
+          var html = '';
+          var count = 0;
+          for (var k = 0; k < allOptions.length; k++) {
+            var o = allOptions[k];
+            if (q && o.label.toLowerCase().indexOf(q) === -1) continue;
+            var display = o.label;
+            if (q) {
+              var idx = display.toLowerCase().indexOf(q);
+              if (idx !== -1) display = display.substring(0, idx) + '<mark>' + display.substring(idx, idx + q.length) + '</mark>' + display.substring(idx + q.length);
+            }
+            html += '<div class="tr-searchable-option" data-ns="' + o.ns + '" data-tbl="' + o.tbl + '" data-idx="' + count + '">' + display + '</div>';
+            count++;
+          }
+          if (!count) html = '<div class="tr-searchable-no-match">No tables match "' + (filter || '') + '"</div>';
+          optionsEl.innerHTML = html;
+          activeIdx = -1;
         }
-        select.innerHTML = html;
-        select.addEventListener('change', function() {
-          if (!this.value) return;
-          var parts = this.value.split('|||');
-          loadTableDrilldown(parts[0], parts[1]);
+
+        function openDropdown() { wrap.classList.add('open'); renderOptions(input.value); }
+        function closeDropdown() { wrap.classList.remove('open'); activeIdx = -1; }
+
+        function selectOption(ns, tbl, label) {
+          input.value = label;
+          closeDropdown();
+          loadTableDrilldown(ns, tbl);
+        }
+
+        function setActive(idx) {
+          var items = optionsEl.querySelectorAll('.tr-searchable-option');
+          if (!items.length) return;
+          for (var i = 0; i < items.length; i++) items[i].classList.remove('active');
+          if (idx < 0) idx = items.length - 1;
+          if (idx >= items.length) idx = 0;
+          activeIdx = idx;
+          items[activeIdx].classList.add('active');
+          items[activeIdx].scrollIntoView({ block: 'nearest' });
+        }
+
+        input.addEventListener('focus', openDropdown);
+        input.addEventListener('input', function() { openDropdown(); });
+        input.addEventListener('keydown', function(e) {
+          var items = optionsEl.querySelectorAll('.tr-searchable-option');
+          if (e.key === 'ArrowDown') { e.preventDefault(); setActive(activeIdx + 1); }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(activeIdx - 1); }
+          else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (activeIdx >= 0 && activeIdx < items.length) {
+              var el = items[activeIdx];
+              selectOption(el.getAttribute('data-ns'), el.getAttribute('data-tbl'), el.textContent);
+            }
+          } else if (e.key === 'Escape') { closeDropdown(); input.blur(); }
         });
+
+        optionsEl.addEventListener('mousedown', function(e) {
+          var el = e.target.closest('.tr-searchable-option');
+          if (el) { e.preventDefault(); selectOption(el.getAttribute('data-ns'), el.getAttribute('data-tbl'), el.textContent); }
+        });
+
+        document.addEventListener('mousedown', function(e) {
+          if (!wrap.contains(e.target)) closeDropdown();
+        });
+
+        wrap._selectByValue = function(ns, tbl) {
+          for (var i = 0; i < allOptions.length; i++) {
+            if (allOptions[i].ns === ns && allOptions[i].tbl === tbl) { input.value = allOptions[i].label; return; }
+          }
+        };
       }
 
       function loadTableDrilldown(namespace, tableName) {
@@ -1218,19 +1343,14 @@
         var loading = document.getElementById('tr-drilldown-loading');
         var title = document.getElementById('tr-drilldown-title');
         var subtitle = document.getElementById('tr-drilldown-subtitle');
-        var select = document.getElementById('tr-drilldown-select');
+        var wrap = document.getElementById('tr-drilldown-select-wrap');
 
         section.style.display = 'block';
         loading.style.display = 'inline';
         title.textContent = 'Tablet Size Distribution — ' + namespace + '.' + tableName;
         subtitle.textContent = 'Loading…';
 
-        var selectVal = namespace + '|||' + tableName;
-        if (select.value !== selectVal) {
-          for (var i = 0; i < select.options.length; i++) {
-            if (select.options[i].value === selectVal) { select.selectedIndex = i; break; }
-          }
-        }
+        if (wrap && wrap._selectByValue) wrap._selectByValue(namespace, tableName);
 
         fetch('/api/tablet-report/table-tablet-sizes?db=' + encodeURIComponent(DB_PATH) + '&namespace=' + encodeURIComponent(namespace) + '&table=' + encodeURIComponent(tableName))
           .then(function(r) { if (!r.ok) throw new Error('Failed'); return r.json(); })
@@ -1296,6 +1416,11 @@
 
         subtitle.textContent = leaderValues.length + ' leader tablets, ' + tablets.length + ' total replicas';
 
+        ['tr-lo-drilldown-treemap', 'tr-lo-per-node', 'tr-lo-tablet-bars'].forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el) el.checked = false;
+        });
+
         /* 1) Bucket distribution */
         if (leaderValues.length) {
           var buckets = computeDynamicBuckets(leaderValues);
@@ -1319,24 +1444,24 @@
         /* 2) Treemap (sqrt-scaled visuals, dual-channel color, mode toggle) */
         if (tablets.length) {
           var _ddVizType = 'treemap';
+          var _ddLeaderOnly = false;
           var nodeIpMap = {};
           for (var ni = 0; ni < tablets.length; ni++) {
             var nt = tablets[ni];
             nodeIpMap[nt.node_uuid] = (nt.node_ip || nt.node_uuid.substring(0, 8)) + (nt.node_zone ? ' (' + nt.node_zone + ')' : '');
           }
 
-          var nodeMaxSST = {};
-          var nodeSet = new Set();
-          for (var ti = 0; ti < tablets.length; ti++) {
-            var t = tablets[ti];
-            var nodeLabel = nodeIpMap[t.node_uuid];
-            nodeSet.add(nodeLabel);
-            if (!nodeMaxSST[nodeLabel] || t.sst_val > nodeMaxSST[nodeLabel]) {
-              nodeMaxSST[nodeLabel] = t.sst_val;
+          function ddComputeNodeMeta(src) {
+            var maxSST = {}, nodeSet = new Set();
+            for (var ti = 0; ti < src.length; ti++) {
+              var nodeLabel = nodeIpMap[src[ti].node_uuid];
+              nodeSet.add(nodeLabel);
+              if (!maxSST[nodeLabel] || src[ti].sst_val > maxSST[nodeLabel]) maxSST[nodeLabel] = src[ti].sst_val;
             }
+            return { maxSST: maxSST, nodeSet: nodeSet };
           }
 
-          function ddColor(isLeader, sst, nodeLabel) {
+          function ddColor(isLeader, sst, nodeLabel, nodeMaxSST) {
             var base = isLeader ? [67, 97, 238] : [249, 115, 22];
             var maxInNode = nodeMaxSST[nodeLabel] || 1;
             var frac = sst / maxInNode;
@@ -1347,22 +1472,19 @@
             return 'rgb(' + r + ',' + g + ',' + b + ')';
           }
 
-          // Build data arrays per viz type
-          // Uses explicit `ids` so replicas of the same tablet on different nodes don't collide
-          // Sunburst/Icicle: sqrt-scaled with a 2% floor so small tablets remain visible
-          function buildDrilldownData(vizType) {
+          function buildDrilldownData(vizType, leaderOnly) {
+            var src = leaderOnly ? tablets.filter(function(t) { return t.is_leader; }) : tablets;
+            var meta = ddComputeNodeMeta(src);
             var tmIds = [], tmLabels = [], tmParents = [], tmValues = [], tmTexts = [], tmColors = [], tmCustom = [];
             var useSqrt = (vizType === 'sunburst' || vizType === 'icicle');
 
             var globalMax = 0;
-            for (var mx = 0; mx < tablets.length; mx++) {
-              if (tablets[mx].sst_val > globalMax) globalMax = tablets[mx].sst_val;
-            }
+            for (var mx = 0; mx < src.length; mx++) { if (src[mx].sst_val > globalMax) globalMax = src[mx].sst_val; }
             var sqrtMax = Math.sqrt(Math.max(1, globalMax));
             var floor = sqrtMax * 0.02;
 
-            for (var ti2 = 0; ti2 < tablets.length; ti2++) {
-              var t2 = tablets[ti2];
+            for (var ti2 = 0; ti2 < src.length; ti2++) {
+              var t2 = src[ti2];
               var nodeLabel2 = nodeIpMap[t2.node_uuid];
               var raw = Math.max(1, t2.sst_val);
               var shortId = t2.tablet_uuid.substring(0, 12);
@@ -1372,27 +1494,33 @@
               tmValues.push(useSqrt ? Math.max(floor, Math.sqrt(raw)) : raw);
               tmTexts.push(formatBytes(t2.sst_val) + '<br>' + (t2.is_leader ? 'Leader' : 'Follower'));
               tmCustom.push([formatBytes(t2.sst_val), t2.is_leader ? 'Leader' : 'Follower', nodeLabel2]);
-              tmColors.push(ddColor(t2.is_leader, t2.sst_val, nodeLabel2));
+              tmColors.push(ddColor(t2.is_leader, t2.sst_val, nodeLabel2, meta.maxSST));
             }
-            nodeSet.forEach(function(node) {
+            var nodeTotalSST = {}, nodeTabletCount = {};
+            for (var ns2 = 0; ns2 < src.length; ns2++) {
+              var nl2 = nodeIpMap[src[ns2].node_uuid];
+              nodeTotalSST[nl2] = (nodeTotalSST[nl2] || 0) + src[ns2].sst_val;
+              nodeTabletCount[nl2] = (nodeTabletCount[nl2] || 0) + 1;
+            }
+            meta.nodeSet.forEach(function(node) {
               tmIds.push('node:' + node);
               tmLabels.push(node);
               tmParents.push('');
               tmValues.push(0);
               tmTexts.push('');
-              tmCustom.push(['', '', node]);
+              tmCustom.push([formatBytes(nodeTotalSST[node] || 0), String(nodeTabletCount[node] || 0) + ' tablets', node]);
               tmColors.push('#e2e8f0');
             });
             return { ids: tmIds, labels: tmLabels, parents: tmParents, values: tmValues, texts: tmTexts, colors: tmColors, custom: tmCustom };
           }
 
-          function plotDrilldownViz(vizType) {
-            var d = buildDrilldownData(vizType);
+          function plotDrilldownViz(vizType, leaderOnly) {
+            var d = buildDrilldownData(vizType, leaderOnly);
             var trace = {
               type: vizType,
               ids: d.ids, labels: d.labels, parents: d.parents, values: d.values, text: d.texts,
               customdata: d.custom,
-              hovertemplate: '<b>%{label}</b><br>Node: %{customdata[2]}<br>SST: %{customdata[0]}<br>Status: %{customdata[1]}<extra></extra>',
+              hovertemplate: '<b>%{label}</b><br>Node: %{customdata[2]}<br>SST: %{customdata[0]}<br>%{customdata[1]}<extra></extra>',
               textinfo: 'label+text',
               marker: { colors: d.colors, line: { width: 2, color: '#fff' } },
               branchvalues: 'remainder',
@@ -1400,42 +1528,33 @@
               maxdepth: 2,
               textfont: { size: 11 },
             };
-            if (vizType === 'treemap') {
-              trace.tiling = { packing: 'squarify', pad: 3, squarifyratio: 1 };
-            }
-            if (vizType === 'icicle') {
-              trace.tiling = { orientation: 'v' };
-            }
+            if (vizType === 'treemap') { trace.tiling = { packing: 'squarify', pad: 3, squarifyratio: 1 }; }
+            if (vizType === 'icicle') { trace.tiling = { orientation: 'v' }; }
             Plotly.newPlot('tr-chart-table-treemap', [trace], mergeLayout({
               margin: { l: 8, r: 8, t: 30, b: 8 },
             }), CONFIG);
 
             var el = document.getElementById('tr-chart-table-treemap');
-            el.on('plotly_treemapclick', function() {
-              document.getElementById('tr-drilldown-reset-zoom').style.display = 'inline-block';
-            });
-            el.on('plotly_sunburstclick', function() {
-              document.getElementById('tr-drilldown-reset-zoom').style.display = 'inline-block';
-            });
+            el.on('plotly_treemapclick', function() { document.getElementById('tr-drilldown-reset-zoom').style.display = 'inline-block'; });
+            el.on('plotly_sunburstclick', function() { document.getElementById('tr-drilldown-reset-zoom').style.display = 'inline-block'; });
           }
 
-          plotDrilldownViz(_ddVizType);
+          plotDrilldownViz(_ddVizType, _ddLeaderOnly);
 
           document.querySelectorAll('#tr-drilldown-viz-toggle button').forEach(function(btn) {
             btn.addEventListener('click', function() {
-              document.querySelectorAll('#tr-drilldown-viz-toggle button').forEach(function(b) {
-                b.classList.remove('active');
-                b.setAttribute('aria-pressed', 'false');
-              });
-              this.classList.add('active');
-              this.setAttribute('aria-pressed', 'true');
+              document.querySelectorAll('#tr-drilldown-viz-toggle button').forEach(function(b) { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
+              this.classList.add('active'); this.setAttribute('aria-pressed', 'true');
               _ddVizType = this.getAttribute('data-type');
-              plotDrilldownViz(_ddVizType);
+              plotDrilldownViz(_ddVizType, _ddLeaderOnly);
             });
           });
 
+          var loTreemap = document.getElementById('tr-lo-drilldown-treemap');
+          if (loTreemap) loTreemap.addEventListener('change', function() { _ddLeaderOnly = this.checked; plotDrilldownViz(_ddVizType, _ddLeaderOnly); });
+
           document.getElementById('tr-drilldown-reset-zoom').addEventListener('click', function() {
-            plotDrilldownViz(_ddVizType);
+            plotDrilldownViz(_ddVizType, _ddLeaderOnly);
             this.style.display = 'none';
           });
         } else {
@@ -1443,38 +1562,53 @@
         }
 
         /* 3) Per-node breakdown */
-        var nodeMap = {};
-        for (var pi = 0; pi < tablets.length; pi++) {
-          var pt = tablets[pi];
-          var nLabel = pt.node_ip || pt.node_uuid.substring(0, 8);
-          if (!nodeMap[nLabel]) nodeMap[nLabel] = { leader: 0, follower: 0, leaderCount: 0, followerCount: 0 };
-          if (pt.is_leader) { nodeMap[nLabel].leader += pt.sst_val; nodeMap[nLabel].leaderCount++; }
-          else { nodeMap[nLabel].follower += pt.sst_val; nodeMap[nLabel].followerCount++; }
+        function plotPerNode(leaderOnly) {
+          var nodeMap = {};
+          for (var pi = 0; pi < tablets.length; pi++) {
+            var pt = tablets[pi];
+            if (leaderOnly && !pt.is_leader) continue;
+            var nLabel = pt.node_ip || pt.node_uuid.substring(0, 8);
+            if (!nodeMap[nLabel]) nodeMap[nLabel] = { leader: 0, follower: 0, leaderCount: 0, followerCount: 0 };
+            if (pt.is_leader) { nodeMap[nLabel].leader += pt.sst_val; nodeMap[nLabel].leaderCount++; }
+            else { nodeMap[nLabel].follower += pt.sst_val; nodeMap[nLabel].followerCount++; }
+          }
+          var nodeIds = Object.keys(nodeMap);
+          if (nodeIds.length) {
+            var traces = [{ x: nodeIds, y: nodeIds.map(function(id) { return nodeMap[id].leader; }), name: 'Leader', type: 'bar', marker: { color: COLORS.leader, opacity: 0.85 }, hovertemplate: '%{x}<br><b>Leader SST:</b> %{customdata}<br>Tablets: %{text}<extra></extra>', customdata: nodeIds.map(function(id) { return formatBytes(nodeMap[id].leader); }), text: nodeIds.map(function(id) { return nodeMap[id].leaderCount; }) }];
+            if (!leaderOnly) {
+              traces.push({ x: nodeIds, y: nodeIds.map(function(id) { return nodeMap[id].follower; }), name: 'Follower', type: 'bar', marker: { color: COLORS.follower, opacity: 0.85 }, hovertemplate: '%{x}<br><b>Follower SST:</b> %{customdata}<br>Tablets: %{text}<extra></extra>', customdata: nodeIds.map(function(id) { return formatBytes(nodeMap[id].follower); }), text: nodeIds.map(function(id) { return nodeMap[id].followerCount; }) });
+            }
+            Plotly.newPlot('tr-chart-table-per-node', traces, mergeLayout({ barmode: 'stack', yaxis: { title: { text: 'SST Size', font: { size: 11 } } } }), CONFIG);
+          }
         }
-        var nodeIds = Object.keys(nodeMap);
-        if (nodeIds.length) {
-          Plotly.newPlot('tr-chart-table-per-node', [
-            { x: nodeIds, y: nodeIds.map(function(id) { return nodeMap[id].leader; }), name: 'Leader', type: 'bar', marker: { color: COLORS.leader, opacity: 0.85 }, hovertemplate: '%{x}<br><b>Leader SST:</b> %{customdata}<br>Tablets: %{text}<extra></extra>', customdata: nodeIds.map(function(id) { return formatBytes(nodeMap[id].leader); }), text: nodeIds.map(function(id) { return nodeMap[id].leaderCount; }) },
-            { x: nodeIds, y: nodeIds.map(function(id) { return nodeMap[id].follower; }), name: 'Follower', type: 'bar', marker: { color: COLORS.follower, opacity: 0.85 }, hovertemplate: '%{x}<br><b>Follower SST:</b> %{customdata}<br>Tablets: %{text}<extra></extra>', customdata: nodeIds.map(function(id) { return formatBytes(nodeMap[id].follower); }), text: nodeIds.map(function(id) { return nodeMap[id].followerCount; }) },
-          ], mergeLayout({ barmode: 'stack', yaxis: { title: { text: 'SST Size', font: { size: 11 } } } }), CONFIG);
-        }
+        plotPerNode(false);
+        var loPerNode = document.getElementById('tr-lo-per-node');
+        if (loPerNode) loPerNode.addEventListener('change', function() { plotPerNode(this.checked); });
 
         /* 4) Individual tablet bars */
-        if (tablets.length) {
-          var sorted = tablets.slice().sort(function(a, b) { return b.sst_val - a.sst_val; });
-          var shown = sorted.slice(0, Math.min(sorted.length, 200));
-          Plotly.newPlot('tr-chart-table-tablet-bars', [{
-            x: shown.map(function(_, i) { return i + 1; }),
-            y: shown.map(function(t) { return t.sst_val; }),
-            type: 'bar',
-            marker: { color: shown.map(function(t) { return t.is_leader ? COLORS.leader : COLORS.follower; }), opacity: 0.85 },
-            hovertemplate: 'Tablet: %{customdata[0]}<br>SST: %{customdata[1]}<br>%{customdata[2]}<br>Node: %{customdata[3]}<extra></extra>',
-            customdata: shown.map(function(t) { return [t.tablet_uuid.substring(0, 12) + '…', formatBytes(t.sst_val), t.is_leader ? 'Leader' : 'Follower', t.node_ip || t.node_uuid.substring(0, 8)]; }),
-          }], mergeLayout({
-            xaxis: { title: { text: 'Tablet # (by size)', font: { size: 11 } } },
-            yaxis: { title: { text: 'SST Size', font: { size: 11 } } },
-          }), CONFIG);
+        function plotTabletBars(leaderOnly) {
+          var src = leaderOnly ? tablets.filter(function(t) { return t.is_leader; }) : tablets;
+          if (src.length) {
+            var sorted = src.slice().sort(function(a, b) { return b.sst_val - a.sst_val; });
+            var shown = sorted.slice(0, Math.min(sorted.length, 200));
+            Plotly.newPlot('tr-chart-table-tablet-bars', [{
+              x: shown.map(function(_, i) { return i + 1; }),
+              y: shown.map(function(t) { return t.sst_val; }),
+              type: 'bar',
+              marker: { color: shown.map(function(t) { return t.is_leader ? COLORS.leader : COLORS.follower; }), opacity: 0.85 },
+              hovertemplate: 'Tablet: %{customdata[0]}<br>SST: %{customdata[1]}<br>%{customdata[2]}<br>Node: %{customdata[3]}<extra></extra>',
+              customdata: shown.map(function(t) { return [t.tablet_uuid.substring(0, 12) + '…', formatBytes(t.sst_val), t.is_leader ? 'Leader' : 'Follower', t.node_ip || t.node_uuid.substring(0, 8)]; }),
+            }], mergeLayout({
+              xaxis: { title: { text: 'Tablet # (by size)', font: { size: 11 } } },
+              yaxis: { title: { text: 'SST Size', font: { size: 11 } } },
+            }), CONFIG);
+          } else {
+            document.getElementById('tr-chart-table-tablet-bars').innerHTML = '<p class="tr-no-data">No leader tablet data.</p>';
+          }
         }
+        plotTabletBars(false);
+        var loTabletBars = document.getElementById('tr-lo-tablet-bars');
+        if (loTabletBars) loTabletBars.addEventListener('change', function() { plotTabletBars(this.checked); });
 
         document.getElementById('tr-table-drilldown-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
         window.dispatchEvent(new Event('resize'));

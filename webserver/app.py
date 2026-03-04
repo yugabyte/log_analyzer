@@ -864,7 +864,8 @@ class LogAnalyzerWebApp:
                        t.namespace || '.' || t.table_name as full_table,
                        t.namespace,
                        t.table_name,
-                       COALESCE(sum({SST}),0) as sst
+                       COALESCE(sum({SST}),0) as sst,
+                       COALESCE(sum(CASE WHEN t.node_uuid = t.leader AND t.lease_status='HAS_LEASE' THEN {SST} ELSE 0 END),0) as leader_sst
                 FROM tablet t
                 JOIN cluster c ON c.uuid = t.node_uuid AND c.type='TSERVER'
                 GROUP BY c.ip, t.namespace, t.table_name
@@ -875,10 +876,14 @@ class LogAnalyzerWebApp:
             # Build per-table aggregated stats for heatmap
             from collections import defaultdict
             table_node_map = defaultdict(dict)
+            table_node_leader_map = defaultdict(dict)
             table_totals = defaultdict(int)
+            table_leader_totals = defaultdict(int)
             for row in table_node_raw:
                 table_node_map[row['full_table']][row['node_ip']] = row['sst']
+                table_node_leader_map[row['full_table']][row['node_ip']] = row['leader_sst']
                 table_totals[row['full_table']] += row['sst']
+                table_leader_totals[row['full_table']] += row['leader_sst']
 
             # Node comparison waterfall: gap between heaviest and lightest node, per table
             node_ip_list = [n['ip'] for n in node_sizes]
@@ -923,23 +928,34 @@ class LogAnalyzerWebApp:
             heatmap_data = []
             for tbl in top_tables_for_heatmap:
                 per_node = table_node_map[tbl]
+                per_node_leader = table_node_leader_map[tbl]
                 node_values = [per_node.get(ip, 0) for ip in node_ip_list]
-                avg_val = sum(node_values) / len(node_values) if node_values else 0
+                leader_values = [per_node_leader.get(ip, 0) for ip in node_ip_list]
                 max_val = max(node_values) if node_values else 0
-                min_val = min(node_values) if node_values else 0
-                spread = max_val - min_val
+                max_leader_val = max(leader_values) if leader_values else 0
+                spread = max_val - (min(node_values) if node_values else 0)
+                leader_spread = max_leader_val - (min(leader_values) if leader_values else 0)
                 row_total = table_totals[tbl]
+                leader_total = table_leader_totals[tbl]
                 heatmap_data.append({
                     'table': tbl,
                     'total': row_total,
                     'total_human': fmt(row_total),
+                    'leader_total': leader_total,
+                    'leader_total_human': fmt(leader_total),
                     'per_node': {ip: per_node.get(ip, 0) for ip in node_ip_list},
                     'per_node_human': {ip: fmt(per_node.get(ip, 0)) for ip in node_ip_list},
                     'per_node_pct': {ip: round(per_node.get(ip, 0) / row_total * 100, 1) if row_total > 0 else 0 for ip in node_ip_list},
+                    'per_node_leader': {ip: per_node_leader.get(ip, 0) for ip in node_ip_list},
+                    'per_node_leader_human': {ip: fmt(per_node_leader.get(ip, 0)) for ip in node_ip_list},
                     'max_node_val': max_val,
+                    'max_leader_val': max_leader_val,
                     'spread': spread,
                     'spread_human': fmt(spread),
+                    'leader_spread': leader_spread,
+                    'leader_spread_human': fmt(leader_spread),
                     'node_count': sum(1 for ip in node_ip_list if per_node.get(ip, 0) > 0),
+                    'leader_node_count': sum(1 for ip in node_ip_list if per_node_leader.get(ip, 0) > 0),
                 })
 
             # ─── NEW: Split recommendations from large_tables view ───
