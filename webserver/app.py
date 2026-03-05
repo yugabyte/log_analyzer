@@ -398,12 +398,13 @@ class LogAnalyzerWebApp:
             db_path = request.args.get('db', '').strip()
             if not db_path:
                 return render_template('tablet_report.html', error='No database path provided. Use ?db=/path/to/file.sqlite')
-            db_file = Path(db_path)
-            if not db_file.exists():
+            db_file = self._resolve_tablet_report_db(db_path)
+            if db_file is None:
                 return render_template('tablet_report.html', error=f'Database file not found: {db_path}')
             if not db_file.suffix == '.sqlite':
                 return render_template('tablet_report.html', error='File must be a .sqlite database')
-            return render_template('tablet_report.html', db_path=db_path, db_name=db_file.stem)
+            db_name = db_file.stem or db_file.parent.name
+            return render_template('tablet_report.html', db_path=str(db_file), db_name=db_name)
 
         @self.app.route('/api/tablet-report/data')
         def tablet_report_data_api():
@@ -411,11 +412,11 @@ class LogAnalyzerWebApp:
             db_path = request.args.get('db', '').strip()
             if not db_path:
                 return jsonify({'error': 'No database path provided'}), 400
-            db_file = Path(db_path)
-            if not db_file.exists():
+            db_file = self._resolve_tablet_report_db(db_path)
+            if db_file is None:
                 return jsonify({'error': f'Database file not found: {db_path}'}), 404
             try:
-                data = self._query_tablet_report_db(db_path)
+                data = self._query_tablet_report_db(str(db_file))
                 return jsonify(data)
             except Exception as e:
                 self.logger.error(f"Error querying tablet report DB: {e}")
@@ -429,8 +430,10 @@ class LogAnalyzerWebApp:
             table_name = request.args.get('table', '').strip()
             if not db_path or not namespace or not table_name:
                 return jsonify({'error': 'db, namespace, and table are required'}), 400
-            if not Path(db_path).exists():
+            db_file = self._resolve_tablet_report_db(db_path)
+            if db_file is None:
                 return jsonify({'error': 'Database file not found'}), 404
+            db_path = str(db_file)
             try:
                 conn = sqlite3.connect(db_path)
                 conn.row_factory = sqlite3.Row
@@ -600,6 +603,35 @@ class LogAnalyzerWebApp:
         i = min(i, len(units) - 1)
         val = size_bytes / (1024 ** i)
         return f"{val:.1f} {units[i]}"
+
+    @staticmethod
+    def _resolve_tablet_report_db(db_path: str) -> Optional[Path]:
+        """Resolve a user-provided path to an actual .sqlite file.
+
+        Handles: direct file paths, directories containing .sqlite files,
+        and paths where the .sqlite file sits alongside the directory
+        (e.g. /path/to/TabletReport -> /path/to/TabletReport.sqlite).
+        """
+        p = Path(db_path)
+
+        if p.is_file():
+            return p
+
+        if p.is_dir():
+            sqlite_files = sorted(p.glob('*.sqlite'), key=lambda f: f.stat().st_mtime, reverse=True)
+            if sqlite_files:
+                return sqlite_files[0]
+            sibling = p.parent / (p.name + '.sqlite')
+            if sibling.is_file():
+                return sibling
+
+        parent = p.parent
+        if parent.is_dir() and not p.exists():
+            sqlite_files = sorted(parent.glob('*.sqlite'), key=lambda f: f.stat().st_mtime, reverse=True)
+            if sqlite_files:
+                return sqlite_files[0]
+
+        return None
 
     def _query_tablet_report_db(self, db_path: str) -> Dict[str, Any]:
         """Query a SQLite tablet report database and return structured data."""

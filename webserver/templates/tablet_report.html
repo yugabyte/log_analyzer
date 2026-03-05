@@ -533,6 +533,7 @@
             var ids = [], labels = [], parents = [], values = [], texts = [], tColors = [], customData = [];
             var localNsSet = new Set();
             var useSqrt = (vizType === 'sunburst' || vizType === 'icicle');
+            var nsAgg = {};
 
             var ovMax = 0;
             for (var ox = 0; ox < data.table_treemap.length; ox++) {
@@ -545,6 +546,9 @@
               var t = data.table_treemap[i2];
               if (t.sst_size <= 0) continue;
               localNsSet.add(t.namespace);
+              if (!nsAgg[t.namespace]) nsAgg[t.namespace] = { sst: 0, tablets: 0 };
+              nsAgg[t.namespace].sst += t.sst_size;
+              nsAgg[t.namespace].tablets += t.tablet_count;
               ids.push('tbl:' + t.namespace + '.' + t.table_name);
               labels.push(t.table_name);
               parents.push('ns:' + t.namespace);
@@ -561,12 +565,14 @@
             }
             localNsSet.forEach(function(ns) {
               var nsIdx2 = Array.from(localNsSet).indexOf(ns);
+              var agg = nsAgg[ns] || { sst: 0, tablets: 0 };
+              var nsPct = totalSST > 0 ? (agg.sst / totalSST * 100).toFixed(1) : '0.0';
               ids.push('ns:' + ns);
               labels.push(ns);
               parents.push('');
               values.push(0);
               texts.push('');
-              customData.push(['', 0, '', ns]);
+              customData.push([formatBytes(agg.sst), agg.tablets, nsPct + '%', ns]);
               tColors.push(NS_PALETTE[nsIdx2 % NS_PALETTE.length]);
             });
             nsSet = localNsSet;

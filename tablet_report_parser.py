@@ -332,11 +332,11 @@ def main():
     parser.add_argument("-o", "--output", help="Name of the output SQLite database file. Defaults to '[bundle_dir_name].sqlite'.")
     args = parser.parse_args()
 
-    bundle_path = Path(args.bundle_dir)
+    bundle_path = Path(args.bundle_dir).resolve()
     if not bundle_path.is_dir():
         sys.exit(f"Error: Path '{args.bundle_dir}' is not a valid directory.")
 
-    output_file = Path(args.output) if args.output else Path(f"{bundle_path.name}.sqlite")
+    output_file = Path(args.output) if args.output else bundle_path.parent / f"{bundle_path.name}.sqlite"
 
     if output_file.exists():
         mtime = output_file.stat().st_mtime
