@@ -45,7 +45,6 @@
       <div class="tr-report-header">
         <div class="tr-report-title">
           <h2>Tablet Report</h2>
-          <span class="tr-db-name">{{ db_name }}</span>
         </div>
         <div class="tr-report-actions">
           <a href="/" class="btn btn-secondary">Home</a>
@@ -59,7 +58,7 @@
       </div>
 
       <div id="tr-content" style="display:none">
-        <div class="tab-bar">
+        <div class="tab-bar tr-product-tabs">
           <button class="tab-btn active" data-tab="tr-overview-tab">Overview</button>
           <button class="tab-btn" data-tab="tr-nodes-tab">Nodes</button>
           <button class="tab-btn" data-tab="tr-tables-tab">Tables</button>
@@ -71,7 +70,9 @@
         <div id="tr-tab-panels">
           <!-- Overview -->
           <div id="tr-overview-tab" class="tab-panel" style="display:block">
+            <div id="tr-overview-hero"></div>
             <div class="tr-summary-grid" id="tr-summary-cards"></div>
+            <div id="tr-overview-highlights" class="tr-overview-highlights"></div>
             <div class="tr-chart-row">
               <div class="tr-chart-card tr-chart-card-half">
                 <h3>Size by Zone <span class="tr-tip" data-tip="SST (Sorted String Table) is persisted compacted data. WAL (Write-Ahead Log) buffers recent writes. Large WAL relative to SST may indicate heavy write throughput, pending flushes, or delayed compaction — not necessarily a problem on its own."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
@@ -104,18 +105,17 @@
           <!-- Nodes -->
           <div id="tr-nodes-tab" class="tab-panel">
             <div class="tr-chart-row">
-              <div class="tr-chart-card">
+              <div class="tr-chart-card tr-chart-card-half">
                 <h3>Data Size per Node <span class="tr-tip" data-tip="Total on-disk footprint per TServer (SST + WAL stacked). Small differences are normal due to compaction timing and leader placement. Persistent large gaps (>20%) may indicate uneven tablet distribution or tables not spread across all nodes."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
-                <p class="tr-chart-subtitle">Stacked SST + WAL per node</p>
-                <div id="tr-chart-node-size" class="tr-chart"></div>
+                <p class="tr-chart-subtitle">Total on-disk footprint per node, with optional leader-only SST view</p>
+                <label class="tr-leader-toggle" title="Show leader SST only"><input type="checkbox" id="tr-lo-node-size" /><span class="tr-leader-toggle-label">Leader Only</span></label>
+                <div id="tr-chart-node-size" class="tr-chart tr-chart-compact"></div>
               </div>
-            </div>
-            <div class="tr-chart-row">
-              <div class="tr-chart-card">
+              <div class="tr-chart-card tr-chart-card-half">
                 <h3>Tablets per Node <span class="tr-tip" data-tip="Total tablet replicas (leaders + followers) per node. The load balancer aims for even distribution. Variance is normal during topology changes, tablet splits, or when tables have fewer tablets than nodes. Persistent imbalance may warrant investigation."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span>
                   <label class="tr-leader-toggle" title="Show leader tablets only"><input type="checkbox" id="tr-lo-tablets-per-node" /><span class="tr-leader-toggle-label">Leader Only</span></label>
                 </h3>
-                <div id="tr-chart-tablets-per-node" class="tr-chart"></div>
+                <div id="tr-chart-tablets-per-node" class="tr-chart tr-chart-compact"></div>
               </div>
             </div>
             <h3>Node Details</h3>
@@ -140,39 +140,45 @@
           <!-- Tablets -->
           <div id="tr-tablets-tab" class="tab-panel">
             <div class="tr-chart-row">
-              <div class="tr-chart-card tr-chart-card-half">
+              <div class="tr-chart-card tr-chart-card-third">
                 <h3>Tablet Size Distribution <span class="tr-tip" data-tip="Leader tablets grouped by SST size range. Wide spread is normal when different tables have very different data volumes. Focus on intra-table skew (see Top Skewed Tables) rather than cross-table variation."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
                 <p class="tr-chart-subtitle">Leader tablets only — ideally concentrated in a narrow range</p>
-                <div id="tr-chart-tablet-dist" class="tr-chart"></div>
+                <div id="tr-chart-tablet-dist" class="tr-chart tr-chart-compact"></div>
               </div>
-              <div class="tr-chart-card tr-chart-card-half">
+              <div class="tr-chart-card tr-chart-card-third">
                 <h3>Replication Factor <span class="tr-tip" data-tip="Distribution of replication factors across tablets. Tablets below the expected RF are under-replicated and at risk of data loss if a node fails. Under-replication usually resolves automatically once a failed node returns or a new one joins. Persistent under-replication needs investigation."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
                 <p class="tr-chart-subtitle">Tablets with RF below expected value are under-replicated</p>
-                <div id="tr-chart-replica-summary" class="tr-chart"></div>
+                <div id="tr-chart-replica-summary" class="tr-chart tr-chart-compact"></div>
               </div>
-            </div>
-            <div class="tr-chart-row">
-              <div class="tr-chart-card">
+              <div class="tr-chart-card tr-chart-card-third">
                 <h3>SST Size Histogram <span class="tr-tip" data-tip="Fine-grained distribution of individual leader tablet SST sizes. A long right tail indicates a few oversized tablets — check if they belong to tables that need more shards. Zero-size tablets are normal for empty or newly-created tables."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
                 <p class="tr-chart-subtitle">Individual leader tablet sizes — long right tail = potential split candidates</p>
-                <div id="tr-chart-tablet-histogram" class="tr-chart tr-chart-tall"></div>
+                <div id="tr-chart-tablet-histogram" class="tr-chart tr-chart-compact"></div>
               </div>
             </div>
+            <h3>Tablet Details</h3>
+            <div class="tr-drilldown-controls">
+              <label>
+                <span>Table</span>
+                <div class="tr-searchable-select" id="tr-tablet-table-select-wrap">
+                  <input type="text" id="tr-tablet-table-search" class="tr-drilldown-search" placeholder="Search tables…" autocomplete="off" />
+                  <div class="tr-searchable-options" id="tr-tablet-table-options"></div>
+                </div>
+              </label>
+            </div>
+            <p class="tr-chart-subtitle" id="tr-tablet-table-subtitle">Select a table to inspect all of its leader tablets.</p>
+            <div id="tr-tablet-details-table"></div>
           </div>
 
           <!-- Balance Analysis -->
           <div id="tr-balance-tab" class="tab-panel">
             <div id="tr-balance-summary"></div>
 
-            <!-- Auto-Split Phase + Leader Weight side-by-side -->
+            <!-- Auto-Split Phase -->
             <div class="tr-chart-row">
-              <div class="tr-chart-card tr-chart-card-half">
+              <div class="tr-chart-card">
                 <h3>Auto-Split Phase <span class="tr-tip" data-tip="Auto-split phases are PER TABLE, based on that table's shard count per node. Low phase (<1 shard/node): splits at 128 MiB. High phase (<24 shards/node): splits at 10 GiB. Final phase (≥24 shards/node): splits only at 100 GiB. Thresholds are configurable via yb-master flags. More tablets = more Raft/memory overhead — don't over-split."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
                 <div id="tr-auto-split-info"></div>
-              </div>
-              <div class="tr-chart-card tr-chart-card-half">
-                <h3>Leader Data Weight per Node <span class="tr-tip" data-tip="Total SST held by leader tablets on each node. YugabyteDB's load balancer distributes leaders by count, not by data size. So even when leader counts are equal, the actual IO workload may differ if some leaders hold much more data. This chart reveals that hidden imbalance."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
-                <div id="tr-chart-leader-weight" class="tr-chart"></div>
               </div>
             </div>
 
@@ -293,7 +299,13 @@
 
           <!-- Cluster Info -->
           <div id="tr-cluster-tab" class="tab-panel">
-            <div id="tr-version-info"></div>
+            <div id="tr-cluster-general"></div>
+            <div class="tr-cluster-grid">
+              <div id="tr-cluster-primary"></div>
+              <div id="tr-cluster-config"></div>
+            </div>
+            <h3>Placement Summary</h3>
+            <div id="tr-cluster-placement"></div>
             <h3>TServers</h3>
             <div id="tr-tserver-table"></div>
             <h3>Masters</h3>
@@ -409,6 +421,73 @@
         return str.length > max ? str.substring(0, max) + '…' : str;
       }
 
+      function escapeHtml(value) {
+        return String(value === null || value === undefined ? '' : value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function renderKeyValueSection(title, items, opts) {
+        opts = opts || {};
+        var extraClass = opts.className ? ' ' + opts.className : '';
+        var html = '<section class="tr-info-section' + extraClass + '">';
+        if (title) html += '<div class="tr-section-heading">' + escapeHtml(title) + '</div>';
+        html += '<div class="tr-key-grid">';
+        for (var i = 0; i < items.length; i++) {
+          var item = items[i];
+          html += '<div class="tr-key-item">';
+          html += '<div class="tr-key-label">' + escapeHtml(item.label) + '</div>';
+          html += '<div class="tr-key-value">' + escapeHtml(item.value) + '</div>';
+          html += '</div>';
+        }
+        html += '</div></section>';
+        return html;
+      }
+
+      function renderMiniStatCards(items) {
+        var html = '<div class="tr-mini-stats">';
+        for (var i = 0; i < items.length; i++) {
+          html += '<div class="tr-mini-stat">';
+          html += '<div class="tr-mini-stat-value">' + escapeHtml(items[i].value) + '</div>';
+          html += '<div class="tr-mini-stat-label">' + escapeHtml(items[i].label) + '</div>';
+          html += '</div>';
+        }
+        html += '</div>';
+        return html;
+      }
+
+      function renderTabletDetailsTable(rows, caption) {
+        var el = document.getElementById('tr-tablet-details-table');
+        if (!el) return;
+        if (!rows || !rows.length) {
+          el.innerHTML = '<div class="tr-no-data">No leader tablets match the current selection.</div>';
+          return;
+        }
+
+        var html = '';
+        if (caption) html += '<div class="tr-table-caption">' + escapeHtml(caption) + '</div>';
+        html += makeTable(
+          ['Tablet UUID', 'Node', 'SST', 'WAL', 'State', 'Status', 'Start Key', 'End Key'],
+          rows.map(function(r) {
+            return [
+              r.tablet_uuid,
+              r.node_name || r.node_ip || '–',
+              r.sst_human,
+              r.wal_human,
+              r.state || '–',
+              r.status || '–',
+              r.start_key_decimal || '–',
+              r.end_key_decimal || '–'
+            ];
+          }),
+          { alignRight: [2, 3, 6, 7] }
+        );
+        el.innerHTML = html;
+      }
+
       /* ─── Tab Switching ─── */
       document.querySelectorAll('.tab-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -471,16 +550,102 @@
         document.getElementById('tr-summary-cards').innerHTML = html;
       }
 
+      function renderOverviewHero(data) {
+        var overview = data.cluster_overview || {};
+        var deployment = overview.deployment || {};
+        var health = overview.health || {};
+        var capacity = overview.capacity || {};
+        var replication = overview.replication || {};
+        var hero = document.getElementById('tr-overview-hero');
+        if (!hero) return;
+
+        var statusClass = 'tr-status-good';
+        if ((health.leaderless_count || 0) > 0 || (health.under_replicated_count || 0) > 0) statusClass = 'tr-status-bad';
+        else if ((health.node_skew_pct || 0) > 20) statusClass = 'tr-status-warn';
+
+        var summaryItems = [
+          { label: 'Regions', value: deployment.region_count || 0 },
+          { label: 'Zones', value: deployment.zone_count || 0 },
+          { label: 'Replication', value: replication.expected_rf ? ('RF ' + replication.expected_rf) : 'Unknown' },
+          { label: 'Disk Footprint', value: capacity.total_size_human || '0 B' }
+        ];
+
+        var details = [
+          { label: 'TServers', value: deployment.tserver_count || 0 },
+          { label: 'Masters', value: deployment.master_count || 0 },
+          { label: 'Leaderless Tablets', value: health.leaderless_count || 0 },
+          { label: 'Node Skew', value: (health.node_skew_pct || 0) + '%' },
+          { label: 'Largest Namespace', value: capacity.largest_namespace ? (capacity.largest_namespace.name + ' (' + capacity.largest_namespace.sst_human + ')') : 'Unavailable' },
+          { label: 'Largest Node', value: capacity.largest_node ? (capacity.largest_node.ip + ' (' + capacity.largest_node.total_human + ')') : 'Unavailable' }
+        ];
+
+        var html = '<section class="tr-hero-card">';
+        html += '<div class="tr-hero-main">';
+        html += '<div class="tr-hero-kicker">Overview</div>';
+        html += '<div class="tr-hero-title-row">';
+        html += '<h3>Cluster Summary</h3>';
+        html += '<span class="tr-status-pill ' + statusClass + '">' + escapeHtml(health.status || 'Unknown') + '</span>';
+        html += '</div>';
+        html += renderMiniStatCards(summaryItems);
+        html += '</div>';
+        html += '<div class="tr-hero-side">';
+        html += renderKeyValueSection('', details, { className: 'tr-key-section-compact' });
+        html += '</div>';
+        html += '</section>';
+        hero.innerHTML = html;
+      }
+
+      function renderOverviewHighlights(data) {
+        var overview = data.cluster_overview || {};
+        var deployment = overview.deployment || {};
+        var capacity = overview.capacity || {};
+        var replication = overview.replication || {};
+        var highlightsEl = document.getElementById('tr-overview-highlights');
+        if (!highlightsEl) return;
+
+        var placementText = deployment.zones && deployment.zones.length
+          ? deployment.zones.join(', ')
+          : 'Placement data unavailable';
+        var namespaceText = capacity.largest_namespace
+          ? capacity.largest_namespace.name + ' owns ' + capacity.largest_namespace.sst_human + ' across ' + capacity.largest_namespace.table_count + ' tables.'
+          : 'Namespace ownership data unavailable.';
+        var replicationText = replication.expected_rf
+          ? 'Expected replication is RF ' + replication.expected_rf + ' with ' + (overview.health ? overview.health.under_replicated_count : 0) + ' tablets currently below target.'
+          : 'Replication summary is unavailable for this report.';
+        var nodeText = capacity.largest_node
+          ? capacity.largest_node.display_name + ' in ' + capacity.largest_node.zone + ' currently holds the largest on-disk footprint at ' + capacity.largest_node.total_human + '.'
+          : 'Per-node capacity summary unavailable.';
+
+        var cards = [
+          { title: 'Deployment Layout', body: placementText },
+          { title: 'Largest Namespace', body: namespaceText },
+          { title: 'Replication Health', body: replicationText },
+          { title: 'Largest Node', body: nodeText }
+        ];
+
+        var html = '';
+        for (var i = 0; i < cards.length; i++) {
+          html += '<section class="tr-highlight-card">';
+          html += '<div class="tr-highlight-title">' + escapeHtml(cards[i].title) + '</div>';
+          html += '<p>' + escapeHtml(cards[i].body) + '</p>';
+          html += '</section>';
+        }
+        highlightsEl.innerHTML = html;
+      }
+
       /* ═══════════════════════════════════════════════════════════════
          OVERVIEW TAB
          ═══════════════════════════════════════════════════════════════ */
       function renderOverviewTab(data) {
+        renderOverviewHero(data);
+        renderOverviewHighlights(data);
+
         if (data.zone_sizes.length) {
           var zones = data.zone_sizes.map(function(z) { return z.region + ' / ' + z.zone; });
           Plotly.newPlot('tr-chart-zone-size', [
             { x: zones, y: data.zone_sizes.map(function(z) { return z.sst_size; }), name: 'SST', type: 'bar', marker: { color: COLORS.blue, opacity: 0.85 }, hovertemplate: '%{x}<br><b>SST:</b> %{customdata}<extra></extra>', customdata: data.zone_sizes.map(function(z) { return z.sst_human; }) },
             { x: zones, y: data.zone_sizes.map(function(z) { return z.wal_size; }), name: 'WAL', type: 'bar', marker: { color: COLORS.orange, opacity: 0.85 }, hovertemplate: '%{x}<br><b>WAL:</b> %{customdata}<extra></extra>', customdata: data.zone_sizes.map(function(z) { return z.wal_human; }) },
-          ], mergeLayout({ barmode: 'group', yaxis: { title: { text: 'Size', font: { size: 11 } } } }), CONFIG);
+          ], mergeLayout({ barmode: 'group', height: 255, yaxis: { title: { text: 'Size', font: { size: 11 } } }, margin: { l: 56, r: 16, t: 24, b: 54 } }), CONFIG);
         }
 
         if (data.namespace_sizes.length) {
@@ -492,7 +657,7 @@
             marker: { color: COLORS.blue, opacity: 0.85 },
             hovertemplate: '%{y}<br><b>SST:</b> %{customdata}<extra></extra>',
             customdata: ns.map(function(n) { return n.sst_human; }),
-          }], mergeLayout({ yaxis: { autorange: 'reversed' }, xaxis: { title: { text: 'SST Size', font: { size: 11 } } }, margin: { l: 180, r: 24, t: 28, b: 56 } }), CONFIG);
+          }], mergeLayout({ height: 255, yaxis: { autorange: 'reversed' }, xaxis: { title: { text: 'SST Size', font: { size: 11 } } }, margin: { l: 180, r: 16, t: 24, b: 54 } }), CONFIG);
         }
 
         if (data.table_treemap.length) {
@@ -641,22 +806,42 @@
          ═══════════════════════════════════════════════════════════════ */
       function renderNodesTab(data) {
         if (data.node_sizes.length) {
-          var nodeLabels = data.node_sizes.map(function(n) { return n.ip + '\n' + n.zone; });
-          Plotly.newPlot('tr-chart-node-size', [
-            { x: nodeLabels, y: data.node_sizes.map(function(n) { return n.sst_size; }), name: 'SST', type: 'bar', marker: { color: COLORS.blue, opacity: 0.85 }, hovertemplate: '%{x}<br><b>SST:</b> %{customdata}<extra></extra>', customdata: data.node_sizes.map(function(n) { return n.sst_human; }) },
-            { x: nodeLabels, y: data.node_sizes.map(function(n) { return n.wal_size; }), name: 'WAL', type: 'bar', marker: { color: COLORS.orange, opacity: 0.85 }, hovertemplate: '%{x}<br><b>WAL:</b> %{customdata}<extra></extra>', customdata: data.node_sizes.map(function(n) { return n.wal_human; }) },
-          ], mergeLayout({ barmode: 'stack', yaxis: { title: { text: 'Size', font: { size: 11 } } } }), CONFIG);
+          var nodeLabels = data.node_sizes.map(function(n) { return (n.display_name || n.ip) + '\n' + n.zone; });
+          var leaderWeightMap = {};
+          (data.leader_weight || []).forEach(function(row) {
+            leaderWeightMap[row.ip] = row;
+          });
+          function plotNodeSize(leaderOnly) {
+            if (leaderOnly) {
+              Plotly.newPlot('tr-chart-node-size', [{
+                x: nodeLabels,
+                y: data.node_sizes.map(function(n) { return (leaderWeightMap[n.ip] && leaderWeightMap[n.ip].leader_sst) || 0; }),
+                type: 'bar',
+                marker: { color: COLORS.indigo, opacity: 0.85 },
+                hovertemplate: '%{x}<br><b>Leader SST:</b> %{customdata}<extra></extra>',
+                customdata: data.node_sizes.map(function(n) { return (leaderWeightMap[n.ip] && leaderWeightMap[n.ip].leader_sst_human) || '0 B'; })
+              }], mergeLayout({ height: 250, yaxis: { title: { text: 'Leader SST', font: { size: 11 } } }, margin: { l: 56, r: 16, t: 24, b: 52 } }), CONFIG);
+            } else {
+              Plotly.newPlot('tr-chart-node-size', [
+                { x: nodeLabels, y: data.node_sizes.map(function(n) { return n.sst_size; }), name: 'SST', type: 'bar', marker: { color: COLORS.blue, opacity: 0.85 }, hovertemplate: '%{x}<br><b>SST:</b> %{customdata}<extra></extra>', customdata: data.node_sizes.map(function(n) { return n.sst_human; }) },
+                { x: nodeLabels, y: data.node_sizes.map(function(n) { return n.wal_size; }), name: 'WAL', type: 'bar', marker: { color: COLORS.orange, opacity: 0.85 }, hovertemplate: '%{x}<br><b>WAL:</b> %{customdata}<extra></extra>', customdata: data.node_sizes.map(function(n) { return n.wal_human; }) },
+              ], mergeLayout({ barmode: 'stack', height: 250, yaxis: { title: { text: 'Size', font: { size: 11 } } }, margin: { l: 56, r: 16, t: 24, b: 52 } }), CONFIG);
+            }
+          }
+          plotNodeSize(false);
+          var loNodeSize = document.getElementById('tr-lo-node-size');
+          if (loNodeSize) loNodeSize.addEventListener('change', function() { plotNodeSize(this.checked); });
         }
 
         if (data.tablets_per_node.length) {
-          var ips = data.tablets_per_node.map(function(n) { return n.ip; });
+          var ips = data.tablets_per_node.map(function(n) { return n.display_name || n.ip; });
           function plotTabletsPerNode(leaderOnly) {
             Plotly.newPlot('tr-chart-tablets-per-node', [{
               x: ips,
               y: data.tablets_per_node.map(function(n) { return leaderOnly ? n.leaders : n.tablet_count; }),
               type: 'bar', marker: { color: leaderOnly ? COLORS.indigo : COLORS.teal, opacity: 0.85 },
               hovertemplate: '%{x}<br><b>' + (leaderOnly ? 'Leaders' : 'Tablets') + ':</b> %{y}<extra></extra>',
-            }], mergeLayout({ yaxis: { title: { text: leaderOnly ? 'Leader Tablets' : 'Tablets', font: { size: 11 } } } }), CONFIG);
+            }], mergeLayout({ height: 250, yaxis: { title: { text: leaderOnly ? 'Leader Tablets' : 'Tablets', font: { size: 11 } } }, margin: { l: 56, r: 16, t: 24, b: 52 } }), CONFIG);
           }
           plotTabletsPerNode(false);
           var loTPN = document.getElementById('tr-lo-tablets-per-node');
@@ -664,10 +849,10 @@
         }
 
         var rows = data.node_sizes.map(function(n) {
-          return [n.ip, n.region, n.zone, n.tablet_count, n.leaders, n.sst_human, n.wal_human, n.total_human];
+          return [n.display_name || n.ip, n.region, n.zone, n.tablet_count, n.leaders, n.sst_human, n.wal_human, n.total_human];
         });
         document.getElementById('tr-node-table').innerHTML = makeTable(
-          ['IP', 'Region', 'Zone', 'Tablets', 'Leaders', 'SST', 'WAL', 'Total'],
+          ['Node', 'Region', 'Zone', 'Tablets', 'Leaders', 'SST', 'WAL', 'Total'],
           rows, { alignRight: [3, 4, 5, 6, 7] }
         );
       }
@@ -712,6 +897,100 @@
          TABLETS TAB
          ═══════════════════════════════════════════════════════════════ */
       function renderTabletsTab(data) {
+        var tabletDetails = (data.tablet_details || []).slice();
+        var groupedByTable = {};
+        for (var td = 0; td < tabletDetails.length; td++) {
+          var item = tabletDetails[td];
+          var tableKey = item.namespace + '.' + item.table_name;
+          if (!groupedByTable[tableKey]) groupedByTable[tableKey] = [];
+          groupedByTable[tableKey].push(item);
+        }
+
+        function renderSelectedTable(tableKey) {
+          var rows = (groupedByTable[tableKey] || []).slice().sort(function(a, b) { return b.sst_size - a.sst_size; });
+          document.getElementById('tr-tablet-table-subtitle').textContent = rows.length
+            ? (rows.length + ' leader tablets for ' + tableKey)
+            : 'No leader tablets found for ' + tableKey;
+          renderTabletDetailsTable(rows, tableKey);
+        }
+
+        function initTabletTableSelector() {
+          var wrap = document.getElementById('tr-tablet-table-select-wrap');
+          var input = document.getElementById('tr-tablet-table-search');
+          var optionsEl = document.getElementById('tr-tablet-table-options');
+          if (!wrap || !input || !optionsEl) return;
+
+          var allOptions = Object.keys(groupedByTable).sort().map(function(key) {
+            var parts = key.split('.');
+            return { key: key, ns: parts[0], tbl: parts.slice(1).join('.'), count: groupedByTable[key].length };
+          });
+          var activeIdx = -1;
+
+          function renderOptions(filter) {
+            var q = (filter || '').toLowerCase();
+            var html = '';
+            var count = 0;
+            for (var i = 0; i < allOptions.length; i++) {
+              var option = allOptions[i];
+              if (q && option.key.toLowerCase().indexOf(q) === -1) continue;
+              var display = option.key + ' (' + option.count + ' tablets)';
+              html += '<div class="tr-searchable-option" data-key="' + escapeHtml(option.key) + '" data-idx="' + count + '">' + escapeHtml(display) + '</div>';
+              count++;
+            }
+            if (!count) html = '<div class="tr-searchable-no-match">No tables match "' + escapeHtml(filter || '') + '"</div>';
+            optionsEl.innerHTML = html;
+            activeIdx = -1;
+          }
+
+          function openDropdown() { wrap.classList.add('open'); renderOptions(input.value); }
+          function closeDropdown() { wrap.classList.remove('open'); activeIdx = -1; }
+
+          function selectOption(tableKey) {
+            input.value = tableKey;
+            closeDropdown();
+            renderSelectedTable(tableKey);
+          }
+
+          function setActive(idx) {
+            var items = optionsEl.querySelectorAll('.tr-searchable-option');
+            if (!items.length) return;
+            for (var i = 0; i < items.length; i++) items[i].classList.remove('active');
+            if (idx < 0) idx = items.length - 1;
+            if (idx >= items.length) idx = 0;
+            activeIdx = idx;
+            items[activeIdx].classList.add('active');
+            items[activeIdx].scrollIntoView({ block: 'nearest' });
+          }
+
+          input.addEventListener('focus', openDropdown);
+          input.addEventListener('input', openDropdown);
+          input.addEventListener('keydown', function(e) {
+            var items = optionsEl.querySelectorAll('.tr-searchable-option');
+            if (e.key === 'ArrowDown') { e.preventDefault(); setActive(activeIdx + 1); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(activeIdx - 1); }
+            else if (e.key === 'Enter') {
+              e.preventDefault();
+              if (activeIdx >= 0 && activeIdx < items.length) selectOption(items[activeIdx].getAttribute('data-key'));
+            } else if (e.key === 'Escape') { closeDropdown(); input.blur(); }
+          });
+
+          optionsEl.addEventListener('mousedown', function(e) {
+            var el = e.target.closest('.tr-searchable-option');
+            if (el) { e.preventDefault(); selectOption(el.getAttribute('data-key')); }
+          });
+
+          document.addEventListener('mousedown', function(e) {
+            if (!wrap.contains(e.target)) closeDropdown();
+          });
+
+          if (allOptions.length) {
+            input.value = allOptions[0].key;
+            renderSelectedTable(allOptions[0].key);
+          } else {
+            renderTabletDetailsTable([], '');
+          }
+        }
+
         if (data.size_distribution.length) {
           Plotly.newPlot('tr-chart-tablet-dist', [{
             x: data.size_distribution.map(function(d) { return d.label; }),
@@ -719,19 +998,35 @@
             type: 'bar',
             marker: { color: COLORS.blue, opacity: 0.85 },
             hovertemplate: '%{x}<br><b>Count:</b> %{y}<extra></extra>',
-          }], mergeLayout({ yaxis: { title: { text: 'Tablets', font: { size: 11 } } }, xaxis: { title: { text: 'Size Bucket', font: { size: 11 } } } }), CONFIG);
+          }], mergeLayout({ height: 240, yaxis: { title: { text: 'Tablets', font: { size: 11 } } }, xaxis: { title: { text: 'Size Bucket', font: { size: 11 } } }, margin: { l: 52, r: 16, t: 22, b: 54 } }), CONFIG);
         }
 
         if (data.replica_summary.length) {
+          var totalReplicas = data.replica_summary.reduce(function(sum, r) { return sum + r.tablet_count; }, 0);
+          var dominant = data.replica_summary.reduce(function(best, row) {
+            return !best || row.tablet_count > best.tablet_count ? row : best;
+          }, null);
           Plotly.newPlot('tr-chart-replica-summary', [{
             labels: data.replica_summary.map(function(r) { return 'RF ' + r.replicas; }),
             values: data.replica_summary.map(function(r) { return r.tablet_count; }),
             type: 'pie', hole: 0.55,
             marker: { colors: [COLORS.blue, COLORS.orange, COLORS.green, COLORS.red, COLORS.teal] },
-            textinfo: 'label+value+percent',
-            textfont: { size: 12 },
+            textinfo: 'none',
             hovertemplate: '%{label}<br>Count: %{value}<br>%{percent}<extra></extra>',
-          }], mergeLayout({ margin: { l: 20, r: 20, t: 20, b: 20 }, showlegend: false }), CONFIG);
+          }], mergeLayout({
+            height: 240,
+            margin: { l: 20, r: 20, t: 20, b: 20 },
+            showlegend: false,
+            annotations: [{
+              text: (dominant ? ('RF ' + dominant.replicas + '<br>') : '') + totalReplicas.toLocaleString(),
+              x: 0.5,
+              y: 0.5,
+              xref: 'paper',
+              yref: 'paper',
+              showarrow: false,
+              font: { family: 'Inter, sans-serif', size: 16, color: '#172447' }
+            }]
+          }), CONFIG);
         }
 
         if (data.tablet_sst_values.length) {
@@ -740,8 +1035,10 @@
             x: gbValues, type: 'histogram', nbinsx: 50,
             marker: { color: COLORS.blue, opacity: 0.85, line: { color: '#fff', width: 0.5 } },
             hovertemplate: 'Size: %{x:.2f} GB<br>Count: %{y}<extra></extra>',
-          }], mergeLayout({ xaxis: { title: { text: 'SST Size (GB)', font: { size: 11 } } }, yaxis: { title: { text: 'Count', font: { size: 11 } } } }), CONFIG);
+          }], mergeLayout({ height: 240, xaxis: { title: { text: 'SST Size (GB)', font: { size: 11 } } }, yaxis: { title: { text: 'Count', font: { size: 11 } } }, margin: { l: 52, r: 16, t: 22, b: 54 } }), CONFIG);
         }
+
+        initTabletTableSelector();
       }
 
       /* ═══════════════════════════════════════════════════════════════
@@ -772,9 +1069,6 @@
 
         /* ─── Auto-Split Phase Info ─── */
         renderAutoSplitInfo(data);
-
-        /* ─── Leader Data Weight ─── */
-        renderLeaderWeight(data);
 
         /* ─── Node Comparison Waterfall ─── */
         renderWaterfall(data);
@@ -1229,24 +1523,51 @@
          CLUSTER TAB
          ═══════════════════════════════════════════════════════════════ */
       function renderClusterTab(data) {
-        if (data.version_info && Object.keys(data.version_info).length) {
-          var v = data.version_info;
-          var html = '<div class="tr-version-info">';
-          html += '<span><b>Parser:</b> ' + (v.program || '–') + '</span>';
-          html += '<span><b>Version:</b> ' + (v.version || '–') + '</span>';
-          html += '<span><b>Run on:</b> ' + (v.run_on || '–') + '</span>';
-          html += '<span><b>Host:</b> ' + (v.host || '–').trim() + '</span>';
-          html += '</div>';
-          document.getElementById('tr-version-info').innerHTML = html;
+        var sections = data.cluster_sections || {};
+        var generalEl = document.getElementById('tr-cluster-general');
+        var primaryEl = document.getElementById('tr-cluster-primary');
+        var configEl = document.getElementById('tr-cluster-config');
+        var placementEl = document.getElementById('tr-cluster-placement');
+
+        if (generalEl) {
+          generalEl.innerHTML = renderKeyValueSection('General', sections.general || []);
+        }
+
+        if (primaryEl) {
+          primaryEl.innerHTML = renderKeyValueSection('Primary Cluster', sections.primary_cluster || []);
+        }
+
+        if (configEl) {
+          configEl.innerHTML = renderKeyValueSection('Derived Configuration', sections.derived_config || []);
+        }
+
+        if (placementEl) {
+          var placementRows = (data.placement_summary || []).map(function(row) {
+            return [
+              row.region,
+              row.zone,
+              row.nodes,
+              row.tablets,
+              row.leaders,
+              row.sst_human,
+              row.wal_human,
+              row.total_human
+            ];
+          });
+          placementEl.innerHTML = makeTable(
+            ['Region', 'Zone', 'Nodes', 'Tablets', 'Leaders', 'SST', 'WAL', 'Total'],
+            placementRows,
+            { alignRight: [2, 3, 4, 5, 6, 7] }
+          );
         }
 
         document.getElementById('tr-tserver-table').innerHTML = makeTable(
-          ['IP', 'UUID', 'Region', 'Zone', 'Port', 'Uptime'],
-          data.tservers.map(function(t) { return [t.ip, t.uuid, t.region, t.zone, t.port, t.uptime || '–']; })
+          ['Node', 'UUID', 'Region', 'Zone', 'Port', 'Uptime'],
+          data.tservers.map(function(t) { return [t.display_name || t.ip, t.uuid, t.region, t.zone, t.port, t.uptime || '–']; })
         );
         document.getElementById('tr-master-table').innerHTML = makeTable(
-          ['IP', 'UUID', 'Region', 'Zone', 'Port', 'Role'],
-          data.masters.map(function(m) { return [m.ip, m.uuid, m.region, m.zone, m.port, m.role || '–']; })
+          ['Node', 'UUID', 'Region', 'Zone', 'Port', 'Role'],
+          data.masters.map(function(m) { return [m.display_name || m.ip, m.uuid, m.region, m.zone, m.port, m.role || '–']; })
         );
       }
 

@@ -605,6 +605,20 @@ class LogAnalyzerWebApp:
         return f"{val:.1f} {units[i]}"
 
     @staticmethod
+    def _partition_key_to_decimal(value: Any) -> str:
+        if value is None:
+            return "–"
+        text = str(value).strip()
+        if not text:
+            return "–"
+        if text.startswith("0x"):
+            try:
+                return str(int(text[2:] or "0", 16))
+            except ValueError:
+                return text
+        return text
+
+    @staticmethod
     def _resolve_tablet_report_db(db_path: str) -> Optional[Path]:
         """Resolve a user-provided path to an actual .sqlite file.
 
@@ -648,6 +662,18 @@ class LogAnalyzerWebApp:
             # --- Cluster info ---
             cur.execute("SELECT * FROM cluster ORDER BY type, zone, ip")
             cluster_rows = [dict(r) for r in cur.fetchall()]
+
+            def node_display_name(row: Dict[str, Any]) -> str:
+                for key in ("node_name", "nodeName", "name", "hostname", "host"):
+                    val = row.get(key)
+                    if val:
+                        return str(val)
+                return str(row.get("ip") or row.get("uuid") or "Unknown")
+
+            for row in cluster_rows:
+                row["display_name"] = node_display_name(row)
+
+            cluster_by_uuid = {row.get("uuid"): row for row in cluster_rows if row.get("uuid")}
             tservers = [r for r in cluster_rows if r['type'] == 'TSERVER']
             masters = [r for r in cluster_rows if r['type'] == 'MASTER']
 
@@ -694,6 +720,7 @@ class LogAnalyzerWebApp:
             node_sizes = []
             for r in cur.fetchall():
                 row = dict(r)
+                row['display_name'] = cluster_by_uuid.get(row['node_uuid'], {}).get('display_name', row['ip'])
                 row['total_size'] = row['sst_size'] + row['wal_size']
                 row['sst_human'] = fmt(row['sst_size'])
                 row['wal_human'] = fmt(row['wal_size'])
@@ -768,6 +795,39 @@ class LogAnalyzerWebApp:
             """)
             tablet_sst_values = [r['sst_val'] for r in cur.fetchall()]
 
+            cur.execute(f"""
+                SELECT t.tablet_uuid,
+                       t.namespace,
+                       t.table_name,
+                       t.node_uuid,
+                       c.ip as node_ip,
+                       c.region,
+                       c.zone,
+                       {SST} as sst_size,
+                       {WAL} as wal_size,
+                       t.state,
+                       t.status,
+                       t.start_key,
+                       t.end_key
+                FROM tablet t
+                LEFT JOIN cluster c ON c.uuid = t.node_uuid AND c.type='TSERVER'
+                WHERE t.node_uuid = t.leader
+                  AND t.lease_status='HAS_LEASE'
+                  AND typeof(t.sst_size)='integer'
+                  AND t.sst_size > 0
+                ORDER BY t.namespace, t.table_name, {SST} DESC
+            """)
+            tablet_details = []
+            for r in cur.fetchall():
+                row = dict(r)
+                cluster_row = cluster_by_uuid.get(row['node_uuid'], {})
+                row['node_name'] = cluster_row.get('display_name', row.get('node_ip') or row['node_uuid'])
+                row['sst_human'] = fmt(row['sst_size'])
+                row['wal_human'] = fmt(row['wal_size'])
+                row['start_key_decimal'] = self._partition_key_to_decimal(row.get('start_key'))
+                row['end_key_decimal'] = self._partition_key_to_decimal(row.get('end_key'))
+                tablet_details.append(row)
+
             # SST size buckets for distribution
             buckets = [
                 (0, 1*1024*1024*1024, '<1 GB'),
@@ -835,6 +895,9 @@ class LogAnalyzerWebApp:
                 ORDER BY c.region, c.zone, c.ip
             """)
             tablets_per_node = [dict(r) for r in cur.fetchall()]
+            for row in tablets_per_node:
+                match = next((n for n in node_sizes if n['ip'] == row['ip']), None)
+                row['display_name'] = match['display_name'] if match else row['ip']
 
             # --- Replica summary ---
             try:
@@ -1079,11 +1142,133 @@ class LogAnalyzerWebApp:
                     if len(partial_spread) >= 30:
                         break
 
+            # ─── Derived overview/settings payloads for product-style UI ───
+            region_names = sorted({n.get('region') or 'Unknown' for n in tservers})
+            zone_pairs = sorted({
+                ((n.get('region') or 'Unknown'), (n.get('zone') or 'Unknown'))
+                for n in tservers
+            })
+            zone_labels = [
+                f"{region} / {zone}"
+                for region, zone in zone_pairs
+            ]
+
+            expected_rf = None
+            under_replicated_count = 0
+            if replica_summary:
+                try:
+                    expected_row = max(
+                        replica_summary,
+                        key=lambda r: int(r.get('tablet_count', 0) or 0),
+                    )
+                    expected_rf = int(expected_row.get('replicas', 0) or 0)
+                    under_replicated_count = sum(
+                        int(r.get('tablet_count', 0) or 0)
+                        for r in replica_summary
+                        if int(r.get('replicas', 0) or 0) < expected_rf
+                    )
+                except Exception:
+                    expected_rf = None
+                    under_replicated_count = 0
+
+            largest_namespace = namespace_sizes[0] if namespace_sizes else None
+            largest_node = max(node_sizes, key=lambda n: n['total_size']) if node_sizes else None
+            total_leaders = sum(int(n.get('leaders', 0) or 0) for n in node_sizes)
+
+            cluster_overview = {
+                'deployment': {
+                    'regions': region_names,
+                    'zones': zone_labels,
+                    'region_count': len(region_names),
+                    'zone_count': len(zone_labels),
+                    'tserver_count': len(tservers),
+                    'master_count': len(masters),
+                },
+                'health': {
+                    'leaderless_count': leaderless_count,
+                    'node_skew_pct': node_skew_pct,
+                    'under_replicated_count': under_replicated_count,
+                    'status': (
+                        'Needs attention'
+                        if leaderless_count > 0 or node_skew_pct > 20 or under_replicated_count > 0
+                        else 'Healthy'
+                    ),
+                },
+                'capacity': {
+                    'total_size_human': fmt(total_sst + total_wal),
+                    'total_sst_human': fmt(total_sst),
+                    'total_wal_human': fmt(total_wal),
+                    'avg_node_size_human': fmt(avg_node_size),
+                    'largest_node': {
+                        'ip': largest_node['ip'],
+                        'display_name': largest_node.get('display_name', largest_node['ip']),
+                        'zone': largest_node['zone'],
+                        'total_human': largest_node['total_human'],
+                    } if largest_node else None,
+                    'largest_namespace': {
+                        'name': largest_namespace['namespace'],
+                        'sst_human': largest_namespace['sst_human'],
+                        'table_count': largest_namespace['table_count'],
+                    } if largest_namespace else None,
+                },
+                'replication': {
+                    'expected_rf': expected_rf,
+                    'under_replicated_count': under_replicated_count,
+                    'total_leaders': total_leaders,
+                    'total_tablets': total_tablets,
+                    'unique_tablets': unique_tablets,
+                },
+            }
+
+            cluster_sections = {
+                'general': [
+                    {'label': 'Report File', 'value': Path(db_path).name},
+                    {'label': 'Parser', 'value': version_info.get('program') or 'tablet_report_parser.py'},
+                    {'label': 'Parser Version', 'value': version_info.get('version') or 'Unknown'},
+                    {'label': 'Run On', 'value': version_info.get('run_on') or 'Unknown'},
+                    {'label': 'Host', 'value': (version_info.get('host') or 'Unknown').strip() or 'Unknown'},
+                    {'label': 'Status', 'value': cluster_overview['health']['status']},
+                ],
+                'primary_cluster': [
+                    {'label': 'Fault Tolerance', 'value': f"{len(zone_labels)} zones across {len(region_names)} regions" if zone_labels else 'Single zone'},
+                    {'label': 'Replication Factor', 'value': f"RF {expected_rf}" if expected_rf else 'Unavailable'},
+                    {'label': 'Nodes', 'value': str(len(tservers))},
+                    {'label': 'Masters', 'value': str(len(masters))},
+                    {'label': 'Leader Tablets', 'value': f"{total_leaders:,}"},
+                    {'label': 'Disk Footprint', 'value': fmt(total_sst + total_wal)},
+                ],
+                'derived_config': [
+                    {'label': 'Auto-Split Phase', 'value': auto_split_phase.title()},
+                    {'label': 'Split Threshold', 'value': fmt(split_threshold)},
+                    {'label': 'Leader Tablets Above Threshold', 'value': f"{above_threshold:,}"},
+                    {'label': 'Node Skew', 'value': f"{node_skew_pct}%"},
+                    {'label': 'Leaderless Tablets', 'value': f"{leaderless_count:,}"},
+                    {'label': 'G-Flags', 'value': 'Not available in tablet report SQLite'},
+                ],
+            }
+
+            placement_summary = [
+                {
+                    'region': z.get('region') or 'Unknown',
+                    'zone': z.get('zone') or 'Unknown',
+                    'nodes': z.get('tserver_count', 0),
+                    'tablets': z.get('tablet_count', 0),
+                    'leaders': z.get('leaders', 0),
+                    'sst_human': z.get('sst_human', '0 B'),
+                    'wal_human': z.get('wal_human', '0 B'),
+                    'total_human': z.get('total_human', '0 B'),
+                }
+                for z in zone_sizes
+            ]
+
             return {
                 'cluster': cluster_rows,
                 'tservers': tservers,
                 'masters': masters,
                 'version_info': version_info,
+                'cluster_overview': cluster_overview,
+                'cluster_sections': cluster_sections,
+                'placement_summary': placement_summary,
                 'summary': {
                     'tserver_count': len(tservers),
                     'master_count': len(masters),
@@ -1108,6 +1293,7 @@ class LogAnalyzerWebApp:
                 'namespace_sizes': namespace_sizes,
                 'table_sizes': table_sizes,
                 'tablet_sst_values': tablet_sst_values,
+                'tablet_details': tablet_details,
                 'size_distribution': size_distribution,
                 'unbalanced_tables': unbalanced_tables,
                 'skew_analysis': skew_analysis,
