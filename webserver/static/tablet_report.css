@@ -926,13 +926,20 @@ body {
 .tr-hero-card,
 .tr-cluster-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
   gap: 1em;
   margin-bottom: 1em;
   padding: 1.15em 1.2em;
   background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
   border: 1px solid #dde5f1;
   border-radius: 16px;
+}
+
+.tr-hero-card {
+  grid-template-columns: 1fr;
+}
+
+.tr-cluster-hero {
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
 }
 
 .tr-hero-kicker {

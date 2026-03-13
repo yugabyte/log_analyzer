@@ -570,15 +570,6 @@
           { label: 'Disk Footprint', value: capacity.total_size_human || '0 B' }
         ];
 
-        var details = [
-          { label: 'TServers', value: deployment.tserver_count || 0 },
-          { label: 'Masters', value: deployment.master_count || 0 },
-          { label: 'Leaderless Tablets', value: health.leaderless_count || 0 },
-          { label: 'Node Skew', value: (health.node_skew_pct || 0) + '%' },
-          { label: 'Largest Namespace', value: capacity.largest_namespace ? (capacity.largest_namespace.name + ' (' + capacity.largest_namespace.sst_human + ')') : 'Unavailable' },
-          { label: 'Largest Node', value: capacity.largest_node ? (capacity.largest_node.ip + ' (' + capacity.largest_node.total_human + ')') : 'Unavailable' }
-        ];
-
         var html = '<section class="tr-hero-card">';
         html += '<div class="tr-hero-main">';
         html += '<div class="tr-hero-kicker">Overview</div>';
@@ -587,9 +578,6 @@
         html += '<span class="tr-status-pill ' + statusClass + '">' + escapeHtml(health.status || 'Unknown') + '</span>';
         html += '</div>';
         html += renderMiniStatCards(summaryItems);
-        html += '</div>';
-        html += '<div class="tr-hero-side">';
-        html += renderKeyValueSection('', details, { className: 'tr-key-section-compact' });
         html += '</div>';
         html += '</section>';
         hero.innerHTML = html;
