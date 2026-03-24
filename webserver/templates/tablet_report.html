@@ -1178,7 +1178,7 @@
           final: 'Conservative splitting — only tablets > 100 GiB auto-split. Consider lowering tablet_force_split_threshold_bytes if tablets in the 10–100 GB range should split.'
         };
         var phaseNote = {
-          low: 'This phase completes once the table reaches ~8 tablets/node.',
+          low: 'This phase completes once the table reaches ~1 shard/node.',
           high: 'This phase continues until the table reaches ~24 shards/node.',
           final: 'To split tablets below 100 GiB, use manual splitting (yb-admin split_tablet) or lower the force threshold flag.'
         };
@@ -1196,7 +1196,106 @@
           html += '<span style="color:' + COLORS.red + ';font-weight:600">' + info.below_threshold_large + ' tablets are 10–100 GB and won\'t auto-split at current settings</span>';
         }
         html += '</div></div>';
+
+        html += '<div style="margin-top:1em;background:#f0f9ff;border:1px solid #7dd3fc;border-radius:8px;padding:12px 16px">';
+        html += '<div style="font-size:0.85em;font-weight:600;color:#0369a1;margin-bottom:8px">Threshold Overrides <span style="font-weight:400;color:#64748b">(adjust if the cluster uses non-default flag values)</span></div>';
+        html += '<div style="display:flex;flex-wrap:wrap;gap:0.6em 1.5em;align-items:end;font-size:0.82em">';
+        html += '<label style="color:#374151">Low phase shards/node<br><input type="number" id="tr-flag-low-shard" value="1" min="1" step="1" style="width:5em;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.95em"></label>';
+        html += '<label style="color:#374151">Low threshold (MiB)<br><input type="number" id="tr-flag-low-mb" value="128" min="1" step="1" style="width:5em;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.95em"></label>';
+        html += '<label style="color:#374151">High phase shards/node<br><input type="number" id="tr-flag-high-shard" value="24" min="1" step="1" style="width:5em;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.95em"></label>';
+        html += '<label style="color:#374151">High threshold (GiB)<br><input type="number" id="tr-flag-high-gb" value="10" min="1" step="1" style="width:5em;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.95em"></label>';
+        html += '<label style="color:#374151">Force threshold (GiB)<br><input type="number" id="tr-flag-force-gb" value="100" min="1" step="1" style="width:5em;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.95em"></label>';
+        html += '<button id="tr-flag-apply" class="btn btn-secondary" style="font-size:0.82em;padding:0.35em 0.9em;align-self:end">Recalculate</button>';
+        html += '<button id="tr-flag-reset" class="btn btn-secondary" style="font-size:0.82em;padding:0.35em 0.7em;align-self:end;color:#64748b">Reset Defaults</button>';
+        html += '</div></div>';
+
+        html += '<div id="tr-pending-splits-container" style="margin-top:0.8em"></div>';
+
         document.getElementById('tr-auto-split-info').innerHTML = html;
+
+        function computePendingSplits() {
+          var lowShard = parseFloat(document.getElementById('tr-flag-low-shard').value) || 1;
+          var lowBytes = (parseFloat(document.getElementById('tr-flag-low-mb').value) || 128) * 1024 * 1024;
+          var highShard = parseFloat(document.getElementById('tr-flag-high-shard').value) || 24;
+          var highBytes = (parseFloat(document.getElementById('tr-flag-high-gb').value) || 10) * 1024 * 1024 * 1024;
+          var forceBytes = (parseFloat(document.getElementById('tr-flag-force-gb').value) || 100) * 1024 * 1024 * 1024;
+          var tserverCount = (data.summary && data.summary.tserver_count) || 1;
+          var shardInfo = info.table_shard_info || {};
+          var tablets = data.tablet_details || [];
+
+          var pending = [];
+          for (var i = 0; i < tablets.length; i++) {
+            var td = tablets[i];
+            var tableKey = td.namespace + '.' + td.table_name;
+            var si = shardInfo[tableKey] || {};
+            var totalReplicas = si.total_replicas || 0;
+            var uniqueTablets = si.unique_tablets || 0;
+            var shardsPn = totalReplicas / tserverCount;
+            var uniqPn = uniqueTablets / tserverCount;
+            var tblPhase, tblThreshold;
+            if (uniqPn < lowShard) {
+              tblPhase = 'low'; tblThreshold = lowBytes;
+            } else if (shardsPn < highShard) {
+              tblPhase = 'high'; tblThreshold = highBytes;
+            } else {
+              tblPhase = 'final'; tblThreshold = forceBytes;
+            }
+            if (td.sst_size >= tblThreshold) {
+              pending.push({
+                namespace: td.namespace,
+                table_name: td.table_name,
+                tablet_uuid: td.tablet_uuid,
+                sst_size: td.sst_size,
+                sst_human: td.sst_human || formatBytes(td.sst_size),
+                table_phase: tblPhase,
+                table_threshold_human: formatBytes(tblThreshold),
+                node_name: td.node_name || ''
+              });
+            }
+          }
+          pending.sort(function(a, b) { return b.sst_size - a.sst_size; });
+          if (pending.length > 50) pending = pending.slice(0, 50);
+
+          var container = document.getElementById('tr-pending-splits-container');
+          if (pending.length > 0) {
+            var h = '<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:12px 16px">';
+            h += '<div style="display:flex;align-items:center;gap:0.5em;margin-bottom:8px">';
+            h += '<span style="color:#dc2626;font-weight:700;font-size:0.9em"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.1em;height:1.1em;vertical-align:-0.15em;flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ' + pending.length + ' tablet' + (pending.length > 1 ? 's' : '') + ' exceed' + (pending.length === 1 ? 's' : '') + ' the auto-split threshold but ha' + (pending.length === 1 ? 's' : 've') + ' not split yet</span>';
+            h += '</div>';
+            h += '<p style="font-size:0.82em;color:#7f1d1d;margin:0 0 8px 0">These leader tablets are larger than their table\'s per-table auto-split threshold. If auto-split is enabled, they may be queued or blocked. Check <code>enable_automatic_tablet_splitting</code>, concurrency limits (<code>outstanding_tablet_split_limit_per_tserver</code>), and master logs for errors.</p>';
+            var rows = pending.map(function(t) {
+              return [
+                t.namespace,
+                t.table_name,
+                '<code style="font-size:0.82em">' + t.tablet_uuid + '</code>',
+                t.sst_human,
+                '<span style="color:' + phaseColors[t.table_phase] + ';font-weight:600">' + phaseLabels[t.table_phase] + '</span>',
+                t.table_threshold_human,
+                t.node_name
+              ];
+            });
+            h += makeTable(
+              ['Namespace', 'Table', 'Tablet UUID', 'SST Size', 'Table Phase', 'Threshold', 'Leader Node'],
+              rows, { alignRight: [3, 5] }
+            );
+            h += '</div>';
+            container.innerHTML = h;
+          } else {
+            container.innerHTML = '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 16px;font-size:0.85em;color:#166534">No tablets found exceeding their table\'s auto-split threshold.</div>';
+          }
+        }
+
+        document.getElementById('tr-flag-apply').addEventListener('click', computePendingSplits);
+        document.getElementById('tr-flag-reset').addEventListener('click', function() {
+          document.getElementById('tr-flag-low-shard').value = '1';
+          document.getElementById('tr-flag-low-mb').value = '128';
+          document.getElementById('tr-flag-high-shard').value = '24';
+          document.getElementById('tr-flag-high-gb').value = '10';
+          document.getElementById('tr-flag-force-gb').value = '100';
+          computePendingSplits();
+        });
+
+        computePendingSplits();
       }
 
       /* ═══════════════════════════════════════════════════════════════

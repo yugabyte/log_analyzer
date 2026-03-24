@@ -1100,6 +1100,27 @@ class LogAnalyzerWebApp:
                 'total_leader_tablets': len(tablet_sst_values),
             }
 
+            # ─── Per-table shard counts (for client-side pending split detection) ───
+            table_shard_info = {}
+            try:
+                cur.execute("""
+                    SELECT namespace, table_name,
+                           COUNT(*) as total_replicas,
+                           COUNT(DISTINCT tablet_uuid) as unique_tablets
+                    FROM tablet
+                    WHERE typeof(sst_size)='integer'
+                    GROUP BY namespace, table_name
+                """)
+                for r in cur.fetchall():
+                    key = r['namespace'] + '.' + r['table_name']
+                    table_shard_info[key] = {
+                        'total_replicas': r['total_replicas'],
+                        'unique_tablets': r['unique_tablets'],
+                    }
+            except Exception:
+                pass
+            auto_split_info['table_shard_info'] = table_shard_info
+
             # ─── NEW: Leader data weight per node ───
             cur.execute(f"""
                 SELECT c.ip,

@@ -35,7 +35,7 @@ This section shows the current automatic tablet splitting phase for the cluster.
 
 | Phase | Condition | Split Threshold | Description |
 |-------|-----------|----------------|-------------|
-| **Low** (Green) | < 1 shard/node | 128 MiB | Aggressive splitting. The cluster has very few tablets per node, so the system splits early to improve parallelism. This phase completes once the table reaches approximately 8 tablets per node. |
+| **Low** (Green) | < 1 shard/node | 128 MiB | Aggressive splitting. The cluster has very few tablets per node, so the system splits early to improve parallelism. This phase completes once the table reaches approximately 1 shard per node. |
 | **High** (Orange) | 1–24 shards/node | 10 GiB | Moderate splitting. Distribution is already reasonable. The system avoids over-splitting to limit Raft consensus overhead. Continues until approximately 24 shards per node. |
 | **Final** (Red) | ≥ 24 shards/node | 100 GiB | Conservative splitting. Only very large tablets (>100 GiB) auto-split. To split tablets below this threshold, use manual splitting (`yb-admin split_tablet`) or lower the `tablet_force_split_threshold_bytes` flag. |
 
@@ -46,13 +46,48 @@ This section shows the current automatic tablet splitting phase for the cluster.
 - **Leader tablets above threshold:** How many leader tablets currently exceed the auto-split threshold
 - **Tablets in 10–100 GB range (Final phase only):** Warning count of tablets that are large but won't auto-split at current settings
 
+**Threshold Overrides:**
+
+A blue panel labeled **Threshold Overrides** allows you to adjust the auto-split flag values used for analysis. By default, the analysis assumes the YugabyteDB defaults:
+
+| Field | Corresponds to Flag | Default |
+|-------|---------------------|---------|
+| Low phase shards/node | `tablet_split_low_phase_shard_count_per_node` | 1 |
+| Low threshold (MiB) | `tablet_split_low_phase_size_threshold_bytes` | 128 |
+| High phase shards/node | `tablet_split_high_phase_shard_count_per_node` | 24 |
+| High threshold (GiB) | `tablet_split_high_phase_size_threshold_bytes` | 10 |
+| Force threshold (GiB) | `tablet_force_split_threshold_bytes` | 100 |
+
+If the cluster uses non-default flag values, enter the actual values and click **Recalculate** to rerun the analysis with the correct thresholds. Click **Reset Defaults** to restore the standard values.
+
+**Pending Splits Warning:**
+
+When tablets are detected that exceed their table's auto-split threshold but haven't split, a red warning panel is displayed. This panel performs **per-table** phase detection — since auto-split phases are determined per table (not cluster-wide), each table's shard count per node determines its individual phase and threshold. The panel lists:
+
+| Column | Description |
+|--------|-------------|
+| **Namespace** | Database/keyspace name |
+| **Table** | Table name |
+| **Tablet UUID** | The specific tablet that exceeds the threshold |
+| **SST Size** | Current SST size of the leader tablet |
+| **Table Phase** | The auto-split phase for this specific table (Low/High/Final) |
+| **Threshold** | The split threshold for this table's phase |
+| **Leader Node** | The node hosting the leader replica |
+
+If pending splits appear, investigate:
+- Is `enable_automatic_tablet_splitting` set to `true`?
+- Are split concurrency limits (`outstanding_tablet_split_limit_per_tserver`) throttling splits?
+- Are there errors in the yb-master logs related to tablet splitting?
+- Is the table a colocated table (colocated tables cannot be split)?
+- Is the table covered by xCluster replication or PITR schedules that may block splitting?
+
 **How to Interpret:**
 
 - If you're in the **Final phase** and see tablets in the 10–100 GB range that aren't splitting, consider whether:
   - The current threshold is appropriate for your workload
   - Manual splitting would be beneficial
   - The `tablet_force_split_threshold_bytes` flag should be lowered
-- Auto-split phases are **per table** in practice. The phase shown here is based on the cluster-wide average.
+- Auto-split phases are **per table** in practice. The cluster-wide phase shown is based on the overall average, while the pending splits warning uses per-table phase detection.
 
 ---
 
