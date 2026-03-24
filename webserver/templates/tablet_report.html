@@ -1254,7 +1254,6 @@
             }
           }
           pending.sort(function(a, b) { return b.sst_size - a.sst_size; });
-          if (pending.length > 50) pending = pending.slice(0, 50);
 
           var container = document.getElementById('tr-pending-splits-container');
           if (pending.length > 0) {
