@@ -11,7 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/tippy.js@6/dist/tippy-bundle.umd.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
     <div class="modern-header">
@@ -90,11 +90,6 @@
                 <h3>Storage Distribution <span class="tr-tip" data-tip="Each rectangle represents a table, sized proportionally by SST. Very small tables may not be visible. Click a namespace to zoom in. This reflects all replicas — single-replica size is shown in the Tables tab."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
                 <p class="tr-chart-subtitle">Each shape is a table, sized by leader SST. Click a namespace to drill down.</p>
                 <div style="display:flex;align-items:center;gap:0.8em;flex-wrap:wrap">
-                  <div class="tr-viz-toggle" id="tr-overview-viz-toggle" role="group" aria-label="Visualization type">
-                    <button class="active" data-type="treemap" aria-pressed="true">Treemap</button>
-                    <button data-type="sunburst" aria-pressed="false">Sunburst</button>
-                    <button data-type="icicle" aria-pressed="false">Icicle</button>
-                  </div>
                   <button class="tr-reset-zoom-btn" id="tr-overview-reset-zoom" style="display:none">Reset Zoom</button>
                 </div>
                 <div id="tr-chart-treemap" class="tr-chart tr-chart-tall" role="img" aria-label="Storage distribution visualization showing table sizes by namespace"></div>
@@ -177,7 +172,7 @@
             <!-- Auto-Split Phase -->
             <div class="tr-chart-row">
               <div class="tr-chart-card">
-                <h3>Auto-Split Phase <span class="tr-tip" data-tip="Auto-split phases are PER TABLE, based on that table's shard count per node. Low phase (<1 shard/node): splits at 128 MiB. High phase (<24 shards/node): splits at 10 GiB. Final phase (≥24 shards/node): splits only at 100 GiB. Thresholds are configurable via yb-master flags. More tablets = more Raft/memory overhead — don't over-split."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
+                <h3>Auto-Split Phase <span class="tr-tip" data-tip="Auto-split phases are PER TABLE, based on NumPartitions() ÷ num_tservers (integer division). Low phase (<1 tablet/node): splits at 128 MiB. High phase (<24 tablets/node): splits at 10 GiB. Final phase (≥24 tablets/node): splits only at 100 GiB. Thresholds are configurable via yb-master flags. More tablets = more Raft/memory overhead — don't over-split."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
                 <div id="tr-auto-split-info"></div>
               </div>
             </div>
@@ -187,14 +182,14 @@
               <div class="tr-chart-card">
                 <h3>Why Is One Node Bigger? <span class="tr-tip" data-tip="Shows table-by-table contributions to the SST size gap between two selected nodes. The gap may be transient (ongoing compactions, recent splits, pending load balancing) or structural (tables not spread across all nodes, uneven tablet counts). Investigate top contributors before taking action."><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zm.93-9.412l-.788 4.02a.5.5 0 01-.98 0l-.787-4.02a1.28 1.28 0 112.555 0zM8 11a1 1 0 100 2 1 1 0 000-2z"/></svg></span></h3>
                 <div id="tr-waterfall-selectors" style="display:flex;align-items:center;gap:0.8em;flex-wrap:wrap;margin-bottom:0.5em">
-                  <label style="font-size:0.85em;color:#374151;display:inline-flex;align-items:center;gap:0.35em">
+                  <label style="font-size:13px;color:#0B1117;display:inline-flex;align-items:center;gap:0.35em">
                     Node A <select id="tr-waterfall-node-a" class="tr-select-sm"></select>
                   </label>
-                  <span style="color:#94a3b8;font-size:0.85em">vs</span>
-                  <label style="font-size:0.85em;color:#374151;display:inline-flex;align-items:center;gap:0.35em">
+                  <span style="color:#6D7C88;font-size:13px">vs</span>
+                  <label style="font-size:13px;color:#0B1117;display:inline-flex;align-items:center;gap:0.35em">
                     Node B <select id="tr-waterfall-node-b" class="tr-select-sm"></select>
                   </label>
-                  <button id="tr-waterfall-swap" class="btn btn-secondary" style="font-size:0.78em;padding:0.3em 0.7em" data-tip="Swap the two selected nodes">&#8644; Swap</button>
+                  <button id="tr-waterfall-swap" class="btn btn-secondary" style="font-size:12px;padding:0.3em 0.7em" data-tip="Swap the two selected nodes">&#8644; Swap</button>
                 </div>
                 <p class="tr-chart-subtitle" id="tr-waterfall-subtitle"></p>
                 <div id="tr-chart-waterfall" class="tr-chart tr-chart-tall"></div>
@@ -207,7 +202,7 @@
             </h3>
             <p class="tr-chart-subtitle">Top tables by total SST — darker cells = more data on that node</p>
             <div class="tr-heatmap-controls">
-              <label style="font-size:0.8em;color:#64748b;display:inline-flex;align-items:center;gap:0.4em">
+              <label style="font-size:12px;color:#6D7C88;display:inline-flex;align-items:center;gap:0.4em">
                 Sort by
                 <select class="tr-heatmap-sort-select" id="tr-heatmap-sort">
                   <option value="total">Total Size</option>
@@ -260,19 +255,14 @@
               </div>
               <div class="tr-chart-row">
                 <div class="tr-chart-card">
-                  <h3>Tablet Storage Treemap
+                  <h3>Tablet Storage Icicle
                     <label class="tr-leader-toggle" title="Show leader tablets only"><input type="checkbox" id="tr-lo-drilldown-treemap" /><span class="tr-leader-toggle-label">Leader Only</span></label>
                   </h3>
                   <p class="tr-chart-subtitle">Each shape is a tablet replica grouped by node. Area reflects actual SST size.</p>
                   <div style="display:flex;align-items:center;gap:0.8em;flex-wrap:wrap">
-                    <div class="tr-viz-toggle" id="tr-drilldown-viz-toggle" role="group" aria-label="Drilldown visualization type">
-                      <button class="active" data-type="treemap" aria-pressed="true">Treemap</button>
-                      <button data-type="sunburst" aria-pressed="false">Sunburst</button>
-                      <button data-type="icicle" aria-pressed="false">Icicle</button>
-                    </div>
                     <button class="tr-reset-zoom-btn" id="tr-drilldown-reset-zoom" style="display:none">Reset Zoom</button>
                   </div>
-                  <div id="tr-chart-table-treemap" class="tr-chart tr-chart-tall" role="img" aria-label="Tablet storage treemap showing individual tablet sizes grouped by node"></div>
+                  <div id="tr-chart-table-treemap" class="tr-chart tr-chart-tall" role="img" aria-label="Tablet storage icicle chart showing individual tablet sizes grouped by node"></div>
                 </div>
               </div>
               <div class="tr-chart-row">
@@ -287,7 +277,7 @@
                   <h3>Individual Tablet Sizes
                     <label class="tr-leader-toggle" title="Show leader tablets only"><input type="checkbox" id="tr-lo-tablet-bars" /><span class="tr-leader-toggle-label">Leader Only</span></label>
                   </h3>
-                  <p class="tr-chart-subtitle">Each bar = one replica (sorted descending)</p>
+                  <p class="tr-chart-subtitle" id="tr-tablet-bars-subtitle">Each bar = one replica (sorted descending)</p>
                   <div id="tr-chart-table-tablet-bars" class="tr-chart"></div>
                 </div>
               </div>
@@ -321,39 +311,39 @@
 
       var DB_PATH = {{ db_path|tojson|safe }};
 
-      /* ─── Palette ─── */
+      /* ─── Palette (Yugabyte Design System) ─── */
       var COLORS = {
-        primary:   '#4361ee',
-        secondary: '#7209b7',
-        accent:    '#f72585',
-        blue:      '#4361ee',
-        indigo:    '#6366f1',
-        orange:    '#f97316',
-        green:     '#22c55e',
-        red:       '#ef4444',
-        yellow:    '#eab308',
-        teal:      '#14b8a6',
-        cyan:      '#06b6d4',
-        pink:      '#ec4899',
-        slate:     '#64748b',
-        leader:    '#4361ee',
-        follower:  '#f97316',
+        primary:   '#2B59C3',
+        secondary: '#4F4FA4',
+        accent:    '#EF5824',
+        blue:      '#2B59C3',
+        indigo:    '#4F4FA4',
+        orange:    '#EF5824',
+        green:     '#13A868',
+        red:       '#DA1515',
+        yellow:    '#FFA400',
+        teal:      '#45C8E2',
+        cyan:      '#507CE1',
+        pink:      '#7B7BB8',
+        slate:     '#6D7C88',
+        leader:    '#2B59C3',
+        follower:  '#EF5824',
       };
       var SEQUENCE = [
         COLORS.blue, COLORS.orange, COLORS.green, COLORS.red, COLORS.teal,
         COLORS.indigo, COLORS.pink, COLORS.cyan, COLORS.yellow, COLORS.secondary,
-        '#8b5cf6', '#0ea5e9', '#d946ef', '#84cc16', '#f43f5e'
+        '#8DABF0', '#30307F', '#F6AB91', '#13A868', '#DA1515'
       ];
 
-      /* ─── Plotly Defaults ─── */
+      /* ─── Plotly Defaults (Yugabyte Design System) ─── */
       var LAYOUT = {
-        font: { family: 'Inter, -apple-system, sans-serif', size: 12, color: '#374151' },
+        font: { family: 'Inter, -apple-system, sans-serif', size: 12, color: '#0B1117' },
         paper_bgcolor: 'rgba(0,0,0,0)',
         plot_bgcolor: 'rgba(0,0,0,0)',
         margin: { l: 60, r: 24, t: 28, b: 56 },
-        hoverlabel: { bgcolor: '#1e293b', font: { family: 'Inter, sans-serif', color: '#f1f5f9', size: 12 }, bordercolor: '#334155' },
-        xaxis: { gridcolor: '#f1f3f6', gridwidth: 1, zeroline: false, tickfont: { size: 11 } },
-        yaxis: { gridcolor: '#f1f3f6', gridwidth: 1, zeroline: false, tickfont: { size: 11 } },
+        hoverlabel: { bgcolor: '#FFFFFF', font: { family: 'Inter, sans-serif', color: '#0B1117', size: 12 }, bordercolor: '#D7DEE4' },
+        xaxis: { gridcolor: '#E9EEF2', gridwidth: 1, zeroline: false, tickfont: { size: 11, color: '#6D7C88' } },
+        yaxis: { gridcolor: '#E9EEF2', gridwidth: 1, zeroline: false, tickfont: { size: 11, color: '#6D7C88' } },
       };
       var CONFIG = { responsive: true, displayModeBar: false };
 
@@ -398,6 +388,8 @@
         return (bytes / Math.pow(1024, Math.min(i, units.length - 1))).toFixed(1) + ' ' + units[Math.min(i, units.length - 1)];
       }
 
+      var BYTES_AXIS = { tickformat: '~s', ticksuffix: 'B' };
+
       function makeTable(headers, rows, opts) {
         opts = opts || {};
         var html = '<table class="tr-data-table"><thead><tr>';
@@ -411,7 +403,7 @@
           }
           html += '</tr>';
         }
-        if (!rows.length) html += '<tr><td colspan="' + headers.length + '" style="text-align:center;color:#94a3b8;padding:2em">No data</td></tr>';
+        if (!rows.length) html += '<tr><td colspan="' + headers.length + '" style="text-align:center;color:#97A5B0;padding:2em">No data</td></tr>';
         html += '</tbody></table>';
         return html;
       }
@@ -633,7 +625,7 @@
           Plotly.newPlot('tr-chart-zone-size', [
             { x: zones, y: data.zone_sizes.map(function(z) { return z.sst_size; }), name: 'SST', type: 'bar', marker: { color: COLORS.blue, opacity: 0.85 }, hovertemplate: '%{x}<br><b>SST:</b> %{customdata}<extra></extra>', customdata: data.zone_sizes.map(function(z) { return z.sst_human; }) },
             { x: zones, y: data.zone_sizes.map(function(z) { return z.wal_size; }), name: 'WAL', type: 'bar', marker: { color: COLORS.orange, opacity: 0.85 }, hovertemplate: '%{x}<br><b>WAL:</b> %{customdata}<extra></extra>', customdata: data.zone_sizes.map(function(z) { return z.wal_human; }) },
-          ], mergeLayout({ barmode: 'group', height: 255, yaxis: { title: { text: 'Size', font: { size: 11 } } }, margin: { l: 56, r: 16, t: 24, b: 54 } }), CONFIG);
+          ], mergeLayout({ barmode: 'group', height: 255, yaxis: { title: { text: 'Size', font: { size: 11 } }, tickformat: BYTES_AXIS.tickformat, ticksuffix: BYTES_AXIS.ticksuffix }, margin: { l: 56, r: 16, t: 24, b: 54 } }), CONFIG);
         }
 
         if (data.namespace_sizes.length) {
@@ -645,19 +637,19 @@
             marker: { color: COLORS.blue, opacity: 0.85 },
             hovertemplate: '%{y}<br><b>SST:</b> %{customdata}<extra></extra>',
             customdata: ns.map(function(n) { return n.sst_human; }),
-          }], mergeLayout({ height: 255, yaxis: { autorange: 'reversed' }, xaxis: { title: { text: 'SST Size', font: { size: 11 } } }, margin: { l: 180, r: 16, t: 24, b: 54 } }), CONFIG);
+          }], mergeLayout({ height: 255, yaxis: { autorange: 'reversed' }, xaxis: { title: { text: 'SST Size', font: { size: 11 } }, tickformat: BYTES_AXIS.tickformat, ticksuffix: BYTES_AXIS.ticksuffix }, margin: { l: 180, r: 16, t: 24, b: 54 } }), CONFIG);
         }
 
         if (data.table_treemap.length) {
-          var _overviewVizType = 'treemap';
+          var _overviewVizType = 'icicle';
           var nsSet = new Set();
           var totalSST = 0;
           for (var i = 0; i < data.table_treemap.length; i++) totalSST += data.table_treemap[i].sst_size;
 
           var NS_PALETTE = [
-            '#4361ee', '#f97316', '#22c55e', '#ef4444', '#14b8a6',
-            '#8b5cf6', '#ec4899', '#06b6d4', '#eab308', '#0ea5e9',
-            '#d946ef', '#84cc16'
+            '#2B59C3', '#EF5824', '#13A868', '#DA1515', '#45C8E2',
+            '#4F4FA4', '#7B7BB8', '#507CE1', '#FFA400', '#8DABF0',
+            '#30307F', '#F6AB91'
           ];
 
           var nsMaxSST = {};
@@ -769,19 +761,6 @@
 
           plotOverviewViz(_overviewVizType);
 
-          document.querySelectorAll('#tr-overview-viz-toggle button').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-              document.querySelectorAll('#tr-overview-viz-toggle button').forEach(function(b) {
-                b.classList.remove('active');
-                b.setAttribute('aria-pressed', 'false');
-              });
-              this.classList.add('active');
-              this.setAttribute('aria-pressed', 'true');
-              _overviewVizType = this.getAttribute('data-type');
-              plotOverviewViz(_overviewVizType);
-            });
-          });
-
           document.getElementById('tr-overview-reset-zoom').addEventListener('click', function() {
             plotOverviewViz(_overviewVizType);
             this.style.display = 'none';
@@ -808,12 +787,12 @@
                 marker: { color: COLORS.indigo, opacity: 0.85 },
                 hovertemplate: '%{x}<br><b>Leader SST:</b> %{customdata}<extra></extra>',
                 customdata: data.node_sizes.map(function(n) { return (leaderWeightMap[n.ip] && leaderWeightMap[n.ip].leader_sst_human) || '0 B'; })
-              }], mergeLayout({ height: 250, yaxis: { title: { text: 'Leader SST', font: { size: 11 } } }, margin: { l: 56, r: 16, t: 24, b: 52 } }), CONFIG);
+              }], mergeLayout({ height: 250, yaxis: { title: { text: 'Leader SST', font: { size: 11 } }, tickformat: BYTES_AXIS.tickformat, ticksuffix: BYTES_AXIS.ticksuffix }, margin: { l: 56, r: 16, t: 24, b: 52 } }), CONFIG);
             } else {
               Plotly.newPlot('tr-chart-node-size', [
                 { x: nodeLabels, y: data.node_sizes.map(function(n) { return n.sst_size; }), name: 'SST', type: 'bar', marker: { color: COLORS.blue, opacity: 0.85 }, hovertemplate: '%{x}<br><b>SST:</b> %{customdata}<extra></extra>', customdata: data.node_sizes.map(function(n) { return n.sst_human; }) },
                 { x: nodeLabels, y: data.node_sizes.map(function(n) { return n.wal_size; }), name: 'WAL', type: 'bar', marker: { color: COLORS.orange, opacity: 0.85 }, hovertemplate: '%{x}<br><b>WAL:</b> %{customdata}<extra></extra>', customdata: data.node_sizes.map(function(n) { return n.wal_human; }) },
-              ], mergeLayout({ barmode: 'stack', height: 250, yaxis: { title: { text: 'Size', font: { size: 11 } } }, margin: { l: 56, r: 16, t: 24, b: 52 } }), CONFIG);
+              ], mergeLayout({ barmode: 'stack', height: 250, yaxis: { title: { text: 'Size', font: { size: 11 } }, tickformat: BYTES_AXIS.tickformat, ticksuffix: BYTES_AXIS.ticksuffix }, margin: { l: 56, r: 16, t: 24, b: 52 } }), CONFIG);
             }
           }
           plotNodeSize(false);
@@ -860,7 +839,7 @@
             customdata: top.map(function(t) { return [t.tablename, t.namespace, t.sst_tot_human, t.uniq_tablet_count]; }),
           }], mergeLayout({
             yaxis: { autorange: 'reversed', tickfont: { size: 11 } },
-            xaxis: { title: { text: 'SST Size', font: { size: 11 } } },
+            xaxis: { title: { text: 'SST Size', font: { size: 11 } }, tickformat: BYTES_AXIS.tickformat, ticksuffix: BYTES_AXIS.ticksuffix },
             margin: { l: 280, r: 24, t: 28, b: 56 },
           }), CONFIG);
         }
@@ -1012,7 +991,7 @@
               xref: 'paper',
               yref: 'paper',
               showarrow: false,
-              font: { family: 'Inter, sans-serif', size: 16, color: '#172447' }
+              font: { family: 'Inter, sans-serif', size: 16, color: '#0B1117' }
             }]
           }), CONFIG);
         }
@@ -1091,16 +1070,16 @@
             var nd = sorted[ni];
             var devPct = avgSST > 0 ? ((nd.sst_size - avgSST) / avgSST * 100) : 0;
             var devSign = devPct > 0 ? '+' : '';
-            var devColor = devPct > 5 ? COLORS.red : (devPct < -5 ? COLORS.green : '#64748b');
+            var devColor = devPct > 5 ? COLORS.red : (devPct < -5 ? COLORS.green : '#6D7C88');
             var tabletDev = avgTablets > 0 ? ((nd.tablet_count - avgTablets) / avgTablets * 100) : 0;
             var leaderDev = avgLeaders > 0 ? ((nd.leaders - avgLeaders) / avgLeaders * 100) : 0;
-            var tabletDevColor = Math.abs(tabletDev) > 10 ? '#b45309' : '#64748b';
-            var leaderDevColor = Math.abs(leaderDev) > 10 ? '#b45309' : '#64748b';
+            var tabletDevColor = Math.abs(tabletDev) > 10 ? '#b45309' : '#6D7C88';
+            var leaderDevColor = Math.abs(leaderDev) > 10 ? '#b45309' : '#6D7C88';
 
             var isMax = nd.sst_size === maxSST;
             var isMin = nd.sst_size === minSST;
-            var badge = isMax ? ' <span style="background:#fecaca;color:#991b1b;padding:1px 5px;border-radius:3px;font-size:0.78em">MAX</span>' :
-                        (isMin ? ' <span style="background:#bbf7d0;color:#166534;padding:1px 5px;border-radius:3px;font-size:0.78em">MIN</span>' : '');
+            var badge = isMax ? ' <span style="background:#FDE2E2;color:#8F0000;padding:1px 5px;border-radius:4px;font-size:0.78em">MAX</span>' :
+                        (isMin ? ' <span style="background:#CDEFE1;color:#097245;padding:1px 5px;border-radius:4px;font-size:0.78em">MIN</span>' : '');
 
             var ratio = avgSST > 0 ? (nd.sst_size / avgSST) : 0;
             var barWidth = Math.min(ratio * 100, 200);
@@ -1114,9 +1093,9 @@
             html += '<td><strong>' + nd.sst_human + '</strong></td>';
             html += '<td style="color:' + devColor + ';font-weight:600">' + devSign + devPct.toFixed(1) + '%</td>';
             html += '<td><div style="display:flex;align-items:center;gap:4px;position:relative">';
-            html += '<div style="position:absolute;left:50%;top:0;bottom:0;width:1.5px;background:#374151;z-index:1" title="Average (1.0x)"></div>';
+            html += '<div style="position:absolute;left:50%;top:0;bottom:0;width:1.5px;background:#25323D;z-index:1" title="Average (1.0x)"></div>';
             html += '<div style="flex:0 0 ' + (barWidth / 2).toFixed(1) + '%;height:14px;background:' + barColor + ';border-radius:3px;opacity:0.75;transition:all 0.3s"></div>';
-            html += '<span style="font-size:0.75em;color:#64748b;white-space:nowrap">' + ratio.toFixed(2) + 'x</span>';
+            html += '<span style="font-size:0.75em;color:#6D7C88;white-space:nowrap">' + ratio.toFixed(2) + 'x</span>';
             html += '</div></td>';
             html += '</tr>';
           }
@@ -1172,41 +1151,23 @@
         if (!info) return;
         var phaseColors = { low: COLORS.green, high: COLORS.orange, final: COLORS.red };
         var phaseLabels = { low: 'Low', high: 'High', final: 'Final' };
-        var phaseDesc = {
-          low: 'Aggressive splitting — tablets > 128 MiB auto-split. This is normal for tables with fewer than 1 shard/node.',
-          high: 'Moderate splitting — tablets > 10 GiB auto-split. Distribution is already reasonable; system avoids over-splitting to limit Raft overhead.',
-          final: 'Conservative splitting — only tablets > 100 GiB auto-split. Consider lowering tablet_force_split_threshold_bytes if tablets in the 10–100 GB range should split.'
-        };
-        var phaseNote = {
-          low: 'This phase completes once the table reaches ~1 shard/node.',
-          high: 'This phase continues until the table reaches ~24 shards/node.',
-          final: 'To split tablets below 100 GiB, use manual splitting (yb-admin split_tablet) or lower the force threshold flag.'
-        };
-        var html = '<div style="display:flex;flex-direction:column;gap:0.8em;padding:0.4em 0">';
-        html += '<div style="display:flex;align-items:center;gap:0.6em">';
-        html += '<span style="display:inline-block;padding:0.25em 0.7em;border-radius:6px;font-weight:600;font-size:0.82em;color:#fff;background:' + phaseColors[info.phase] + '">' + phaseLabels[info.phase] + ' Phase</span>';
-        html += '<span style="font-size:0.85em;color:#64748b">' + info.shards_per_node + ' shards/node (includes leaders + followers)</span>';
+        var html = '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:0.5em 1.2em;padding:0.4em 0;font-size:0.85em">';
+        html += '<span style="display:inline-block;padding:0.25em 0.7em;border-radius:6px;font-weight:600;font-size:0.92em;color:#fff;background:' + phaseColors[info.phase] + '">' + phaseLabels[info.phase] + ' Phase</span>';
+        html += '<span style="color:#6D7C88">' + info.tablets_per_node + ' tablets/node</span>';
+        html += '<span style="color:#6D7C88">Split threshold: <b style="color:#25323D">' + info.threshold_human + '</b></span>';
+        html += '<span style="color:#6D7C88">Above threshold: <b style="color:#25323D">' + info.above_threshold + '</b></span>';
         html += '</div>';
-        html += '<div style="font-size:0.85em;color:#374151">' + phaseDesc[info.phase] + '</div>';
-        html += '<div style="font-size:0.82em;color:#64748b;font-style:italic">' + phaseNote[info.phase] + '</div>';
-        html += '<div style="font-size:0.82em;color:#64748b;display:flex;flex-wrap:wrap;gap:0.4em 1.2em;margin-top:4px">';
-        html += '<span>Current split threshold: <b style="color:#374151">' + info.threshold_human + '</b></span>';
-        html += '<span>Leader tablets above threshold: <b style="color:#374151">' + info.above_threshold + '</b></span>';
-        if (info.phase === 'final' && info.below_threshold_large > 0) {
-          html += '<span style="color:' + COLORS.red + ';font-weight:600">' + info.below_threshold_large + ' tablets are 10–100 GB and won\'t auto-split at current settings</span>';
-        }
-        html += '</div></div>';
 
         html += '<div style="margin-top:1em;background:#f0f9ff;border:1px solid #7dd3fc;border-radius:8px;padding:12px 16px">';
-        html += '<div style="font-size:0.85em;font-weight:600;color:#0369a1;margin-bottom:8px">Threshold Overrides <span style="font-weight:400;color:#64748b">(adjust if the cluster uses non-default flag values)</span></div>';
+        html += '<div style="font-size:0.85em;font-weight:600;color:#0369a1;margin-bottom:8px">Threshold Overrides <span style="font-weight:400;color:#6D7C88">(adjust if the cluster uses non-default flag values)</span></div>';
         html += '<div style="display:flex;flex-wrap:wrap;gap:0.6em 1.5em;align-items:end;font-size:0.82em">';
-        html += '<label style="color:#374151">Low phase shards/node<br><input type="number" id="tr-flag-low-shard" value="1" min="1" step="1" style="width:5em;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.95em"></label>';
-        html += '<label style="color:#374151">Low threshold (MiB)<br><input type="number" id="tr-flag-low-mb" value="128" min="1" step="1" style="width:5em;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.95em"></label>';
-        html += '<label style="color:#374151">High phase shards/node<br><input type="number" id="tr-flag-high-shard" value="24" min="1" step="1" style="width:5em;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.95em"></label>';
-        html += '<label style="color:#374151">High threshold (GiB)<br><input type="number" id="tr-flag-high-gb" value="10" min="1" step="1" style="width:5em;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.95em"></label>';
-        html += '<label style="color:#374151">Force threshold (GiB)<br><input type="number" id="tr-flag-force-gb" value="100" min="1" step="1" style="width:5em;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.95em"></label>';
+        html += '<label style="color:#25323D">Low phase shards/node<br><input type="number" id="tr-flag-low-shard" value="1" min="1" step="1" style="width:5em;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.95em"></label>';
+        html += '<label style="color:#25323D">Low threshold (MiB)<br><input type="number" id="tr-flag-low-mb" value="128" min="1" step="1" style="width:5em;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.95em"></label>';
+        html += '<label style="color:#25323D">High phase shards/node<br><input type="number" id="tr-flag-high-shard" value="24" min="1" step="1" style="width:5em;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.95em"></label>';
+        html += '<label style="color:#25323D">High threshold (GiB)<br><input type="number" id="tr-flag-high-gb" value="10" min="1" step="1" style="width:5em;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.95em"></label>';
+        html += '<label style="color:#25323D">Force threshold (GiB)<br><input type="number" id="tr-flag-force-gb" value="100" min="1" step="1" style="width:5em;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:0.95em"></label>';
         html += '<button id="tr-flag-apply" class="btn btn-secondary" style="font-size:0.82em;padding:0.35em 0.9em;align-self:end">Recalculate</button>';
-        html += '<button id="tr-flag-reset" class="btn btn-secondary" style="font-size:0.82em;padding:0.35em 0.7em;align-self:end;color:#64748b">Reset Defaults</button>';
+        html += '<button id="tr-flag-reset" class="btn btn-secondary" style="font-size:0.82em;padding:0.35em 0.7em;align-self:end;color:#6D7C88">Reset Defaults</button>';
         html += '</div></div>';
 
         html += '<div id="tr-pending-splits-container" style="margin-top:0.8em"></div>';
@@ -1228,19 +1189,17 @@
             var td = tablets[i];
             var tableKey = td.namespace + '.' + td.table_name;
             var si = shardInfo[tableKey] || {};
-            var totalReplicas = si.total_replicas || 0;
             var uniqueTablets = si.unique_tablets || 0;
-            var shardsPn = totalReplicas / tserverCount;
-            var uniqPn = uniqueTablets / tserverCount;
+            var tabletsPn = Math.floor(uniqueTablets / tserverCount);
             var tblPhase, tblThreshold;
-            if (uniqPn < lowShard) {
+            if (tabletsPn < lowShard) {
               tblPhase = 'low'; tblThreshold = lowBytes;
-            } else if (shardsPn < highShard) {
+            } else if (tabletsPn < highShard) {
               tblPhase = 'high'; tblThreshold = highBytes;
             } else {
               tblPhase = 'final'; tblThreshold = forceBytes;
             }
-            if (td.sst_size >= tblThreshold) {
+            if (td.sst_size > tblThreshold) {
               pending.push({
                 namespace: td.namespace,
                 table_name: td.table_name,
@@ -1257,7 +1216,7 @@
 
           var container = document.getElementById('tr-pending-splits-container');
           if (pending.length > 0) {
-            var h = '<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:12px 16px">';
+            var h = '<div style="background:#FDE2E2;border:1px solid #f5b8b8;border-radius:8px;padding:12px 16px">';
             h += '<div style="display:flex;align-items:center;gap:0.5em;margin-bottom:8px">';
             h += '<span style="color:#dc2626;font-weight:700;font-size:0.9em"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.1em;height:1.1em;vertical-align:-0.15em;flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> ' + pending.length + ' tablet' + (pending.length > 1 ? 's' : '') + ' exceed' + (pending.length === 1 ? 's' : '') + ' the auto-split threshold but ha' + (pending.length === 1 ? 's' : 've') + ' not split yet</span>';
             h += '</div>';
@@ -1280,7 +1239,7 @@
             h += '</div>';
             container.innerHTML = h;
           } else {
-            container.innerHTML = '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 16px;font-size:0.85em;color:#166534">No tablets found exceeding their table\'s auto-split threshold.</div>';
+            container.innerHTML = '<div style="background:#CDEFE1;border:1px solid #9ae6c0;border-radius:8px;padding:10px 16px;font-size:0.85em;color:#097245">No tablets found exceeding their table\'s auto-split threshold.</div>';
           }
         }
 
@@ -1317,7 +1276,7 @@
           hovertemplate: '%{x}<br><b>Leader SST:</b> %{customdata[0]}<br>Leaders: %{customdata[1]}<extra></extra>',
           customdata: lw.map(function(l) { return [l.leader_sst_human, l.leader_count]; }),
         }], mergeLayout({
-          yaxis: { title: { text: 'Leader SST', font: { size: 11 } } },
+          yaxis: { title: { text: 'Leader SST', font: { size: 11 } }, tickformat: BYTES_AXIS.tickformat, ticksuffix: BYTES_AXIS.ticksuffix },
           margin: { l: 60, r: 24, t: 36, b: 56 },
         }), CONFIG);
       }
@@ -1423,7 +1382,7 @@
             customdata: cdata,
           }], mergeLayout({
             xaxis: { tickangle: -45, tickfont: { size: 10 } },
-            yaxis: { title: { text: 'SST difference (Node A − Node B)', font: { size: 11 } } },
+            yaxis: { title: { text: 'SST difference (Node A − Node B)', font: { size: 11 } }, tickformat: BYTES_AXIS.tickformat, ticksuffix: BYTES_AXIS.ticksuffix },
             margin: { l: 80, r: 24, t: 28, b: 120 },
           }), CONFIG);
         }
@@ -1490,7 +1449,7 @@
           html += '<tr><td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + row.table + '">' + row.table + '</td>';
           html += '<td class="text-right">' + totalHuman + '</td>';
           html += '<td class="text-right">' + spreadHuman + '</td>';
-          var nodeCountColor = nodeCount < nodes.length ? COLORS.red : '#374151';
+          var nodeCountColor = nodeCount < nodes.length ? COLORS.red : '#25323D';
           var warnIcon = nodeCount < nodes.length ? '<span class="tr-hm-warn-icon" title="Not on all nodes">&#9888;</span>' : '';
           html += '<td class="text-right" style="color:' + nodeCountColor + ';font-weight:' + (nodeCount < nodes.length ? '600' : '400') + '">' + nodeCount + '/' + nodes.length + warnIcon + '</td>';
 
@@ -1501,7 +1460,7 @@
             var humanVal = perNodeHuman[nodes[ni]] || '–';
             var intensity = globalMax > 0 ? Math.pow(val / globalMax, 0.5) : 0;
             var bg = val === 0 ? '#f8f9fb' : ylOrRd(intensity);
-            var fg = intensity > 0.6 ? '#fff' : '#374151';
+            var fg = intensity > 0.6 ? '#fff' : '#25323D';
             html += '<td class="text-right hm-cell" style="background:' + bg + ';color:' + fg + '" title="' + val + ' bytes">' + (val === 0 ? '–' : humanVal) + '</td>';
           }
           html += '</tr>';
@@ -1574,7 +1533,7 @@
         var el = document.getElementById('tr-split-recommendations');
         if (!sr || !sr.length) { el.innerHTML = '<p class="tr-no-data">No tables exceed the large table threshold.</p>'; return; }
 
-        var warnHtml = '<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:0.85em;line-height:1.55;color:#92400e">'
+        var warnHtml = '<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:0.85em;line-height:1.55;color:#9D6C00">'
           + '<strong style="color:#b45309">Before acting on these recommendations:</strong>'
           + '<ul style="margin:6px 0 0 18px;padding:0">'
           + '<li>Tablet merging is <strong>not supported</strong> — splits are permanent and irreversible.</li>'
@@ -1855,9 +1814,9 @@
           document.getElementById('tr-chart-table-tablet-dist').innerHTML = '<p class="tr-no-data">No leader tablet data.</p>';
         }
 
-        /* 2) Treemap (sqrt-scaled visuals, dual-channel color, mode toggle) */
+        /* 2) Icicle (sqrt-scaled visuals, dual-channel color, mode toggle) */
         if (tablets.length) {
-          var _ddVizType = 'treemap';
+          var _ddVizType = 'icicle';
           var _ddLeaderOnly = false;
           var nodeIpMap = {};
           for (var ni = 0; ni < tablets.length; ni++) {
@@ -1955,15 +1914,6 @@
 
           plotDrilldownViz(_ddVizType, _ddLeaderOnly);
 
-          document.querySelectorAll('#tr-drilldown-viz-toggle button').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-              document.querySelectorAll('#tr-drilldown-viz-toggle button').forEach(function(b) { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
-              this.classList.add('active'); this.setAttribute('aria-pressed', 'true');
-              _ddVizType = this.getAttribute('data-type');
-              plotDrilldownViz(_ddVizType, _ddLeaderOnly);
-            });
-          });
-
           var loTreemap = document.getElementById('tr-lo-drilldown-treemap');
           if (loTreemap) loTreemap.addEventListener('change', function() { _ddLeaderOnly = this.checked; plotDrilldownViz(_ddVizType, _ddLeaderOnly); });
 
@@ -1992,7 +1942,7 @@
             if (!leaderOnly) {
               traces.push({ x: nodeIds, y: nodeIds.map(function(id) { return nodeMap[id].follower; }), name: 'Follower', type: 'bar', marker: { color: COLORS.follower, opacity: 0.85 }, hovertemplate: '%{x}<br><b>Follower SST:</b> %{customdata}<br>Tablets: %{text}<extra></extra>', customdata: nodeIds.map(function(id) { return formatBytes(nodeMap[id].follower); }), text: nodeIds.map(function(id) { return nodeMap[id].followerCount; }) });
             }
-            Plotly.newPlot('tr-chart-table-per-node', traces, mergeLayout({ barmode: 'stack', yaxis: { title: { text: 'SST Size', font: { size: 11 } } } }), CONFIG);
+            Plotly.newPlot('tr-chart-table-per-node', traces, mergeLayout({ barmode: 'stack', yaxis: { title: { text: 'SST Size', font: { size: 11 } }, tickformat: BYTES_AXIS.tickformat, ticksuffix: BYTES_AXIS.ticksuffix } }), CONFIG);
           }
         }
         plotPerNode(false);
@@ -2000,11 +1950,21 @@
         if (loPerNode) loPerNode.addEventListener('change', function() { plotPerNode(this.checked); });
 
         /* 4) Individual tablet bars */
+        var BAR_LIMIT = 600;
         function plotTabletBars(leaderOnly) {
           var src = leaderOnly ? tablets.filter(function(t) { return t.is_leader; }) : tablets;
+          var subtitleEl = document.getElementById('tr-tablet-bars-subtitle');
           if (src.length) {
             var sorted = src.slice().sort(function(a, b) { return b.sst_val - a.sst_val; });
-            var shown = sorted.slice(0, Math.min(sorted.length, 200));
+            var truncated = sorted.length > BAR_LIMIT;
+            var shown = truncated ? sorted.slice(0, BAR_LIMIT) : sorted;
+            if (subtitleEl) {
+              var desc = leaderOnly
+                ? shown.length + ' leader tablets (sorted descending)'
+                : shown.length + ' replicas — blue = leader, orange = follower (sorted descending)';
+              if (truncated) desc += ' — showing top ' + BAR_LIMIT + ' of ' + sorted.length;
+              subtitleEl.textContent = desc;
+            }
             Plotly.newPlot('tr-chart-table-tablet-bars', [{
               x: shown.map(function(_, i) { return i + 1; }),
               y: shown.map(function(t) { return t.sst_val; }),
@@ -2014,9 +1974,10 @@
               customdata: shown.map(function(t) { return [t.tablet_uuid.substring(0, 12) + '…', formatBytes(t.sst_val), t.is_leader ? 'Leader' : 'Follower', t.node_ip || t.node_uuid.substring(0, 8)]; }),
             }], mergeLayout({
               xaxis: { title: { text: 'Tablet # (by size)', font: { size: 11 } } },
-              yaxis: { title: { text: 'SST Size', font: { size: 11 } } },
+              yaxis: { title: { text: 'SST Size', font: { size: 11 } }, tickformat: BYTES_AXIS.tickformat, ticksuffix: BYTES_AXIS.ticksuffix },
             }), CONFIG);
           } else {
+            if (subtitleEl) subtitleEl.textContent = 'No tablet data';
             document.getElementById('tr-chart-table-tablet-bars').innerHTML = '<p class="tr-no-data">No leader tablet data.</p>';
           }
         }

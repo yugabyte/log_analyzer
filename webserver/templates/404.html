@@ -3,36 +3,64 @@
   <head>
     <meta charset="UTF-8" />
     <title>404 Not Found - Support Bundle Analyzer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@700&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
     <style>
       body {
-        font-family: Inter, Arial, sans-serif;
-        background: #f8fafc;
-        color: #222;
+        font-family: "Inter", -apple-system, sans-serif;
+        background: #F7FAFC;
+        color: #0B1117;
         text-align: center;
         padding-top: 10vh;
+        margin: 0;
       }
       .code {
-        font-size: 5em;
-        color: #3b5bdb;
+        font-family: "Rubik", sans-serif;
+        font-size: 56px;
+        font-weight: 700;
+        color: #2B59C3;
+        line-height: 1.1;
       }
       .msg {
-        font-size: 1.5em;
+        font-size: 18px;
         margin-top: 0.5em;
+        color: #6D7C88;
       }
       a {
-        color: #3b5bdb;
+        color: #2B59C3;
         text-decoration: none;
+        font-weight: 500;
       }
       a:hover {
         text-decoration: underline;
+      }
+      .btn-home {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5em 1.5em;
+        height: 32px;
+        border-radius: 8px;
+        background: #EF5824;
+        color: #FFFFFF;
+        font-size: 14px;
+        font-weight: 300;
+        text-decoration: none;
+        margin-top: 2em;
+        transition: background 0.15s;
+      }
+      .btn-home:hover {
+        background: #DC4E1D;
+        text-decoration: none;
       }
     </style>
   </head>
   <body>
     <div class="code">404</div>
     <div class="msg">Sorry, the page you requested was not found.</div>
-    <div style="margin-top: 2em">
-      <a href="/">Go to Home</a>
+    <div>
+      <a href="/" class="btn-home">Go to Home</a>
     </div>
   </body>
 </html>

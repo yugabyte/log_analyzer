@@ -141,7 +141,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Show loading animation in histogram tab
     if (histogramDiv) {
       histogramDiv.innerHTML =
-        '<div style="display:flex;align-items:center;justify-content:center;height:400px;"><span class="loader" style="width:48px;height:48px;border:6px solid #e2e8f0;border-top:6px solid #36a2eb;border-radius:50%;animation:spin 1s linear infinite;margin-right:16px;"></span> <span style="font-size:1.2em;color:#888;">Loading histogram...</span></div>';
+        '<div style="display:flex;align-items:center;justify-content:center;height:400px;"><span class="loader" style="width:48px;height:48px;border:6px solid #D7DEE4;border-top:6px solid #2B59C3;border-radius:50%;animation:spin 1s linear infinite;margin-right:16px;"></span> <span style="font-size:1.2em;color:#888;">Loading histogram...</span></div>';
     }
     const interval = intervalSelect ? parseInt(intervalSelect.value) : 60;
     const start = toApiIso(startTimePicker ? startTimePicker.value : null);
@@ -258,12 +258,12 @@ document.addEventListener("DOMContentLoaded", function () {
     warningsTabBtn.style.display = "";
     let html = '<div class="warnings-list">';
     jsonData.warnings.forEach((warn, idx) => {
-      html += `<div class="log-solution-collapsible" style="margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fafbfc;">
-        <div class="log-solution-header" data-idx="${idx}" style="cursor:pointer; display:flex; align-items:center; padding: 12px 18px; font-weight:600; font-size:1.08em; color:#172447; border-radius:6px 6px 0 0; background:#f1f3f7; transition:background 0.2s;">
+      html += `<div class="log-solution-collapsible" style="margin-bottom: 12px; border: 1px solid #D7DEE4; border-radius: 6px; background: #F7FAFC;">
+        <div class="log-solution-header" data-idx="${idx}" style="cursor:pointer; display:flex; align-items:center; padding: 12px 18px; font-weight:600; font-size:1.08em; color:#0B1117; border-radius:6px 6px 0 0; background:#F0F4F7; transition:background 0.2s;">
           <span class="arrow" style="margin-right:10px; font-size:1.2em; color:#888;">&#9654;</span>
           <span>${warn.message}</span>
         </div>
-        <div class="log-solution-body" style="display:none; padding: 18px; background: #fff; border-radius:0 0 6px 6px; border-top:1px solid #e2e8f0; color:#172447;">
+        <div class="log-solution-body" style="display:none; padding: 18px; background: #fff; border-radius:0 0 6px 6px; border-top:1px solid #D7DEE4; color:#0B1117;">
           <div><b>Message:</b> ${warn.message}</div>
           ${warn.node ? `<div><b>Node:</b> ${warn.node}</div>` : ""}
           ${
@@ -478,9 +478,9 @@ document.addEventListener("DOMContentLoaded", function () {
     };
     // Prepare color mapping for each message
     const diverseColors = [
-      "#172447",
-      "#ff9400",
-      "#36a2eb",
+      "#0B1117",
+      "#EF5824",
+      "#2B59C3",
       "#e74c3c",
       "#2ecc71",
       "#9b59b6",
@@ -618,7 +618,7 @@ document.addEventListener("DOMContentLoaded", function () {
               minRotation: 45,
             },
             grid: {
-              color: "#e2e8f0",
+              color: "#D7DEE4",
             },
           },
           y: {
@@ -637,7 +637,7 @@ document.addEventListener("DOMContentLoaded", function () {
               },
             },
             grid: {
-              color: "#e2e8f0",
+              color: "#D7DEE4",
             },
             type: histogramScale === "log" ? "logarithmic" : "linear",
             beginAtZero: true,
@@ -858,7 +858,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     minRotation: 0,
                     autoSkip: false,
                   },
-                  grid: { color: "#e2e8f0", display: false },
+                  grid: { color: "#D7DEE4", display: false },
                 },
                 y: {
                   title: {
@@ -868,7 +868,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     font: { size: 15 },
                   },
                   ticks: { color: "#4a5568", font: { size: 13 } },
-                  grid: { color: "#e2e8f0", display: false },
+                  grid: { color: "#D7DEE4", display: false },
                   type: histogramScale === "log" ? "logarithmic" : "linear",
                   beginAtZero: true,
                 },
@@ -1020,7 +1020,7 @@ document.addEventListener("DOMContentLoaded", function () {
                   minRotation: 0,
                   autoSkip: false,
                 },
-                grid: { color: "#e2e8f0", display: false },
+                grid: { color: "#D7DEE4", display: false },
               },
               y: {
                 title: {
@@ -1030,7 +1030,7 @@ document.addEventListener("DOMContentLoaded", function () {
                   font: { size: 13 },
                 },
                 ticks: { color: "#4a5568", font: { size: 11 } },
-                grid: { color: "#e2e8f0", display: false },
+                grid: { color: "#D7DEE4", display: false },
                 type: histogramScale === "log" ? "logarithmic" : "linear",
                 beginAtZero: true,
               },
@@ -1426,7 +1426,7 @@ document.addEventListener("DOMContentLoaded", function () {
           solutionsMap[logName] ||
           "<em>No solution available for this log message.</em>";
         const solutionHtml = converter.makeHtml(solutionMd);
-        html += `<div class=\"log-solution-collapsible\" style=\"margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fafbfc;\">\n          <div class=\"log-solution-header\" data-idx=\"${idx}\" style=\"cursor:pointer; display:flex; align-items:center; padding: 12px 18px; font-weight:600; font-size:1.08em; color:#172447; border-radius:6px 6px 0 0; background:#f1f3f7; transition:background 0.2s;\">\n            <span class=\"arrow\" style=\"margin-right:10px; font-size:1.2em; color:#888;\">&#9654;</span>\n            <span>${logName}</span>\n          </div>\n          <div class=\"log-solution-body\" style=\"display:none; padding: 18px; background: #fff; border-radius:0 0 6px 6px; border-top:1px solid #e2e8f0;\">${solutionHtml}</div>\n        </div>`;
+        html += `<div class=\"log-solution-collapsible\" style=\"margin-bottom: 12px; border: 1px solid #D7DEE4; border-radius: 6px; background: #F7FAFC;\">\n          <div class=\"log-solution-header\" data-idx=\"${idx}\" style=\"cursor:pointer; display:flex; align-items:center; padding: 12px 18px; font-weight:600; font-size:1.08em; color:#0B1117; border-radius:6px 6px 0 0; background:#F0F4F7; transition:background 0.2s;\">\n            <span class=\"arrow\" style=\"margin-right:10px; font-size:1.2em; color:#888;\">&#9654;</span>\n            <span>${logName}</span>\n          </div>\n          <div class=\"log-solution-body\" style=\"display:none; padding: 18px; background: #fff; border-radius:0 0 6px 6px; border-top:1px solid #D7DEE4;\">${solutionHtml}</div>\n        </div>`;
         idx++;
       });
       html += "</div>";
@@ -1439,7 +1439,7 @@ document.addEventListener("DOMContentLoaded", function () {
         header.style.background = "#e6eaf3";
       };
       header.onmouseleave = function () {
-        header.style.background = "#f1f3f7";
+        header.style.background = "#F0F4F7";
       };
       header.onclick = function () {
         const content = header.nextElementSibling;
@@ -1526,9 +1526,9 @@ document.addEventListener("DOMContentLoaded", function () {
         
         // Color palette for different message prefixes
         const diverseColors = [
-          "#172447",
-          "#ff9400",
-          "#36a2eb",
+          "#0B1117",
+          "#EF5824",
+          "#2B59C3",
           "#e74c3c",
           "#2ecc71",
           "#9b59b6",
@@ -1692,7 +1692,7 @@ document.addEventListener("DOMContentLoaded", function () {
                   minRotation: 45,
                 },
                 grid: {
-                  color: "#e2e8f0",
+                  color: "#D7DEE4",
                 },
               },
               y: {
@@ -1714,7 +1714,7 @@ document.addEventListener("DOMContentLoaded", function () {
                   },
                 },
                 grid: {
-                  color: "#e2e8f0",
+                  color: "#D7DEE4",
                 },
                 beginAtZero: true,
               },
@@ -1740,7 +1740,7 @@ document.addEventListener("DOMContentLoaded", function () {
         
         // Add note explaining how labels are extracted with examples
         const noteDiv = document.createElement("div");
-        noteDiv.style.cssText = "margin-top: 1em; padding: 0.75em; font-size: 0.9em; color: #666; font-style: italic; border-top: 1px solid #e2e8f0;";
+        noteDiv.style.cssText = "margin-top: 1em; padding: 0.75em; font-size: 0.9em; color: #666; font-style: italic; border-top: 1px solid #D7DEE4;";
         noteDiv.innerHTML = "Note: Labels are extracted from messages containing 'X took a long time' or 'Time spent Y'. " +
             "Examples: 'UpdateReplica took a long time: 1.5s' → 'UpdateReplica', " +
             "'Time spent sync call for /path: real 1.0s' → 'sync call'";
@@ -1772,7 +1772,7 @@ document.addEventListener("DOMContentLoaded", function () {
         html += `<div class='related-section-collapsible'>
           <div class='related-section-header' style='cursor:pointer; display:flex; align-items:center; font-weight:600; font-size:1.15em; background:#f5f6fa; border-radius:8px 8px 0 0; padding:12px 18px; margin-bottom:0;'>
             <span class='arrow' style='margin-right:10px; font-size:1.2em; color:#888;'>&#9654;</span>
-            Reports for Cluster: <span style='color:#172447; margin-left:8px;'>${
+            Reports for Cluster: <span style='color:#0B1117; margin-left:8px;'>${
               sameCluster.length > 0
                 ? sameCluster[0].cluster_name || sameCluster[0].cluster_uuid
                 : "(none)"
@@ -1810,7 +1810,7 @@ document.addEventListener("DOMContentLoaded", function () {
         html += `<div class='related-section-collapsible' style='margin-top:2em;'>
           <div class='related-section-header' style='cursor:pointer; display:flex; align-items:center; font-weight:600; font-size:1.15em; background:#f5f6fa; border-radius:8px 8px 0 0; padding:12px 18px; margin-bottom:0;'>
             <span class='arrow' style='margin-right:10px; font-size:1.2em; color:#888;'>&#9654;</span>
-            Reports for Organization: <span style='color:#172447; margin-left:8px;'>${
+            Reports for Organization: <span style='color:#0B1117; margin-left:8px;'>${
               sameOrg.length > 0 ? sameOrg[0].organization || "" : "(none)"
             }</span>
           </div>

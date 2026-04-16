@@ -8,10 +8,7 @@
     <script src="/static/app.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body class="home-page">
     <div class="modern-header">
@@ -212,7 +209,7 @@
     <!-- Floating Help Button -->
     <button id="help-fab" title="Help">
       <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-        <circle cx="14" cy="14" r="14" fill="#3b5bdb" />
+        <circle cx="14" cy="14" r="14" fill="#EF5824" />
         <text
           x="50%"
           y="55%"
@@ -311,11 +308,11 @@
         <h2>Analyze Tablet Report</h2>
         <p class="help-modal-desc">Enter the path to a tablet report SQLite file on the server.</p>
         <div style="margin:1em 0">
-          <input id="tablet-db-path" type="text" placeholder="/path/to/tablet-report.sqlite" style="width:100%;padding:0.5em 0.7em;font-size:0.95em;border:1px solid #d1d5db;border-radius:7px;box-sizing:border-box;font-family:Inter,Arial,sans-serif" />
+          <input id="tablet-db-path" type="text" placeholder="/path/to/tablet-report.sqlite" style="width:100%;padding:0.5em 0.7em;font-size:13px;border:1px solid #DEDEE0;border-radius:8px;box-sizing:border-box;font-family:Inter,sans-serif;height:42px" />
         </div>
         <div style="display:flex;gap:0.5em;justify-content:flex-end">
-          <button onclick="document.getElementById('tablet-report-modal').style.display='none'" style="padding:0.45em 1.1em;border:1px solid #d1d5db;border-radius:6px;background:#fff;cursor:pointer;font-size:0.9em">Cancel</button>
-          <button id="tablet-report-go" style="padding:0.45em 1.1em;border:none;border-radius:6px;background:#3b5bdb;color:#fff;cursor:pointer;font-weight:600;font-size:0.9em">Analyze</button>
+          <button onclick="document.getElementById('tablet-report-modal').style.display='none'" style="padding:0.45em 1.1em;border:1px solid #DEDEE0;border-radius:8px;background:#fff;cursor:pointer;font-size:14px;font-weight:300">Cancel</button>
+          <button id="tablet-report-go" style="padding:0.45em 1.1em;border:none;border-radius:8px;background:#EF5824;color:#fff;cursor:pointer;font-weight:300;font-size:14px">Analyze</button>
         </div>
       </div>
     </div>

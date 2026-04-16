@@ -31,17 +31,17 @@ The banner also displays:
 
 **Type:** Information Panel
 
-This section shows the current automatic tablet splitting phase for the cluster. YugabyteDB uses a multi-phase auto-split algorithm that adjusts splitting aggressiveness based on the number of shards per node.
+This section shows the current automatic tablet splitting phase for the cluster. YugabyteDB uses a multi-phase auto-split algorithm that adjusts splitting aggressiveness based on the number of unique tablets per node. The metric is computed as `NumPartitions() / num_tservers` using integer division (matching `CatalogManager::ShouldSplitValidCandidate` in the YugabyteDB source), where `NumPartitions()` is the unique tablet count for that table.
 
 | Phase | Condition | Split Threshold | Description |
 |-------|-----------|----------------|-------------|
-| **Low** (Green) | < 1 shard/node | 128 MiB | Aggressive splitting. The cluster has very few tablets per node, so the system splits early to improve parallelism. This phase completes once the table reaches approximately 1 shard per node. |
-| **High** (Orange) | 1–24 shards/node | 10 GiB | Moderate splitting. Distribution is already reasonable. The system avoids over-splitting to limit Raft consensus overhead. Continues until approximately 24 shards per node. |
-| **Final** (Red) | ≥ 24 shards/node | 100 GiB | Conservative splitting. Only very large tablets (>100 GiB) auto-split. To split tablets below this threshold, use manual splitting (`yb-admin split_tablet`) or lower the `tablet_force_split_threshold_bytes` flag. |
+| **Low** (Green) | < 1 tablet/node | 128 MiB | Aggressive splitting. The table has fewer unique tablets than nodes, so the system splits early to improve parallelism. This phase completes once the table reaches 1 tablet per node. |
+| **High** (Orange) | 1–23 tablets/node | 10 GiB | Moderate splitting. Distribution is already reasonable. The system avoids over-splitting to limit Raft consensus overhead. Continues until the table reaches 24 tablets per node. |
+| **Final** (Red) | ≥ 24 tablets/node | 100 GiB | Conservative splitting. Only very large tablets (>100 GiB) auto-split. To split tablets below this threshold, use manual splitting (`yb-admin split_tablet`) or lower the `tablet_force_split_threshold_bytes` flag. |
 
 **Displayed Metrics:**
 
-- **Shards per node:** Total tablet replicas (leaders + followers) divided by TServer count
+- **Tablets per node:** Unique tablet count (partitions) divided by TServer count, using integer division
 - **Current split threshold:** The SST size above which tablets auto-split
 - **Leader tablets above threshold:** How many leader tablets currently exceed the auto-split threshold
 - **Tablets in 10–100 GB range (Final phase only):** Warning count of tablets that are large but won't auto-split at current settings

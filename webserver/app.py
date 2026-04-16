@@ -1073,31 +1073,28 @@ class LogAnalyzerWebApp:
                 pass
 
             # ─── NEW: Auto-split phase detection ───
-            unique_shards_per_node = unique_tablets / tserver_count if tserver_count > 0 else 0
-            total_shards_per_node = total_tablets / tserver_count if tserver_count > 0 else 0
-            if unique_shards_per_node < 1:
+            # YugabyteDB uses NumPartitions()/num_servers (unique tablets, integer division)
+            # for all phase checks — see catalog_manager.cc ShouldSplitValidCandidate
+            tablets_per_node = unique_tablets // tserver_count if tserver_count > 0 else 0
+            if tablets_per_node < 1:
                 auto_split_phase = 'low'
                 split_threshold = 128 * 1024 * 1024
-            elif total_shards_per_node < 24:
+            elif tablets_per_node < 24:
                 auto_split_phase = 'high'
                 split_threshold = 10 * 1024 * 1024 * 1024
             else:
                 auto_split_phase = 'final'
                 split_threshold = 100 * 1024 * 1024 * 1024
 
-            # Count leader tablets in each threshold bucket
-            above_threshold = sum(1 for v in tablet_sst_values if v >= split_threshold)
-            below_threshold_large = sum(1 for v in tablet_sst_values if v >= 10 * 1024 * 1024 * 1024 and v < split_threshold)
+            # C++ uses size > threshold (strictly greater) to allow a split
+            above_threshold = sum(1 for v in tablet_sst_values if v > split_threshold)
 
             auto_split_info = {
                 'phase': auto_split_phase,
-                'shards_per_node': round(total_shards_per_node, 1),
-                'unique_shards_per_node': round(unique_shards_per_node, 1),
+                'tablets_per_node': tablets_per_node,
                 'threshold': split_threshold,
                 'threshold_human': fmt(split_threshold),
                 'above_threshold': above_threshold,
-                'below_threshold_large': below_threshold_large,
-                'total_leader_tablets': len(tablet_sst_values),
             }
 
             # ─── Per-table shard counts (for client-side pending split detection) ───
